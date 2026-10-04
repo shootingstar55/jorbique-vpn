@@ -106,41 +106,77 @@ func TestExtractInstallFailures(t *testing.T) {
 }
 
 // A library that downloads and verifies but cannot be recorded is an error:
-// without the version marker the next start could not tell what it has.
+// without the marker the next start could not tell what it has.
 func TestEnsureCronetMarkerWriteFails(t *testing.T) {
 	body := []byte("CRONET")
-	srv := newCronetServer(t, "v150.0.7871.63-1", "libcronet-windows-amd64.dll", body, sha256Digest(body))
+	srv := newLibraryServer(t, body)
 	dataDir := t.TempDir()
 	if err := os.Mkdir(filepath.Join(dataDir, cronetVersionFileName), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	_, err := ensureCronet(srv.api(), dataDir, winPlan(""), nil)
+	_, err := ensureCronet(dataDir, winPlan(srv.libraryURL(), body), nil)
 	if err == nil || !strings.HasPrefix(err.Error(), "cronet: write version marker") {
 		t.Fatalf("err = %v, want the marker write to fail", err)
 	}
 }
 
-// EnsureCronet refuses a manifest that sends the download anywhere but GitHub,
-// before any request is made.
-func TestEnsureCronetRejectsAManifestRepoOffGitHub(t *testing.T) {
+// EnsureCronet takes the library from the manifest's block, and refuses a
+// cleartext URL to a real host before any request is made.
+func TestEnsureCronetFollowsTheManifest(t *testing.T) {
 	InvalidateManifestCache()
 	t.Cleanup(InvalidateManifestCache)
-	manifestMu.Lock()
-	cachedManifest = &SingboxManifest{Naive: &NaiveLibrary{
-		Platforms:   []string{runtime.GOOS + "-" + runtime.GOARCH},
-		SourceAsset: "libcronet-test.bin",
-		SourceRepo:  "https://evil.example/sagernet/cronet-go",
-	}}
-	cachedErr = nil
-	cachedAt = time.Now()
-	manifestMu.Unlock()
+	setManifest := func(libraryURL string, body []byte) {
+		manifestMu.Lock()
+		cachedManifest = &SingboxManifest{Naive: &NaiveLibrary{
+			Platforms: []string{runtime.GOOS + "-" + runtime.GOARCH},
+			URL:       libraryURL,
+			SHA256:    sha256Hex(body),
+		}}
+		cachedErr = nil
+		cachedAt = time.Now()
+		manifestMu.Unlock()
+	}
 
+	body := []byte("CRONET")
 	dataDir := t.TempDir()
+	setManifest("http://updates.example.invalid/libcronet-windows-amd64.dll", body)
 	got, err := EnsureCronet(dataDir, nil)
-	if err == nil || got != "" || !strings.Contains(err.Error(), "only github.com is accepted") {
-		t.Fatalf("EnsureCronet = %q, %v; want the repo refused", got, err)
+	if err == nil || got != "" || !strings.Contains(err.Error(), "must use https") {
+		t.Fatalf("EnsureCronet = %q, %v; want the cleartext URL refused", got, err)
 	}
 	if entries, _ := os.ReadDir(dataDir); len(entries) != 0 {
 		t.Errorf("files written: %v", entries)
+	}
+
+	srv := newLibraryServer(t, body)
+	setManifest(srv.libraryURL(), body)
+	got, err = EnsureCronet(dataDir, nil)
+	if err != nil || got != filepath.Join(dataDir, CronetLibraryFileName) {
+		t.Fatalf("EnsureCronet = %q, %v; want the library installed", got, err)
+	}
+}
+
+// Without a manifest nothing says which library to fetch: an installed one
+// keeps serving, and with none installed the manifest error is what is reported.
+func TestEnsureCronetWithoutAManifest(t *testing.T) {
+	manifestErr := errors.New("manifest HTTP 503")
+	dataDir := t.TempDir()
+	if _, err := ensureCronetFrom(nil, manifestErr, "windows", "amd64", dataDir, nil); err == nil || !strings.Contains(err.Error(), "manifest HTTP 503") {
+		t.Fatalf("err = %v, want the manifest error", err)
+	}
+	dest := filepath.Join(dataDir, CronetLibraryFileName)
+	if err := os.WriteFile(dest, []byte("ALREADY-HERE"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var warned bool
+	got, err := ensureCronetFrom(nil, manifestErr, "windows", "amd64", dataDir, func(_, level string) {
+		warned = warned || level == "WARN"
+	})
+	if err != nil || got != dest || !warned {
+		t.Fatalf("with a library installed: %q, %v, warned %v", got, err, warned)
+	}
+	// macOS loads no library, so a missing manifest costs it nothing.
+	if got, err := ensureCronetFrom(nil, manifestErr, "darwin", "arm64", t.TempDir(), nil); got != "" || err != nil {
+		t.Fatalf("darwin: %q, %v", got, err)
 	}
 }

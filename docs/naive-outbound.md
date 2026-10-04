@@ -1,10 +1,9 @@
 # The naive outbound and the cronet library
 
 `naive` is a naiveproxy client — Chromium's network stack. sing-box does not
-implement it: the Windows build loads it at runtime from a library published by
-[cronet-go](https://github.com/SagerNet/cronet-go/releases), which ships with
-neither sing-box nor this client. So a Windows client that is offered a `naive`
-outbound has to fetch that library itself.
+implement it: the Windows build loads it at runtime from `libcronet.dll`, which
+the sing-box download does not carry. The update server publishes that library
+beside the sing-box archive, and the client installs it next to sing-box.exe.
 
 The macOS build has naiveproxy in it natively and loads nothing. The channel
 serves the official SagerNet macOS binaries for that reason: they are built on
@@ -35,18 +34,18 @@ start with a reason if that one cannot run naive either.
 
 ## Where the library goes, and under what name
 
-`update.EnsureCronet` downloads the asset, verifies it against the sha256 GitHub
-publishes in the release metadata, and installs it **next to sing-box.exe** —
-the directory the client already downloads the binary into — under the name
-`libcronet.dll`.
+`update.EnsureCronet` downloads the file `version.json` names, verifies it
+against the sha256 `version.json` states, and installs it **next to
+sing-box.exe** — the directory the client already downloads the binary into —
+under the name `libcronet.dll`.
 
 Both details are load-bearing. cronet-go's Windows loader
 (`internal/cronet/loader_windows.go`) looks for a file called exactly
 `libcronet.dll` in the directory of the running executable, then on `$PATH`.
-Keeping the published per-arch name, or putting the file anywhere else, means
-sing-box does not find it.
+Keeping the published name, or putting the file anywhere else, means sing-box
+does not find it.
 
-## Which build — the manifest decides
+## Which build — the server publishes it
 
 `version.json` names it, in a `naive` block beside the sing-box assets:
 
@@ -54,45 +53,46 @@ sing-box does not find it.
 "naive": {
   "platforms": ["windows-amd64"],
   "library_filename": "libcronet.dll",
-  "cronet_version": "150.0.7871.63",
-  "source_repo": "https://github.com/sagernet/cronet-go",
-  "source_asset": "libcronet-windows-amd64.dll"
+  "cronet_version": "154.0.8037.49",
+  "url": "https://<host>/<channel>/libcronet-windows-amd64.dll",
+  "sha256": "8b005a933ac0d0899c047617a9cd18418810d9426d0919c824520094a2c893f5"
 }
 ```
 
-sing-box and cronet share an ABI, so the pair tested together is the pair that
-should be installed. Tracking upstream's latest means a cronet release reaches
-the fleet the day it is published, against a sing-box nobody has tried it with.
+sing-box and cronet share an ABI: symbols are looked up by name, so a library
+from another build fails at start. The server's build therefore takes the
+library from the very cronet-go Go module the Windows sing-box was compiled
+against (`lib/windows_amd64` carries `libcronet.dll` beside the version
+constant), and sing-box's `go.sum` vouches for that module. cronet-go's GitHub
+releases are not a substitute: they trail the module, and sing-box
+1.15.0-alpha.10 pins 154.0.8037.49, which has no release at all — the client
+used to search the releases and found nothing.
 
 - `platforms` are manifest asset keys. A client whose `<goos>-<goarch>` is not
   listed installs nothing — that is how the manifest states macOS needs no
-  library. A block that exists and omits a platform is an answer, not a gap, so
-  it is not overridden by the fallback below.
-- `cronet_version` is the Chromium version, not a tag. Upstream's tags carry a
-  build suffix and have changed shape three times (`v150.0.7871.63-1`,
-  `143.0.7499.109-2`, `v0.0.1-143.0.7499.109-1`), so the version is matched as a
-  whole hyphen-delimited component of the tag. Prefix matching would accept
-  `150.0.7871.630` for `150.0.7871.63`.
-- `source_repo` must be a `github.com/<owner>/<repo>` URL. It decides where a
-  library is downloaded from and loaded into the process that runs the tunnel,
-  so anything else is refused even though the manifest arrives over the pinned
-  channel.
+  library. A block with no list applies to Windows, the only sing-box here that
+  loads one.
+- `url` and `sha256` are the file and its checksum. The download is held to the
+  sing-box binary's rules: https to any real host, and nothing reaches the disk
+  that does not match the checksum. The manifest arrives over the pinned
+  channel, so the checksum is the server's own word for the file.
 - `library_filename` must be a bare filename. It names a file in the sing-box
   directory, not a path out of it.
+- `cronet_version` is only shown in the log.
 
-**Without the block** the client falls back to upstream's latest release, which
-is what it did before the manifest could say. A server that has not published
-the block yet must not leave Windows with no library at all.
+**Without a block**, or without a `url`, Windows has nothing to fetch: the
+client logs that a profile using `naive` will not start, and keeps a library
+that is already installed.
 
-`libcronet.version` beside the library records which release is installed, so a
-pinned build stops being re-checked once it is on disk, and moving the pin — in
-either direction, an upgrade or a rollback — replaces it. A GitHub outage is not
-fatal while a library is already installed.
+`libcronet.version` beside the library records the sha256 of the installed
+file, so it stops being re-checked once it is on disk, and a new library on the
+server — a new sing-box, in either direction — replaces it. The server being
+unreachable is not fatal while a library is already installed.
 
 The download is driven by the manifest, not by what the profile offers, so a
-Windows client fetches the library once even while the profile serves no `naive`
-outbound. It is ~9 MB, and it is what makes adding `naive` server-side take
-effect without a client release.
+Windows client fetches the library once even while the profile serves no
+`naive` outbound. It is ~10 MB, and it is what makes adding `naive`
+server-side take effect without a client release.
 
 ## Credentials
 

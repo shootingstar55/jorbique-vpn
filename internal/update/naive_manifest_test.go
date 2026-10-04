@@ -2,20 +2,19 @@ package update
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 )
 
 // manifestWithNaive is the block as the update server publishes it.
 const manifestWithNaive = `{
-  "version": "v1.13.19",
+  "version": "v1.15.0-alpha.10",
   "assets": {"windows-amd64": {"url": "https://example.invalid/sing-box.zip", "sha256": "aa", "format": "zip"}},
   "naive": {
     "platforms": ["windows-amd64"],
     "library_filename": "libcronet.dll",
-    "cronet_version": "150.0.7871.63",
-    "source_repo": "https://github.com/sagernet/cronet-go",
-    "source_asset": "libcronet-windows-amd64.dll"
+    "cronet_version": "154.0.8037.49",
+    "url": "https://example.invalid/chan/libcronet-windows-amd64.dll",
+    "sha256": "8B005A933AC0D0899C047617A9CD18418810D9426D0919C824520094A2C893F5"
   }
 }`
 
@@ -37,27 +36,19 @@ func TestManifestNaiveBlockIsRead(t *testing.T) {
 	if !ok {
 		t.Fatal("windows-amd64 is listed and should get a plan")
 	}
-	if plan.version != "150.0.7871.63" {
-		t.Errorf("version = %q, want the pinned one", plan.version)
+	want := cronetPlan{
+		url:         "https://example.invalid/chan/libcronet-windows-amd64.dll",
+		sha256:      "8b005a933ac0d0899c047617a9cd18418810d9426d0919c824520094a2c893f5",
+		installName: "libcronet.dll",
+		version:     "154.0.8037.49",
 	}
-	if plan.assetName != "libcronet-windows-amd64.dll" {
-		t.Errorf("asset = %q", plan.assetName)
-	}
-	if plan.installName != "libcronet.dll" {
-		t.Errorf("install name = %q", plan.installName)
-	}
-	api, err := cronetReleasesAPI(plan.repo)
-	if err != nil {
-		t.Fatalf("releases API: %v", err)
-	}
-	if api != "https://api.github.com/repos/sagernet/cronet-go/releases" {
-		t.Errorf("releases API = %q", api)
+	if plan != want {
+		t.Errorf("plan = %+v, want %+v", plan, want)
 	}
 }
 
 // A platform the block does not list needs no library. That is how the manifest
-// says macOS is served by a sing-box with naiveproxy built in, and it has to
-// beat the built-in fallback rather than be overridden by it.
+// says macOS is served by a sing-box with naiveproxy built in.
 func TestManifestNaiveBlockDecidesWhoNeedsNothing(t *testing.T) {
 	m := parseManifest(t, manifestWithNaive)
 	for _, c := range []struct{ goos, goarch string }{
@@ -70,55 +61,22 @@ func TestManifestNaiveBlockDecidesWhoNeedsNothing(t *testing.T) {
 	}
 }
 
-// A server that has not published the block yet leaves Windows working the way
-// it did before there was one: upstream's latest, no pin.
-func TestManifestWithoutNaiveFallsBackToLatest(t *testing.T) {
-	m := parseManifest(t, `{"version": "v1.13.19"}`)
+// Without a block Windows still needs the library, but nothing names one: the
+// plan comes back without a url, and ensureCronet reports that. Other platforms
+// need nothing, manifest or not.
+func TestManifestWithoutNaiveNamesNoLibrary(t *testing.T) {
+	m := parseManifest(t, `{"version": "v1.15.0-alpha.10"}`)
 	if m.Naive != nil {
 		t.Fatal("no block should parse as nil")
 	}
-	plan, ok := cronetPlanFor(m, "windows", "amd64")
-	if !ok {
-		t.Fatal("windows should still install a library without a block")
-	}
-	if plan.version != "" {
-		t.Errorf("version = %q, want empty (latest) when nothing is pinned", plan.version)
-	}
-	if plan.assetName != "libcronet-windows-amd64.dll" || plan.installName != "libcronet.dll" {
-		t.Errorf("fallback plan = %+v", plan)
-	}
-	// The same holds when the manifest could not be fetched at all.
-	if _, ok := cronetPlanFor(nil, "windows", "amd64"); !ok {
-		t.Error("a missing manifest should still fall back")
-	}
-	if _, ok := cronetPlanFor(nil, "darwin", "arm64"); ok {
-		t.Error("darwin needs nothing, manifest or not")
-	}
-}
-
-// The repository decides where a library is downloaded from and loaded into the
-// process that runs the tunnel. It is read from the manifest, so it is checked.
-func TestCronetReleasesAPIRejectsAnythingButGitHub(t *testing.T) {
-	for _, repo := range []string{
-		"https://evil.example/sagernet/cronet-go",
-		"https://github.com.evil.example/sagernet/cronet-go",
-		"http://github.com/sagernet/cronet-go/extra/path",
-		"https://github.com/sagernet",
-		"https://github.com/",
-		"::not a url",
-	} {
-		if api, err := cronetReleasesAPI(repo); err == nil {
-			t.Errorf("source_repo %q was accepted as %q", repo, api)
+	for name, manifest := range map[string]*SingboxManifest{"no block": m, "no manifest": nil} {
+		plan, ok := cronetPlanFor(manifest, "windows", "amd64")
+		if !ok || plan.url != "" || plan.installName != "libcronet.dll" {
+			t.Errorf("%s: windows plan = %+v, %v; want a plan with no url", name, plan, ok)
 		}
-	}
-	// Empty falls back to the default repository rather than failing.
-	api, err := cronetReleasesAPI("")
-	if err != nil || !strings.HasPrefix(api, "https://api.github.com/repos/") {
-		t.Errorf("empty repo = %q, %v", api, err)
-	}
-	// http is fine to *name* a repo with — the API URL built from it is https.
-	if api, err := cronetReleasesAPI("http://github.com/sagernet/cronet-go"); err != nil || !strings.HasPrefix(api, "https://") {
-		t.Errorf("http repo = %q, %v", api, err)
+		if _, ok := cronetPlanFor(manifest, "darwin", "arm64"); ok {
+			t.Errorf("%s: darwin needs nothing", name)
+		}
 	}
 }
 
@@ -132,36 +90,30 @@ func TestNaivePlanRejectsAPathAsLibraryFilename(t *testing.T) {
 		"..",
 		".",
 	} {
-		n := &NaiveLibrary{
+		m := &SingboxManifest{Naive: &NaiveLibrary{
 			Platforms:       []string{"windows-amd64"},
 			LibraryFilename: name,
-			SourceAsset:     "libcronet-windows-amd64.dll",
-		}
-		if _, ok := naivePlan(n, "windows", "amd64"); ok {
+			URL:             "https://example.invalid/libcronet-windows-amd64.dll",
+			SHA256:          "aa",
+		}}
+		if _, ok := cronetPlanFor(m, "windows", "amd64"); ok {
 			t.Errorf("library_filename %q was accepted", name)
 		}
 	}
 }
 
-// A block that omits the optional fields still works: the asset and the install
-// name fall back to what the client would have used on its own.
+// A block that omits the optional fields still works: the install name falls
+// back to the loader's, and a block with no platforms listed applies to Windows.
 func TestNaivePlanFillsInWhatTheBlockOmits(t *testing.T) {
-	n := &NaiveLibrary{Platforms: []string{"windows-amd64"}, CronetVersion: "150.0.7871.63"}
-	plan, ok := naivePlan(n, "windows", "amd64")
+	m := &SingboxManifest{Naive: &NaiveLibrary{URL: "https://example.invalid/l.dll", SHA256: "aa"}}
+	plan, ok := cronetPlanFor(m, "windows", "amd64")
 	if !ok {
-		t.Fatal("a block naming only a version should still resolve")
+		t.Fatal("a block naming only the file should still resolve")
 	}
-	if plan.assetName != "libcronet-windows-amd64.dll" || plan.installName != "libcronet.dll" {
+	if plan.installName != "libcronet.dll" || plan.url != "https://example.invalid/l.dll" || plan.sha256 != "aa" {
 		t.Errorf("plan = %+v", plan)
 	}
-	if plan.version != "150.0.7871.63" {
-		t.Errorf("version = %q", plan.version)
-	}
-	// A block with no platforms listed applies wherever an asset exists.
-	if _, ok := naivePlan(&NaiveLibrary{CronetVersion: "1"}, "darwin", "arm64"); ok {
-		t.Error("darwin has no asset and must resolve to nothing")
-	}
-	if _, ok := naivePlan(&NaiveLibrary{CronetVersion: "1"}, "windows", "amd64"); !ok {
-		t.Error("windows should resolve when no platform list narrows it")
+	if _, ok := cronetPlanFor(m, "darwin", "arm64"); ok {
+		t.Error("darwin loads no library and must resolve to nothing")
 	}
 }

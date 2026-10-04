@@ -80,8 +80,8 @@ type SingboxManifest struct {
 	SHA256   string                  `json:"sha256"`
 	URL      string                  `json:"url"`
 	Assets   map[string]SingboxAsset `json:"assets"`
-	// Naive pins the cronet library the `naive` outbound loads. Absent on a
-	// server that has not published it; see cronetPlanFor for what happens then.
+	// Naive names the cronet library the Windows `naive` outbound loads, which
+	// the server publishes beside the sing-box archive; see cronetPlanFor.
 	Naive *NaiveLibrary `json:"naive"`
 }
 
