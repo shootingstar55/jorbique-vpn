@@ -94,9 +94,15 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 	// Empty slices, never nil: a nil slice encodes as JSON null, and the page
 	// reads .length off both of these. One status call that exited non-zero was
 	// enough to send null and blank the whole hero card, ring included.
+	outbounds := append([]string{}, singboxAvailableOutbounds(cfg)...)
+	if singboxNaiveMode(cfg) {
+		// The NaiveProxy mode connects through naive alone, whatever the main
+		// profile offers.
+		outbounds = []string{"naive"}
+	}
 	state := mainState{
 		VPNs:      []string{},
-		Outbounds: append([]string{}, singboxAvailableOutbounds(cfg)...),
+		Outbounds: outbounds,
 		Running:   []string{},
 		ExitIP:    exitIP,
 		Daemon:    ms.SudoersLine,

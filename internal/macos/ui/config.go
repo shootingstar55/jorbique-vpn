@@ -58,7 +58,7 @@ func singboxUUID(cfg *core.AppConfig) string {
 
 // singboxNaiveMode reports whether the client connects in the NaiveProxy mode.
 func singboxNaiveMode(cfg *core.AppConfig) bool {
-	return cfg.Singbox.NaiveMode
+	return cfg != nil && cfg.Singbox.NaiveMode
 }
 
 // singboxEnabledOutbounds returns the protocols that are actually on (never
