@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,12 +16,19 @@ import (
 
 // RuntimeOptions contains the user settings applied to a downloaded profile.
 type RuntimeOptions struct {
-	UserUUID                                 string
-	OutboundEnabled                          map[string]bool
+	UserUUID        string
+	OutboundEnabled map[string]bool
+	// NaiveMode builds from the profile's NaiveProxy outbounds alone. Off, they
+	// are left out whatever OutboundEnabled says (singboxcfg.ModeEnabled).
+	NaiveMode                                bool
 	IgnoredProcessNames, IgnoredProcessPaths []string
 	SelectedNode                             string
 	UserDirectDomains                        []string
 }
+
+// ErrNoNaiveOutbound is the NaiveProxy mode against a profile that offers no
+// naive outbound, which would otherwise read as every protocol switched off.
+var ErrNoNaiveOutbound = errors.New("the server's profile has no NaiveProxy outbound")
 
 // BuildRuntimeConfig generates runtime_config.json from the remote sing-box profile merged into the embedded tun template,
 // then applies user UUID, outbound toggles, ignored processes, direct domains, and the node the user picked in the selector.
@@ -40,7 +48,11 @@ func BuildRuntimeConfig(remoteJSON []byte, options RuntimeOptions) (string, erro
 	// routes to still names it has, once its proxies are off, nothing detouring
 	// through it, and read afresh it looks like a proxy of its own.
 	proxyTags := ProxyTagsFromConfig(cfg)
-	if err := filterOutboundsAndUrltests(cfg, options.OutboundEnabled); err != nil {
+	enabled, err := modeOutboundEnabled(cfg, proxyTags, options)
+	if err != nil {
+		return "", err
+	}
+	if err := filterOutboundsAndUrltests(cfg, enabled); err != nil {
 		return "", err
 	}
 
@@ -77,6 +89,16 @@ func BuildRuntimeConfig(remoteJSON []byte, options RuntimeOptions) (string, erro
 
 	outPath := paths.RuntimeConfigPath()
 	return outPath, os.WriteFile(outPath, contentBytes, 0644)
+}
+
+// modeOutboundEnabled is the user's toggles as the chosen mode reads them.
+func modeOutboundEnabled(cfg *jsonorder.Map, proxyTags []string, options RuntimeOptions) (map[string]bool, error) {
+	obsRaw, _ := cfg.Get("outbounds")
+	obs, _ := obsRaw.([]any)
+	if options.NaiveMode && len(singboxcfg.NaiveTags(obs)) == 0 {
+		return nil, ErrNoNaiveOutbound
+	}
+	return singboxcfg.ModeEnabled(obs, proxyTags, options.OutboundEnabled, options.NaiveMode), nil
 }
 
 func applyIgnoredProcesses(cfg *jsonorder.Map, ignored []string) {

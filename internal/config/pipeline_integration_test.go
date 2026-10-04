@@ -147,7 +147,7 @@ func TestBuildRuntimeConfig_NestedGroupsAndTransportCredentials(t *testing.T) {
 	  ],
 	  "route":{"final":"choose"}
 	}`
-	if got, want := ProxyTagsFromJSON([]byte(profile)), []string{"b", "off", "a", "fresh"}; !reflect.DeepEqual(got, want) {
+	if got, want := ProtocolTagsFromJSON([]byte(profile)), []string{"b", "off", "a", "fresh"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("nested auto priority = %v, want %v", got, want)
 	}
 	path, err := BuildRuntimeConfig([]byte(profile), RuntimeOptions{

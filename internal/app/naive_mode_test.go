@@ -9,18 +9,40 @@ import (
 	"jorbiquevpn/internal/server"
 )
 
-// The naive profile as the server publishes it: naive alone, an empty username
-// for the user's UUID and the password every user shares.
+// The profile as the server publishes it: the protocols in "auto", and naive
+// beside them with an empty username for the user's UUID and the password
+// every user shares.
 const naiveModeProfile = `{
   "outbounds": [
+    {"type": "vless", "tag": "vless-reality", "server": "192.0.2.1", "server_port": 443, "uuid": ""},
     {"type": "naive", "tag": "naive", "server": "192.0.2.1", "server_port": 443,
      "username": "", "password": "naivepassword", "insecure_concurrency": 2, "udp_over_tcp": true,
      "tls": {"enabled": true, "server_name": "nvp.example"}},
-    {"type": "urltest", "tag": "auto", "outbounds": ["naive"]},
+    {"type": "urltest", "tag": "auto", "outbounds": ["vless-reality"]},
     {"type": "direct", "tag": "direct"}
   ],
   "route": {"final": "auto"}
 }`
+
+func builtOutbounds(t *testing.T, path string) map[string]map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		Outbounds []map[string]any `json:"outbounds"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	byTag := map[string]map[string]any{}
+	for _, o := range cfg.Outbounds {
+		tag, _ := o["tag"].(string)
+		byTag[tag] = o
+	}
+	return byTag
+}
 
 func TestApp_NaiveModeIsSavedAndReported(t *testing.T) {
 	a := newTestApp(t)
@@ -42,7 +64,7 @@ func TestApp_NaiveModeIsSavedAndReported(t *testing.T) {
 	}
 }
 
-// The toggles answer for the main profile only, so every one of them off does
+// The toggles answer for the protocols only, so every one of them off does
 // not stop the NaiveProxy mode from connecting.
 func TestApp_NaiveModeIgnoresTheProtocolToggles(t *testing.T) {
 	a := newTestApp(t)
@@ -65,11 +87,11 @@ func TestApp_NaiveModeIgnoresTheProtocolToggles(t *testing.T) {
 	}
 }
 
-func TestApp_NaiveModeBuildsTheNaiveProfileWithTheUUIDAsUsername(t *testing.T) {
+func TestApp_NaiveModeBuildsFromNaiveAloneWithTheUUIDAsUsername(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
 	a := newTestApp(t)
-	// A toggle saved for a main-profile protocol must not reach this build.
-	if _, err := a.SetVpnUserConfig(appTestUUID, map[string]bool{"vless-reality": false}); err != nil {
+	// A protocol toggle on must not bring its protocol into this build.
+	if _, err := a.SetVpnUserConfig(appTestUUID, map[string]bool{"vless-reality": true}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := a.SetNaiveMode(true); err != nil {
@@ -79,26 +101,36 @@ func TestApp_NaiveModeBuildsTheNaiveProfileWithTheUUIDAsUsername(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildRuntimeConfig: %v", err)
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
+	obs := builtOutbounds(t, path)
+	if _, kept := obs["vless-reality"]; kept {
+		t.Error("the NaiveProxy mode kept another protocol")
 	}
-	var cfg struct {
-		Outbounds []map[string]any `json:"outbounds"`
-	}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		t.Fatal(err)
-	}
-	var naive map[string]any
-	for _, o := range cfg.Outbounds {
-		if o["tag"] == "naive" {
-			naive = o
-		}
-	}
+	naive := obs["naive"]
 	if naive == nil {
-		t.Fatalf("the naive outbound was dropped:\n%s", data)
+		t.Fatal("the naive outbound was dropped")
 	}
 	if naive["username"] != appTestUUID || naive["password"] != "naivepassword" {
 		t.Errorf("naive signs in as %v / %v, want the UUID and the shared password", naive["username"], naive["password"])
+	}
+}
+
+// Out of the NaiveProxy mode the same profile builds without naive, its toggle
+// or not.
+func TestApp_ProtocolsModeLeavesNaiveOut(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	a := newTestApp(t)
+	if _, err := a.SetVpnUserConfig(appTestUUID, map[string]bool{"vless-reality": true, "naive": true}); err != nil {
+		t.Fatal(err)
+	}
+	path, err := a.buildRuntimeConfig([]byte(naiveModeProfile))
+	if err != nil {
+		t.Fatalf("buildRuntimeConfig: %v", err)
+	}
+	obs := builtOutbounds(t, path)
+	if _, kept := obs["naive"]; kept {
+		t.Error("the protocols mode kept naive")
+	}
+	if obs["vless-reality"]["uuid"] != appTestUUID {
+		t.Errorf("vless-reality = %v, want it kept with the UUID", obs["vless-reality"])
 	}
 }

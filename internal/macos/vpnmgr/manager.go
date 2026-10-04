@@ -955,7 +955,7 @@ func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 }
 
 // parseSingboxMode reads set-singbox-config's mode line: "naive" for the
-// NaiveProxy mode, "standard" for the main profile's outbounds.
+// NaiveProxy mode, "standard" for the profile's other protocols.
 func parseSingboxMode(raw string) (bool, error) {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "naive":

@@ -82,13 +82,13 @@ func TestFetchedProfileLandsWhereTheMenuLooks(t *testing.T) {
 	base := filepath.Join(dir, "singbox.json")
 	profile := `{"outbounds":[
       {"type":"vless","tag":"vless-reality"},
-      {"type":"naive","tag":"naive"},
+      {"type":"anytls","tag":"anytls"},
       {"type":"direct","tag":"direct"}]}`
 	if err := os.WriteFile(filepath.Join(dir, "singbox_client.json"), []byte(profile), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	got := singbox.AvailableProxyTags(base)
-	want := []string{"vless-reality", "naive"}
+	want := []string{"vless-reality", "anytls"}
 	if len(got) != len(want) {
 		t.Fatalf("tags = %v, want %v", got, want)
 	}

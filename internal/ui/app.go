@@ -73,7 +73,7 @@ func (a *App) SetVpnUserConfig(userUUID string, outboundEnabled map[string]bool)
 	return wrapBackendError(a.backend.SetVpnUserConfig(userUUID, outboundEnabled))
 }
 
-// SetNaiveMode switches between the NaiveProxy mode and the main profile's protocols.
+// SetNaiveMode switches between the NaiveProxy mode and the profile's other protocols.
 func (a *App) SetNaiveMode(on bool) error {
 	return wrapBackendError(a.backend.SetNaiveMode(on))
 }

@@ -134,13 +134,13 @@ async function refreshStatus(force = false) {
 }
 
 async function refreshOutbounds() {
-  // The NaiveProxy mode connects through naive alone, whatever the main profile offers.
+  // The NaiveProxy mode connects through naive alone, whatever else the profile offers.
   const get = binding('GetVpnUserConfig');
   let naive = false;
   try {
     naive = Boolean(get && (await get())?.naiveMode);
   } catch {
-    // Without the saved config the main profile's list is the better guess.
+    // Without the saved config the protocol list is the better guess.
   }
   availableOutbounds.value = naive ? ['naive'] : await loadAvailableOutbounds();
 }

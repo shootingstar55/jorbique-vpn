@@ -96,7 +96,7 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 	// enough to send null and blank the whole hero card, ring included.
 	outbounds := append([]string{}, singboxAvailableOutbounds(cfg)...)
 	if singboxNaiveMode(cfg) {
-		// The NaiveProxy mode connects through naive alone, whatever the main
+		// The NaiveProxy mode connects through naive alone, whatever else the
 		// profile offers.
 		outbounds = []string{"naive"}
 	}
