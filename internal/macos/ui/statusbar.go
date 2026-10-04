@@ -138,6 +138,27 @@ func (c *statusBarController) finishStartup() {
 	// a fresh install opened VPN Config on an empty list.
 	c.ensureRemoteProfile()
 	c.startRefreshLoop()
+	c.openWindowIfIconHidden()
+}
+
+// hiddenIconCheckDelay gives the menu bar time to lay the new item out before
+// asking whether it made it on screen.
+const hiddenIconCheckDelay = 2 * time.Second
+
+// openWindowIfIconHidden opens the main window when the status item did not
+// fit in the menu bar. On a notched MacBook with many status items (another
+// VPN client's among them) macOS silently drops the ones that do not fit, and
+// the app looked as if it had not started at all. The window has the same
+// controls as the menu; Cmd-dragging the icon to the right of the others keeps
+// it in view from then on.
+func (c *statusBarController) openWindowIfIconHidden() {
+	time.AfterFunc(hiddenIconCheckDelay, func() {
+		applekit.RunOnMain(func() {
+			if !c.statusItem.IsVisible() && c.mainP == nil {
+				c.cmdOpenMainWindow()
+			}
+		})
+	})
 }
 
 // showUUIDGate opens the first-run window. Saving goes the way VPN Config

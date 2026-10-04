@@ -2,6 +2,8 @@
 
 package applekit
 
+import "github.com/ebitengine/purego/objc"
+
 // nsVariableStatusItemLength sizes a status item to fit its content.
 const nsVariableStatusItemLength CGFloat = -1
 
@@ -71,4 +73,23 @@ func (s StatusItem) SetToolTip(text string) {
 	if button := send(s.id, "button"); button != nilID {
 		button.Send(Sel("setToolTip:"), nsString(text))
 	}
+}
+
+// nsWindowOcclusionStateVisible is NSWindowOcclusionStateVisible.
+const nsWindowOcclusionStateVisible = 1 << 1
+
+// IsVisible reports whether any part of the item is on screen. It is false
+// when the menu bar has no room left for it: on a notched MacBook, status
+// items that do not fit between the notch and the system items are not shown
+// at all, and nothing tells the app.
+func (s StatusItem) IsVisible() bool {
+	button := send(s.id, "button")
+	if button == nilID {
+		return false
+	}
+	win := send(button, "window")
+	if win == nilID {
+		return false
+	}
+	return objc.Send[uint](win, Sel("occlusionState"))&nsWindowOcclusionStateVisible != 0
 }
