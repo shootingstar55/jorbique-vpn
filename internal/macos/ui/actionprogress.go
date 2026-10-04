@@ -13,12 +13,10 @@ import (
 // both invisible: the menu closed, the glyph kept showing the old state, and
 // nothing said the click had landed — for a disconnect the ⏳ only ever appeared
 // once the last VPN was down, so stopping one of several looked like nothing at
-// all. While either runs the status item spins through spinnerFrames and the
-// menu header names what is happening.
+// all. While either runs the status icon pulses (spinnerAlphas) and the menu
+// header names what is happening.
 
-// spinnerFrames are the menu-bar glyphs cycled while an action is in flight.
-// Geometric shapes (same Unicode block as the idle ○), so they inherit the
-// status title's font and color instead of rendering as flat emoji.
+// spinnerFrames are the glyphs progressHeader puts before the verb.
 var spinnerFrames = []string{"◐", "◓", "◑", "◒"}
 
 // spinnerInterval is how long each frame shows: one full turn takes ~0.6s,
@@ -47,6 +45,17 @@ const stopWatchdog = 2 * time.Minute
 // fires the process exits regardless of the subprocess still holding it. Sized
 // like stopWatchdog with room for the cache drop and the LaunchAgent unload.
 const quitWatchdog = 3 * time.Minute
+
+// spinnerAlphas is the menu-bar icon's opacity per tick while an action is in
+// flight: the face pulses in the action's color instead of a glyph turning.
+var spinnerAlphas = []float64{1, 0.8, 0.55, 0.35, 0.55, 0.8}
+
+// spinnerAlpha returns the icon opacity for a tick, cycling and tolerating
+// negatives.
+func spinnerAlpha(tick int) float64 {
+	n := len(spinnerAlphas)
+	return spinnerAlphas[((tick%n)+n)%n]
+}
 
 // spinnerFrame returns the frame for a tick, cycling and tolerating negatives.
 func spinnerFrame(tick int) string {
