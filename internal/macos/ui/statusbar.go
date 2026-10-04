@@ -37,6 +37,7 @@ type statusBarController struct {
 	lastStop   time.Time // zero when no recent stop
 	cachedIP   string    // formatted "ip (cc)" exit IP, "" when unknown
 	ipFetching bool      // an exit-ip fetch goroutine is in flight
+	ipGen      int       // bumped by invalidateIPInfo; a lookup from an older generation is dropped
 	spinning   bool      // a spinner goroutine is animating an action
 
 	// connFail decides when a failing check is shown in the menu bar. Outside
@@ -350,12 +351,14 @@ func (c *statusBarController) applyRefresh(running []string, ms MenuStatus, avai
 	_, inProgress := c.currentAction()
 	c.menuConnected = hasSingboxTypeRunning(running, avail)
 	c.updateConnectionActions()
-	exitIP := c.exitIPForDisplay(c.menuConnected)
-	confirmedFails := c.connFail.observe(connectivityFailures(ms), time.Now())
+	// A different tunnel is a different exit address: drop the old one before
+	// asking for it, or the menu shows (and keeps) the address from before.
 	if key := strings.Join(running, "\x00"); key != c.lastRunningKey {
 		c.lastRunningKey = key
 		c.invalidateIPInfo()
 	}
+	exitIP := c.exitIPForDisplay(c.menuConnected)
+	confirmedFails := c.connFail.observe(connectivityFailures(ms), time.Now())
 	c.detailItem.SetSubtitle(connectionDetail(ms, c.menuConnected, exitIP, confirmedFails))
 
 	p := computeStatusPresentation(running, confirmedFails)
@@ -418,8 +421,8 @@ func (c *statusBarController) vpnAutostart(subcmd string) {
 }
 
 // exitIPForDisplay returns the cached exit IP label when a sing-box VPN is
-// running, starting a background fetch if it is running but unknown; it clears
-// the cache when no sing-box VPN is up.
+// running, starting a background lookup if it is running but unknown; it clears
+// the label when no sing-box VPN is up.
 func (c *statusBarController) exitIPForDisplay(sbRunning bool) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -429,32 +432,34 @@ func (c *statusBarController) exitIPForDisplay(sbRunning bool) string {
 	}
 	if c.cachedIP == "" && !c.ipFetching {
 		c.ipFetching = true
-		go c.fetchExitIP()
+		gen := c.ipGen
+		go c.fetchExitIP(gen)
 	}
 	return c.cachedIP
 }
 
-// fetchExitIP runs `exit-ip wait` off the main thread (as the login user when
-// root), caches the formatted "ip (cc)", and triggers a refresh on success.
-// Ports uiFetchPublicIPAndCountry + performExitIPWaitForSingboxIfNeeded.
-func (c *statusBarController) fetchExitIP() {
-	out, rc := c.run.runAndCaptureOutAsLoginUserIfRoot(c.exePath, []string{"exit-ip", "wait"})
-	if rc != 0 || out == "" {
-		out, rc = c.run.runAndCaptureOut(c.exePath, []string{"exit-ip", "wait"})
-	}
+// fetchExitIP looks the exit address up through the same cache the window's IP
+// card reads, so the menu and the window agree and whichever asks second gets
+// the answer for free. The menu used to run `exit-ip wait` instead: a
+// subprocess (via sudo or launchctl when root) polling other services until it
+// saw the same address twice, which could take up to 45s or fail outright
+// while the window already showed the address. A lookup that fails is retried
+// by the next refresh. gen is the invalidation generation the lookup started
+// in; an answer from before a connect or disconnect is dropped.
+func (c *statusBarController) fetchExitIP(gen int) {
+	info, err := c.ipInfo(false)
 	var label string
-	if rc == 0 {
-		if ip, cc, ok := parseExitIP(out); ok {
-			label = ipLabel(ip, cc)
-		}
+	if err == nil && info.IP != "" {
+		label = ipLabel(info.IP, info.CountryCode)
 	}
 	c.mu.Lock()
 	c.ipFetching = false
-	if label != "" {
+	stale := gen != c.ipGen
+	if label != "" && !stale {
 		c.cachedIP = label
 	}
 	c.mu.Unlock()
-	if label != "" {
+	if label != "" && !stale {
 		c.refresh()
 	}
 }
@@ -1006,10 +1011,12 @@ func (c *statusBarController) trafficTotals(cfg *core.AppConfig, running []strin
 	return snapshot.Status.UplinkTotal, snapshot.Status.DownlinkTotal
 }
 
-// invalidateIPInfo drops the cached exit address.
+// invalidateIPInfo drops the cached exit address, the window's and the menu's.
 func (c *statusBarController) invalidateIPInfo() {
 	c.mu.Lock()
 	cache := c.ipCache
+	c.cachedIP = ""
+	c.ipGen++
 	c.mu.Unlock()
 	if cache != nil {
 		cache.Invalidate()
