@@ -265,12 +265,23 @@ func remoteTemplateCachePath(baseConfigPath string) string {
 	return filepath.Join(filepath.Dir(baseConfigPath), "singbox_client.json")
 }
 
+// naiveTemplateCachePath is the naive profile's own cache, apart from the main
+// one: the protocol panel reads the main cache, and switching modes must not
+// turn its list into "naive" and back.
+func naiveTemplateCachePath(baseConfigPath string) string {
+	return filepath.Join(filepath.Dir(baseConfigPath), "singbox_client.naive.json")
+}
+
 // fetchTemplateOrCache downloads the profile and remembers it, falling back to
 // the last good copy when the server cannot be reached. Without this a blip on
 // the update host meant the VPN would not start at all, even though the profile
 // that started it an hour ago was still perfectly good.
 func fetchTemplateOrCache(cachePath string, timeout time.Duration, warnf func(string)) ([]byte, error) {
-	body, err := downloadURL(constants.SingboxClientURL, timeout)
+	return fetchProfileOrCache(constants.SingboxClientURL, cachePath, timeout, warnf)
+}
+
+func fetchProfileOrCache(profileURL, cachePath string, timeout time.Duration, warnf func(string)) ([]byte, error) {
+	body, err := downloadURL(profileURL, timeout)
 	if err == nil && json.Valid(body) {
 		// In one step: the menu bar and set-singbox-config read this file from
 		// other processes, and a half-written one reads as no profile at all.
@@ -333,7 +344,15 @@ func BuildConfigFromRemoteTemplate(settings core.SingboxSection, baseConfigPath 
 	baseRoot := localRootOrDefault(baseConfigPath)
 	localAPISecret := dashboard.APISecret(baseRoot)
 
-	body, err := fetchTemplateOrCache(remoteTemplateCachePath(baseConfigPath), timeout, warnf)
+	var body []byte
+	var err error
+	if settings.NaiveMode {
+		body, err = fetchProfileOrCache(constants.SingboxClientNaiveURL, naiveTemplateCachePath(baseConfigPath), timeout, warnf)
+		// The toggles answer for the main profile's protocols, not this one.
+		settings.EnabledOutbounds, settings.DisabledOutbounds = nil, nil
+	} else {
+		body, err = fetchTemplateOrCache(remoteTemplateCachePath(baseConfigPath), timeout, warnf)
+	}
 	if err != nil {
 		return nil, err
 	}

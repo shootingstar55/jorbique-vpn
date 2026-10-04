@@ -105,8 +105,25 @@ func TestRouteRulesStdinAndFromConfig(t *testing.T) {
 }
 
 func TestSingboxStdin(t *testing.T) {
-	if got := singboxStdin("uuid-123", []string{"tuic", "anytls"}); got != "uuid-123\ntuic,anytls\n" {
+	if got := singboxStdin("uuid-123", []string{"tuic", "anytls"}, ""); got != "uuid-123\ntuic,anytls\n\n\n" {
 		t.Errorf("singboxStdin = %q", got)
+	}
+	// The mode is the fourth line; the node line before it stays blank, which
+	// set-singbox-config reads as "keep the stored node".
+	if got := singboxStdin("uuid-123", []string{"tuic"}, "naive"); got != "uuid-123\ntuic\n\nnaive\n" {
+		t.Errorf("singboxStdin with a mode = %q", got)
+	}
+}
+
+func TestSingboxModeLine(t *testing.T) {
+	on, off := true, false
+	for _, c := range []struct {
+		in   *bool
+		want string
+	}{{nil, ""}, {&on, "naive"}, {&off, "standard"}} {
+		if got := singboxModeLine(c.in); got != c.want {
+			t.Errorf("singboxModeLine(%v) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }
 

@@ -33,6 +33,12 @@ const uuid = ref('');
 const availableOutbounds = ref([]);
 /** @type {import('vue').Ref<Record<string, boolean>>} Answer per tag; survives a re-render. */
 const outboundEnabled = ref({});
+/**
+ * The NaiveProxy mode: naive alone instead of the protocols below. A mode rather than one more
+ * toggle, because naive is the heaviest of them and in the automatic selector it would run
+ * beside every other one.
+ */
+const naiveMode = ref(false);
 
 /** Gates draft autosave until GetVpnUserConfig has filled the form, so an empty UI cannot wipe saved settings. */
 const hydrated = ref(false);
@@ -55,9 +61,10 @@ function normalizeVpnUserConfig(raw) {
     return {
       uuid: o.uuid || o.UUID || '',
       outboundEnabled: typeof en === 'object' && en !== null ? en : {},
+      naiveMode: Boolean(o.naiveMode ?? o.NaiveMode),
     };
   }
-  return { uuid: '', outboundEnabled: {} };
+  return { uuid: '', outboundEnabled: {}, naiveMode: false };
 }
 
 async function localRequest(path, body) {
@@ -123,6 +130,7 @@ async function load() {
       if (epoch !== loadEpoch) return;
       const config = normalizeVpnUserConfig(raw);
       uuid.value = config.uuid;
+      naiveMode.value = config.naiveMode;
       availableOutbounds.value = Array.isArray(raw?.availableOutbounds) ? raw.availableOutbounds : [];
       applyOutboundEnabled(config.outboundEnabled);
       hydrated.value = true;
@@ -140,6 +148,7 @@ async function load() {
     if (epoch !== loadEpoch) return;
     const config = normalizeVpnUserConfig(raw);
     uuid.value = config.uuid;
+    naiveMode.value = config.naiveMode;
     availableOutbounds.value = tags;
     applyOutboundEnabled(config.outboundEnabled);
   } catch (e) {
@@ -235,11 +244,15 @@ async function save() {
       await localRequest('config', {
         uuid: uuid.value.trim(),
         outboundEnabled: { ...outboundEnabled.value },
+        naiveMode: naiveMode.value,
       });
     } else {
       const set = binding('SetVpnUserConfig');
       if (!set) return;
       await set(uuid.value.trim(), { ...outboundEnabled.value });
+      // After the account: a UUID the server refuses must not leave the mode switched.
+      const setMode = binding('SetNaiveMode');
+      if (setMode) await setMode(naiveMode.value);
     }
     reportToast('Configuration saved');
     // Capture before closing: if this save was part of a connect attempt, the host resumes it
@@ -302,6 +315,36 @@ function onUpdateShow(value) {
       </section>
 
       <section class="field">
+        <span class="field__label">Mode</span>
+        <p class="field__hint">
+          NaiveProxy runs on its own: it is the heaviest protocol, so it never joins the automatic selector next to
+          the others. Use it when the protocols below are blocked or slow.
+        </p>
+        <div class="mode-grid" role="radiogroup" aria-label="Mode">
+          <button
+            type="button"
+            class="toggle"
+            role="radio"
+            :aria-checked="!naiveMode"
+            :class="{ 'toggle--on': !naiveMode }"
+            @click="naiveMode = false"
+          >
+            <span class="toggle__label">Protocols</span>
+          </button>
+          <button
+            type="button"
+            class="toggle"
+            role="radio"
+            :aria-checked="naiveMode"
+            :class="{ 'toggle--on': naiveMode }"
+            @click="naiveMode = true"
+          >
+            <span class="toggle__label">NaiveProxy</span>
+          </button>
+        </div>
+      </section>
+
+      <section v-if="!naiveMode" class="field">
         <div class="field__head">
           <span class="field__label">{{ labels.outbounds }}</span>
           <span class="field__count">{{ enabledCount }} of {{ availableOutbounds.length }} on</span>
@@ -333,8 +376,8 @@ function onUpdateShow(value) {
       <p class="foot-note">
         {{
           standalone
-            ? 'Save writes your UUID and toggles to disk.'
-            : 'Fields are saved as a draft while this window is open. Save writes your UUID and toggles to disk.'
+            ? 'Save writes your UUID, mode and toggles to disk.'
+            : 'Fields are saved as a draft while this window is open. Save writes your UUID, mode and toggles to disk.'
         }}
       </p>
     </div>
@@ -384,6 +427,26 @@ function onUpdateShow(value) {
 .toggle:hover {
   background: var(--surface);
   border-color: var(--border-hover);
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 10px;
+}
+
+.mode-grid .toggle {
+  justify-content: center;
+}
+
+.toggle--on {
+  border-color: #10b981;
+  background: var(--surface);
+}
+
+.toggle--on .toggle__label {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* The switch shows the state; the row it sits in is what takes the click. */

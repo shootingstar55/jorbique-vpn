@@ -150,7 +150,7 @@ func (c *statusBarController) showUUIDGate() error {
 			}
 			cfg, _ := c.loadConfig()
 			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand},
-				singboxStdin(uuid, singboxEnabledOutbounds(cfg, singboxAvailableOutbounds(cfg))))
+				singboxStdin(uuid, singboxEnabledOutbounds(cfg, singboxAvailableOutbounds(cfg)), ""))
 			if res.status != 0 {
 				return fmt.Errorf("%s", uuidGateError(res.stderr))
 			}
@@ -700,14 +700,14 @@ func (c *statusBarController) openSingboxThenStart(retry func()) {
 	cfg, _ := c.loadConfig()
 	available := singboxAvailableOutbounds(cfg)
 	initEnabled := singboxEnabledOutbounds(cfg, available)
-	panel, err := showSingboxConfigPanel(singboxUUID(cfg), initEnabled, available,
-		func(uuid string, enabled []string) error {
+	panel, err := showSingboxConfigPanel(singboxUUID(cfg), initEnabled, available, singboxNaiveMode(cfg),
+		func(uuid string, enabled []string, mode string) error {
 			// The ticks were made against available; set-singbox-config checks
 			// them against the profile as it is now.
 			cfg, _ := c.loadConfig()
 			current := singboxAvailableOutbounds(cfg)
 			enabled = reconcileSingboxChoice(available, enabled, current, singboxEnabledOutbounds(cfg, current))
-			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand}, singboxStdin(uuid, enabled))
+			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand}, singboxStdin(uuid, enabled, mode))
 			if res.status != 0 {
 				return fmt.Errorf("VPN Config failed (exit %d): %s", res.status, strings.TrimSpace(res.stderr))
 			}

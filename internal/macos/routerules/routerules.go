@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"jorbiquevpn/internal/jsonorder"
@@ -678,6 +679,33 @@ func PatchVpnCfgSingboxUUIDAndOutbounds(path string, uuid *string, enabled, disa
 	}
 	return os.WriteFile(path, []byte(content), 0o644)
 }
+
+// PatchVpnCfgSingboxNaiveMode records whether the client connects in the
+// NaiveProxy mode. The key goes after the outbound lists, the way selected_node
+// does, so a config written by any older client gains it.
+func PatchVpnCfgSingboxNaiveMode(path string, on bool) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err := validVpnCfgJSON(data); err != nil {
+		return core.BadConfig("cannot save into " + path + ": " + err.Error() +
+			". The file is not valid JSON — restore it from a backup or reinstall the client.")
+	}
+	value := strconv.FormatBool(on)
+	content := ensureSingboxChoiceKeys(string(data), data)
+	if naiveModeValueRe.MatchString(content) {
+		content = naiveModeValueRe.ReplaceAllString(content, "${1}"+value)
+	} else {
+		content = insertAfterFirstJSONArray(content, `"naive_mode": `+value, "disabled_outbounds", "enabled_outbounds")
+	}
+	if err := validVpnCfgJSON([]byte(content)); err != nil {
+		return core.BadConfig("refusing to write " + path + ": the edit would leave it unreadable (" + err.Error() + ")")
+	}
+	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+var naiveModeValueRe = regexp.MustCompile(`("naive_mode"\s*:\s*)(true|false)`)
 
 func updateSingboxChoiceList(content, key, after string, values []string) string {
 	if !strings.Contains(content, `"`+key+`"`) {

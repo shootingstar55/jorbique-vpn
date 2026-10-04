@@ -9,9 +9,9 @@ import (
 	"jorbiquevpn/internal/dashboard"
 )
 
-// showSingboxConfigPanel presents the VPN configuration form: the UUID and a
-// switch per protocol the profile offers.
-func showSingboxConfigPanel(initialUUID string, initialEnabled, available []string, onSubmit func(string, []string) error, onClosed func()) (*webPanel, error) {
+// showSingboxConfigPanel presents the VPN configuration form: the UUID, the
+// mode, and a switch per protocol the profile offers.
+func showSingboxConfigPanel(initialUUID string, initialEnabled, available []string, initialNaive bool, onSubmit func(string, []string, string) error, onClosed func()) (*webPanel, error) {
 	assets, err := frontendAssets()
 	if err != nil {
 		return nil, err
@@ -19,7 +19,7 @@ func showSingboxConfigPanel(initialUUID string, initialEnabled, available []stri
 	return showWebPanel("VPN configuration", 780, 620, 640, 480, func(closeWindow func()) (*dashboard.LocalServer, error) {
 		return dashboard.StartConfigServer(
 			panelQuery("vpn-config"),
-			singboxConfigState(initialUUID, initialEnabled, available),
+			singboxConfigState(initialUUID, initialEnabled, available, initialNaive),
 			assets,
 			func(update dashboard.ConfigUpdate) error {
 				uuid, enabled, err := singboxConfigSelection(update, available)
@@ -29,7 +29,7 @@ func showSingboxConfigPanel(initialUUID string, initialEnabled, available []stri
 				if onSubmit == nil {
 					return nil
 				}
-				return onSubmit(uuid, enabled)
+				return onSubmit(uuid, enabled, singboxModeLine(update.NaiveMode))
 			},
 			closeWindow,
 		)
@@ -53,10 +53,11 @@ func singboxConfigSelection(update dashboard.ConfigUpdate, available []string) (
 	return uuid, enabled, nil
 }
 
-func singboxConfigState(initialUUID string, initialEnabled, available []string) dashboard.ConfigState {
+func singboxConfigState(initialUUID string, initialEnabled, available []string, naive bool) dashboard.ConfigState {
 	enabledSet := lowerStringSet(initialEnabled)
 	state := dashboard.ConfigState{
 		UUID:               initialUUID,
+		NaiveMode:          naive,
 		AvailableOutbounds: append([]string(nil), available...),
 		OutboundEnabled:    make(map[string]bool, len(available)),
 	}
@@ -69,10 +70,23 @@ func singboxConfigState(initialUUID string, initialEnabled, available []string) 
 	return state
 }
 
-// singboxStdin builds the stdin payload for `set-singbox-config`: the UUID and
-// the enabled outbounds, one line each.
-func singboxStdin(uuid string, enabled []string) string {
-	return uuid + "\n" + strings.Join(enabled, ",") + "\n"
+// singboxStdin builds the stdin payload for `set-singbox-config`: the UUID,
+// the enabled outbounds, the selector node (blank: keep it) and the mode
+// (blank: keep it), one line each.
+func singboxStdin(uuid string, enabled []string, mode string) string {
+	return uuid + "\n" + strings.Join(enabled, ",") + "\n\n" + mode + "\n"
+}
+
+// singboxModeLine is the mode line for a choice the page made, or blank when it
+// made none.
+func singboxModeLine(naive *bool) string {
+	switch {
+	case naive == nil:
+		return ""
+	case *naive:
+		return "naive"
+	}
+	return "standard"
 }
 
 func lowerStringSet(in []string) map[string]bool {

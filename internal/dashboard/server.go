@@ -27,11 +27,15 @@ type ConfigState struct {
 	UUID               string          `json:"uuid"`
 	AvailableOutbounds []string        `json:"availableOutbounds"`
 	OutboundEnabled    map[string]bool `json:"outboundEnabled"`
+	NaiveMode          bool            `json:"naiveMode"`
 }
 
 type ConfigUpdate struct {
 	UUID            string          `json:"uuid"`
 	OutboundEnabled map[string]bool `json:"outboundEnabled"`
+	// NaiveMode is nil from a page that does not know the mode, which keeps
+	// what is stored.
+	NaiveMode *bool `json:"naiveMode,omitempty"`
 }
 
 // StartLocalServer serves embedded UI and a token-scoped loopback bridge for

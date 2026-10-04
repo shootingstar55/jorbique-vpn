@@ -54,6 +54,16 @@ func runBounded(ctx context.Context, exe string, args ...string) ([]byte, error)
 }
 
 func (m *Manager) localSingboxVersion() string {
+	out := m.singboxVersionOutput()
+	if mt := singboxSemverRe.FindStringSubmatch(out); len(mt) > 1 {
+		return mt[1]
+	}
+	return ""
+}
+
+// singboxVersionOutput is what the installed sing-box says about itself, or ""
+// when there is no binary to ask or it would not answer.
+func (m *Manager) singboxVersionOutput() string {
 	exe := strings.TrimSpace(m.singboxExe)
 	// A daemon started before the first download has no resolved binary yet.
 	if m.Paths != nil && m.Paths.BinDir != "" {
@@ -77,10 +87,59 @@ func (m *Manager) localSingboxVersion() string {
 	if err != nil {
 		return ""
 	}
-	if mt := singboxSemverRe.FindStringSubmatch(string(out)); len(mt) > 1 {
-		return mt[1]
+	return string(out)
+}
+
+// naiveBuildTag is the build tag a sing-box needs for the naive outbound.
+const naiveBuildTag = "with_naive_outbound"
+
+// hasBuildTag reads the "Tags:" line of `sing-box version`.
+func hasBuildTag(versionOutput, tag string) bool {
+	for _, line := range strings.Split(versionOutput, "\n") {
+		rest, ok := strings.CutPrefix(strings.TrimSpace(line), "Tags:")
+		if !ok {
+			continue
+		}
+		for _, t := range strings.Split(rest, ",") {
+			if strings.TrimSpace(t) == tag {
+				return true
+			}
+		}
 	}
-	return ""
+	return false
+}
+
+// ensureNaiveSingbox makes sure the installed sing-box can run the naive
+// outbound before the NaiveProxy mode starts it.
+//
+// Channel builds before the server switched its macOS binaries to the official
+// release (which carries naive) were built without it, and an update only
+// happens when the version changes — so a machine can hold a binary of the
+// current version that cannot run naive. One download from the channel fixes
+// that; if the channel's build has no naive either, the start is refused with
+// a reason instead of a sing-box that exits on its config.
+func (m *Manager) ensureNaiveSingbox() error {
+	if hasBuildTag(m.singboxVersionOutput(), naiveBuildTag) {
+		return nil
+	}
+	m.Logger.Log("The installed sing-box has no naive outbound; downloading the channel's build for the NaiveProxy mode")
+	if m.Paths != nil && m.Paths.BinDir != "" {
+		path, err := update.DownloadAndExtract(m.Paths.BinDir, func(msg, level string) {
+			if strings.EqualFold(strings.TrimSpace(level), "ERROR") {
+				m.Logger.Error(msg)
+			}
+		})
+		if err != nil {
+			m.Logger.Warn("sing-box download for the NaiveProxy mode failed: " + err.Error())
+		} else if path != "" {
+			m.singboxExe = path
+		}
+	}
+	if hasBuildTag(m.singboxVersionOutput(), naiveBuildTag) {
+		return nil
+	}
+	return core.StartFailed("this sing-box build has no naive outbound, which the NaiveProxy mode needs; " +
+		"switch the mode off in VPN Config, or update sing-box once the server publishes a build with naive")
 }
 
 // SingboxVersionsInfo gathers the local and remote sing-box versions.

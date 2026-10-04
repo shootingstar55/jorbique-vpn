@@ -55,7 +55,12 @@ const channelPath = "/chI6dwCVntNE/"
 // The sing-box binary manifest and the client profile. The profile carries no
 // user UUID — the client fills in its own — so the link is the same for
 // everyone; the server answers it with one of its Reality short_id variants.
+//
+// The naive profile is the NaiveProxy mode's: naive alone, kept out of the
+// main profile so it never joins the automatic selector beside every other
+// protocol (it is the heaviest of them).
 var (
-	SingboxManifestURL = "https://" + ServerHost + channelPath + "version.json"
-	SingboxClientURL   = "https://" + ServerHost + channelPath + "singbox_client.json"
+	SingboxManifestURL    = "https://" + ServerHost + channelPath + "version.json"
+	SingboxClientURL      = "https://" + ServerHost + channelPath + "singbox_client.json"
+	SingboxClientNaiveURL = "https://" + ServerHost + channelPath + "singbox_client.naive.json"
 )

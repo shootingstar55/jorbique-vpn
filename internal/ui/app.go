@@ -73,6 +73,11 @@ func (a *App) SetVpnUserConfig(userUUID string, outboundEnabled map[string]bool)
 	return wrapBackendError(a.backend.SetVpnUserConfig(userUUID, outboundEnabled))
 }
 
+// SetNaiveMode switches between the NaiveProxy mode and the main profile's protocols.
+func (a *App) SetNaiveMode(on bool) error {
+	return wrapBackendError(a.backend.SetNaiveMode(on))
+}
+
 // GetDirectDomains returns the extra direct domains, one per line.
 func (a *App) GetDirectDomains() string {
 	return a.backend.GetDirectDomains()
