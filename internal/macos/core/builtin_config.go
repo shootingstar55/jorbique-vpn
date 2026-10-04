@@ -102,15 +102,10 @@ func applyOverlay(base *AppConfig, data []byte) {
 	// The user's "no" is what decides which outbounds a config is built from;
 	// nil means the file predates it and the positive list above is used.
 	base.Singbox.DisabledOutbounds = ov.Singbox.DisabledOutbounds
-	// Everything else the panels write into this section. Leaving these out was
-	// silent: the file said stack "system" and the config was built with gvisor,
-	// and a picked node was ignored — each saved correctly and read back as the
-	// default.
+	// Everything else the panels write into this section. Leaving it out was
+	// silent: a picked node was saved correctly and read back as the default.
 	if ov.Singbox.SelectedNode != "" {
 		base.Singbox.SelectedNode = ov.Singbox.SelectedNode
-	}
-	if ov.Singbox.Stack != "" {
-		base.Singbox.Stack = ov.Singbox.Stack
 	}
 	if ov.DirectDomains != nil {
 		base.DirectDomains = ov.DirectDomains

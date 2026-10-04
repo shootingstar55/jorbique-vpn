@@ -43,7 +43,6 @@ func TestBuildRuntimeConfig_NaiveTakesTheUUIDInItsEmptyFields(t *testing.T) {
 
 	const uuid = "11111111-1111-1111-1111-111111111111"
 	outPath, err := BuildRuntimeConfig(
-		"system",
 		[]byte(naiveProfileJSON), RuntimeOptions{
 			UserUUID:        uuid,
 			OutboundEnabled: map[string]bool{"vless-reality": true, "naive": true},
@@ -104,7 +103,6 @@ func TestBuildRuntimeConfig_NaiveDisabledIsRemoved(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
 
 	outPath, err := BuildRuntimeConfig(
-		"system",
 		[]byte(naiveProfileJSON), RuntimeOptions{
 			UserUUID:        "11111111-1111-1111-1111-111111111111",
 			OutboundEnabled: map[string]bool{"vless-reality": true, "naive": false},

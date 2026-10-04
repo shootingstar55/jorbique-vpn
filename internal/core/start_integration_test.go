@@ -46,7 +46,7 @@ func fastConfig() config.Config {
 func writeRuntimeConfig(t *testing.T, dataDir string) string {
 	t.Helper()
 	cfgPath := filepath.Join(dataDir, "runtime_config.json")
-	body := `{"log":{"level":"warn","output":"logs/tun_system.log"},"inbounds":[{"type":"tun","interface_name":"singtun","address":["100.64.0.2/24"]}],"outbounds":[{"type":"direct"}]}`
+	body := `{"log":{"level":"warn","output":"logs/tun.log"},"inbounds":[{"type":"tun","interface_name":"singtun","address":["100.64.0.2/24"]}],"outbounds":[{"type":"direct"}]}`
 	if err := os.WriteFile(cfgPath, []byte(body), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func writeRuntimeConfig(t *testing.T, dataDir string) string {
 
 func TestStart_ConfigNotFound(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
-	ok, msg := Start("does-not-exist.json", "Tun System", t.TempDir(), "sing-box",
+	ok, msg := Start("does-not-exist.json", t.TempDir(), "sing-box",
 		fastConfig(), func(string, string) {})
 	if ok {
 		t.Error("missing config should fail")
@@ -71,7 +71,7 @@ func TestStart_ConfigCheckFails(t *testing.T) {
 	exe := writeFakeSingbox(t, 1) // `check` exits non-zero
 	cfgPath := writeRuntimeConfig(t, dataDir)
 
-	ok, msg := Start(cfgPath, "Tun System", dataDir, exe,
+	ok, msg := Start(cfgPath, dataDir, exe,
 		fastConfig(), func(string, string) {})
 	if ok {
 		t.Error("failed config check should fail Start")
@@ -90,7 +90,7 @@ func TestStart_LaunchPathButNotConfirmed(t *testing.T) {
 
 	// The launched stub is never recognized as our sing-box, so Start retries and
 	// ultimately reports failure — without ever touching the routing table.
-	ok, _ := Start(cfgPath, "Tun System", dataDir, exe,
+	ok, _ := Start(cfgPath, dataDir, exe,
 		fastConfig(), func(string, string) {})
 	if ok {
 		t.Error("Start should report failure when the process is never confirmed running")

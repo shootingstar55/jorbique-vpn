@@ -98,28 +98,6 @@ func TestConnectionMenuPresentation(t *testing.T) {
 	}
 }
 
-func TestCompareVersions(t *testing.T) {
-	cases := []struct {
-		a, b string
-		want int
-	}{
-		{"1.13.11", "1.13.7", 1},       // 11 > 7 numerically, not lexically
-		{"1.13.7", "1.13.11", -1},      // downgrade direction
-		{"1.13.7", "1.13.7", 0},        // equal
-		{"1.13", "1.13.0", 0},          // missing component == 0
-		{"v1.13.11", "1.13.11", 0},     // leading v ignored
-		{"2.0.0", "1.99.99", 1},        // major wins
-		{"1.14.0", "1.13.11", 1},       // minor wins
-		{"1.13.11-beta", "1.13.11", 0}, // pre-release suffix ignored
-		{"", "1.0.0", -1},              // empty < anything (no parts -> 0)
-	}
-	for _, c := range cases {
-		if got := compareVersions(c.a, c.b); got != c.want {
-			t.Errorf("compareVersions(%q, %q) = %d, want %d", c.a, c.b, got, c.want)
-		}
-	}
-}
-
 func TestParseProgressLine(t *testing.T) {
 	if pct, ok := parseProgressLine("PROGRESS 42"); !ok || pct != 42 {
 		t.Errorf("PROGRESS 42 -> %d %v", pct, ok)

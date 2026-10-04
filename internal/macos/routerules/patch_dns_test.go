@@ -29,7 +29,7 @@ func writeProfile(t *testing.T) string {
     "final": "doh-cloudflare",
     "strategy": "ipv4_only"
   },
-  "inbounds": [{"type":"tun","tag":"tun-in","address":["100.64.0.2/24"],"auto_route":true,"stack":"gvisor","mtu":1280}],
+  "inbounds": [{"type":"tun","tag":"tun-in","address":["100.64.0.2/24"],"auto_route":true,"mtu":1280}],
   "outbounds": [{"type":"direct","tag":"direct"}],
   "route": {"rules":[{"action":"sniff","sniffer":["http","tls"],"timeout":"500ms"}],"final":"auto"}
 }`)); err != nil {

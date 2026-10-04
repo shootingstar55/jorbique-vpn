@@ -8,7 +8,7 @@ func TestCompare_PrereleaseAndLengths(t *testing.T) {
 		want int
 	}{
 		{"1.2.3", "1.2.3", 0},
-		{"1.2.3-rc1", "1.2.3", 0},   // pre-release suffix stripped
+		{"1.2.3-rc1", "1.2.3", -1},  // a pre-release is older than the release
 		{"1.2.3+build", "1.2.3", 0}, // build metadata stripped
 		{"1.2", "1.2.0", 0},         // differing component counts pad with zeros
 		{"1.13.7", "1.13.10", -1},

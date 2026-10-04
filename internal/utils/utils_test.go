@@ -50,7 +50,7 @@ func TestRelocatePath(t *testing.T) {
 	for _, tc := range []struct {
 		name, in, prefix, dir, want string
 	}{
-		{"keeps the shape under the prefix", "cache/tun_system/cache.db", "cache/", "/data/cache", "/data/cache/tun_system/cache.db"},
+		{"keeps the shape under the prefix", "cache/tun/cache.db", "cache/", "/data/cache", "/data/cache/tun/cache.db"},
 		{"a bare name lands in the directory", "app.log", "logs/", "/data/logs", "/data/logs/app.log"},
 		{"a foreign absolute path keeps only its file", `C:\Users\Someone\logs\x.log`, "logs/", "/data/logs", "/data/logs/x.log"},
 		{"an empty path is the directory itself", "  ", "logs/", "/data/logs", "/data/logs"},

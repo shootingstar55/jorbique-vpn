@@ -887,29 +887,21 @@ func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 		node := cleaned[2]
 		selectedNode = &node
 	}
-	// Fourth line: the TUN stack.
-	var stack *string
-	if len(cleaned) > 3 && cleaned[3] != "" {
-		mode := strings.ToLower(cleaned[3])
-		stack = &mode
-	}
 	tokens := splitTagList(enabledRaw)
 
 	// A tag the profile does not offer is refused rather than stored: kept, it
 	// would match nothing at build time and the choice would be lost silently.
 	// Tags are saved as the profile spells them. With no profile downloaded yet
 	// there is nothing to check against, and the choice is stored as given —
-	// the UUID gate and the stack panel send the stored answer on a first run.
+	// the UUID gate sends the stored answer on a first run.
 	available := m.availableSingboxOutbounds()
 	enabled, err := validateOutboundChoice(tokens, available)
 	if err != nil {
 		return err
 	}
 
-	// Nothing ticked is not refused here: the stack panel sends the stored
-	// selection along with the stack, and refusing would stop a stack change.
-	// The config build refuses a profile with no protocol, which is the state
-	// that really has nothing to go through.
+	// Nothing ticked is not refused here: the config build refuses a profile
+	// with no protocol, which is the state that really has nothing to go through.
 
 	// What the user said no to is recorded alongside what they said yes to.
 	// Only the "no" is consulted when a config is built, so an outbound the
@@ -925,7 +917,7 @@ func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 		enabled, disabled = nil, nil
 	}
 
-	if err := routerules.PatchVpnCfgSingboxUUIDAndOutbounds(m.Paths.CfgFile, uuidToSave, enabled, disabled, selectedNode, stack); err != nil {
+	if err := routerules.PatchVpnCfgSingboxUUIDAndOutbounds(m.Paths.CfgFile, uuidToSave, enabled, disabled, selectedNode); err != nil {
 		m.Logger.Error("Failed to save sing-box uuid/outbounds: " + err.Error())
 		return err
 	}
@@ -952,17 +944,15 @@ func (m *Manager) validatedConfigUUID(cleaned []string) (string, *string, error)
 	if len(cleaned) > 0 {
 		uuid = cleaned[0]
 	}
-	// An empty first line is "no opinion", the way the lines below it are: the
-	// stack panel sends whatever account is stored, and on a machine where none
-	// is that used to refuse the whole save — so the stack could not be changed
-	// before a UUID had ever been entered.
+	// An empty first line is "no opinion", the way the lines below it are:
+	// choices can be saved before a UUID has ever been entered.
 	var uuidToSave *string
 	if uuid != "" {
 		uuidToSave = &uuid
 	}
 	// Every save path ends here — the first-run window, VPN Config, the CLI —
 	// so this is where a new UUID has to be one the server knows. The stored
-	// one comes back with every stack change and is not asked about again.
+	// one comes back with every save and is not asked about again.
 	if uuidToSave != nil && !strings.EqualFold(uuid, strings.TrimSpace(m.Cfg.Singbox.UUID)) {
 		if err := m.checkUserUUID(uuid); err != nil {
 			return "", nil, err
@@ -983,7 +973,7 @@ func (m *Manager) rebuildSingboxConfigs(uuid string, enabled, disabled []string)
 		if err != nil {
 			if uuid == "" {
 				// With no account there may be nothing to build yet. What this
-				// call saved — the stack, the toggles — is in vpn_cfg.json, and
+				// call saved — the toggles, the node — is in vpn_cfg.json, and
 				// the build that follows the first UUID starts from it.
 				m.Logger.Warn("Saved, but the sing-box config was not rebuilt: " + err.Error())
 				return nil
@@ -991,7 +981,6 @@ func (m *Manager) rebuildSingboxConfigs(uuid string, enabled, disabled []string)
 			m.Logger.Warn("Failed to update sing-box config at " + p + ": " + err.Error())
 			return err
 		}
-		singbox.SetTunStack(root, m.singboxStack())
 		singbox.NormalizeLogOutput(root, m.Paths.LogDir)
 		if err := singbox.WriteJSONFileAtomically(root, p); err != nil {
 			m.Logger.Warn("Failed to update sing-box config at " + p + ": " + err.Error())
@@ -1237,15 +1226,6 @@ func (m *Manager) switchSelectorNow() {
 		m.Logger.Log(ansiutil.Green("✓ Switched the running selector to " + node))
 		return
 	}
-}
-
-// singboxStack is the TUN stack the user picked, defaulting to what every
-// config written before the picker existed already carries.
-func (m *Manager) singboxStack() string {
-	if s := strings.ToLower(strings.TrimSpace(m.Cfg.Singbox.Stack)); s != "" {
-		return s
-	}
-	return singbox.DefaultTunStack
 }
 
 // RefreshRemoteProfile downloads the sing-box profile into the cache beside the

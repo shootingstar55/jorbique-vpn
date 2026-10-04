@@ -12,7 +12,7 @@ func TestAssignFreshTunNameRewritesAndPreserves(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "runtime_config.json")
 	original := `{
-		"log": {"level": "warn", "output": "logs/tun_system.log"},
+		"log": {"level": "warn", "output": "logs/tun.log"},
 		"inbounds": [{"type": "tun", "tag": "tun-in", "interface_name": "singtun", "address": ["100.64.0.2/24"], "mtu": 1280, "auto_route": false}],
 		"outbounds": [{"type": "vless", "server_port": 443}]
 	}`

@@ -627,7 +627,7 @@ func jsonStringEnd(text string, start int) int {
 }
 
 // PatchVpnCfgSingboxUUIDAndOutbounds updates singbox.uuid and singbox.enabled_outbounds in vpn_cfg.json.
-func PatchVpnCfgSingboxUUIDAndOutbounds(path string, uuid *string, enabled, disabled []string, selectedNode, stack *string) error {
+func PatchVpnCfgSingboxUUIDAndOutbounds(path string, uuid *string, enabled, disabled []string, selectedNode *string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -666,12 +666,6 @@ func PatchVpnCfgSingboxUUIDAndOutbounds(path string, uuid *string, enabled, disa
 		// key rather than losing the choice.
 		content = ensureSelectedNodeKey(content)
 		content = replaceJSONStringValue("selected_node", *selectedNode, content)
-	}
-	if stack != nil {
-		if !strings.Contains(content, `"stack"`) {
-			content = insertAfterFirstJSONArray(content, `"stack": ""`, "disabled_outbounds", "enabled_outbounds")
-		}
-		content = replaceJSONStringValue("stack", *stack, content)
 	}
 
 	// And what goes out is checked too. These edits are textual — offsets found

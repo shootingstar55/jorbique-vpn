@@ -49,7 +49,7 @@ func GetProjectRoot() string {
 // whatever machine wrote it: relative ones resolve against sing-box's working
 // directory, which differs between a service start and a manual one, and
 // absolute ones are somebody else's disk. A path under prefix keeps its shape
-// below that prefix — "cache/tun_system/cache.db" stays one cache per profile —
+// below that prefix — "cache/tun/cache.db" keeps its own subdirectory —
 // and anything else keeps only its file name.
 func RelocatePath(p, prefix, dir string) string {
 	p = strings.ReplaceAll(strings.TrimSpace(p), "\\", "/")

@@ -109,7 +109,7 @@ func TestAConfigThatDoesNotParseIsNotEdited(t *testing.T) {
 	before, _ := os.ReadFile(path)
 
 	uuid := "11111111-1111-1111-1111-111111111111"
-	err := PatchVpnCfgSingboxUUIDAndOutbounds(path, &uuid, []string{"tuic"}, nil, nil, nil)
+	err := PatchVpnCfgSingboxUUIDAndOutbounds(path, &uuid, []string{"tuic"}, nil, nil)
 	if err == nil {
 		t.Fatal("saving into an unreadable config reported success")
 	}
@@ -129,7 +129,7 @@ func TestSavingReplacesTheUUIDInsteadOfAppending(t *testing.T) {
 	path := writeCfg(t, legacyCfgWithSingboxVPN)
 	uuid := "22222222-2222-2222-2222-222222222222"
 	for i := 0; i < 3; i++ {
-		if err := PatchVpnCfgSingboxUUIDAndOutbounds(path, &uuid, []string{"tuic"}, nil, nil, nil); err != nil {
+		if err := PatchVpnCfgSingboxUUIDAndOutbounds(path, &uuid, []string{"tuic"}, nil, nil); err != nil {
 			t.Fatalf("save %d: %v", i+1, err)
 		}
 	}

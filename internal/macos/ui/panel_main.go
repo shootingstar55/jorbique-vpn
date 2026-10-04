@@ -21,7 +21,6 @@ type mainState struct {
 	Outbounds []string `json:"outbounds"`
 	Running   []string `json:"running"`
 	ExitIP    string   `json:"exitIP"`
-	Stack     string   `json:"stack"`
 	Daemon    string   `json:"daemon"`
 	// Action is what the bar is doing right now — "Connecting", "Disconnecting",
 	// "Restarting" — so the window shows the same in-flight state the status
@@ -100,7 +99,6 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 		Outbounds: append([]string{}, singboxAvailableOutbounds(cfg)...),
 		Running:   []string{},
 		ExitIP:    exitIP,
-		Stack:     singboxStackOf(cfg),
 		Daemon:    ms.SudoersLine,
 	}
 	// The window and the menu control the same sing-box connection.

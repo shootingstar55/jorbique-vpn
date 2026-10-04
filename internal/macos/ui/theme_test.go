@@ -19,7 +19,7 @@ func TestThemeModeRoundTripsAndDefaultsToTheSystem(t *testing.T) {
 	if got := readThemeMode(); got != themeModeSystem {
 		t.Errorf("with nothing stored the theme is %q, want the system's", got)
 	}
-	if got := panelQuery("stack"); got != "stack=1&theme=system" {
+	if got := panelQuery("main"); got != "main=1&theme=system" {
 		t.Errorf("query = %q", got)
 	}
 

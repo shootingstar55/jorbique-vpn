@@ -15,6 +15,7 @@ import (
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/macos/applekit"
 	"jorbiquevpn/internal/macos/core"
+	"jorbiquevpn/internal/semver"
 )
 
 const setSingboxConfigCommand = "set-singbox-config"
@@ -55,7 +56,6 @@ type statusBarController struct {
 
 	singboxP       *webPanel // the open sing-box config panel, if any
 	routeP         *webPanel // the open route-rules panel, if any
-	stackP         *webPanel // the open TUN-stack picker, if any
 	mainP          *webPanel // the main window, if open
 	dashboardP     *webPanel // embedded Naive UI dashboard, if open
 	gateP          *webPanel // the first-run UUID window, while no UUID is stored
@@ -452,7 +452,7 @@ func (c *statusBarController) autoUpdateSingboxIfNeeded() {
 		c.recordSingboxCheck(c.downloadSingboxWithProgress("Downloading sing-box "+server+"…") == 0)
 		return
 	}
-	if compareVersions(server, local) <= 0 {
+	if semver.Compare(server, local) <= 0 {
 		c.recordSingboxCheck(true) // already up to date, or server older — never downgrade
 		return
 	}
@@ -913,41 +913,6 @@ func (c *statusBarController) startPollingAfterAction() {
 	})
 }
 
-// cmdChangeStack opens the TUN-stack picker and applies the choice through the
-// same subcommand the config panel uses.
-//
-// The stack is read when sing-box builds its tunnel, so a running core is
-// restarted to move to it rather than waiting for the next launch.
-func (c *statusBarController) cmdChangeStack() {
-	if c.stackP != nil {
-		c.stackP.Show()
-		return
-	}
-	cfg, _ := c.loadConfig()
-	panel, err := showStackPanel(singboxStackOf(cfg),
-		func(mode string) error {
-			if mode == singboxStackOf(cfg) {
-				return nil
-			}
-			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand},
-				singboxStdin(singboxUUID(cfg), singboxEnabledOutbounds(cfg, singboxAvailableOutbounds(cfg)))+"\n"+mode)
-			if res.status != 0 {
-				return fmt.Errorf("%s", strings.TrimSpace(res.stderr))
-			}
-			// cmdRestart is a no-op with nothing running, and it is what paints
-			// the status item while the tunnels come back.
-			applekit.RunOnMain(c.cmdRestart)
-			return nil
-		},
-		func() { c.stackP = nil },
-	)
-	if err != nil {
-		applekit.PresentAlert("Change stack failed", err.Error(), applekit.AlertWarning)
-		return
-	}
-	c.stackP = panel
-}
-
 // cmdOpenMainWindow opens the main window: the connect ring, status and
 // actions, drawn from this client's own status output.
 func (c *statusBarController) cmdOpenMainWindow() {
@@ -1138,8 +1103,6 @@ func (c *statusBarController) mainWindowAction(action mainAction) error {
 		switch stringValue(action.Value) {
 		case "vpn-config":
 			applekit.RunOnMain(c.cmdSetSingboxConfig)
-		case "stack":
-			applekit.RunOnMain(c.cmdChangeStack)
 		case "route-rules":
 			applekit.RunOnMain(c.cmdRouteRules)
 		case "dashboard":

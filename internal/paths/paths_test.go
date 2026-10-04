@@ -43,7 +43,7 @@ func TestEnsureDataDirs(t *testing.T) {
 	if err := EnsureDataDirs(); err != nil {
 		t.Fatal(err)
 	}
-	for _, sub := range []string{"logs", "cache", filepath.Join("cache", "tun_system"), "webview"} {
+	for _, sub := range []string{"logs", "cache", filepath.Join("cache", "tun"), "webview"} {
 		if st, err := os.Stat(filepath.Join(DataDir(), sub)); err != nil || !st.IsDir() {
 			t.Errorf("missing dir %s: %v", sub, err)
 		}

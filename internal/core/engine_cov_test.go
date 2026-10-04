@@ -62,7 +62,7 @@ func TestReapSingboxLogsTheExit(t *testing.T) {
 func TestSingboxStartupError(t *testing.T) {
 	const generic = "Sing-box failed to start or exited immediately"
 	dataDir := t.TempDir()
-	cfgPath := writeRuntimeConfig(t, dataDir) // log.output: logs/tun_system.log
+	cfgPath := writeRuntimeConfig(t, dataDir) // log.output: logs/tun.log
 
 	printed := &syncBuffer{}
 	_, _ = printed.Write([]byte("  FATAL start inbound/tun: permission denied \n"))
@@ -78,7 +78,7 @@ func TestSingboxStartupError(t *testing.T) {
 		t.Fatal(err)
 	}
 	logLine := "ERROR configure tun interface: TUN interface not ready\n"
-	if err := os.WriteFile(filepath.Join(dataDir, "logs", "tun_system.log"), []byte(logLine), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "logs", "tun.log"), []byte(logLine), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if got := singboxStartupError(nil, cfgPath, dataDir); got != generic+": ERROR configure tun interface: TUN interface not ready" {

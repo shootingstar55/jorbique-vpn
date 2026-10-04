@@ -13,7 +13,6 @@ import HeroTraffic from './HeroTraffic.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
 import { outboundLabel } from '../lib/outbounds.js';
-import { stackLabel } from '../lib/stacks.js';
 import { panelAPI } from '../lib/panel-api.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
@@ -35,7 +34,6 @@ const state = ref({
   vpns: [],
   running: [],
   exitIP: '',
-  stack: '',
   daemon: '',
   vpnAutostart: false,
   appAutostart: false,
@@ -91,7 +89,6 @@ const ACTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: 'monitor', needsTunnel: true },
   { id: 'vpn-config', label: 'VPN Config', icon: 'settings' },
   { id: 'route-rules', label: 'Route rules', icon: 'apps' },
-  { id: 'stack', label: 'Change stack', icon: 'layers' },
 ];
 
 async function refresh() {
@@ -173,11 +170,6 @@ onBeforeUnmount(() => clearInterval(timer));
         </div>
         <h2 class="hero__headline">{{ headline }}</h2>
         <p class="hero__sub">{{ subline }}</p>
-
-        <p class="stack-chip">
-          <span class="stack-chip__label">{{ labels.stack }}</span>
-          <span class="stack-chip__value">{{ stackLabel(state.stack) || '—' }}</span>
-        </p>
       </NSpin>
     </NCard>
 
@@ -339,13 +331,6 @@ onBeforeUnmount(() => clearInterval(timer));
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--text-muted);
-}
-
-/* One short value reads as a chip, not as a panel with an empty half. */
-.stack-chip {
-  margin: 12px 0 0;
-  padding: 4px 13px;
-  background: var(--surface-hover);
 }
 
 .switches {

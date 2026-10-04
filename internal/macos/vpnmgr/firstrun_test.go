@@ -60,10 +60,8 @@ func TestSetSingboxConfigAcceptsNoSelectionBeforeAProfileExists(t *testing.T) {
 	}
 }
 
-// Unticking every protocol is stored as chosen. Refusing it here reached
-// further than the box it guarded — the stack panel sends the stored selection
-// along with the stack, so a client in that state could not change its stack at
-// all. A config with no tunnel left is refused by the config build instead.
+// Unticking every protocol is stored as chosen. A config with no tunnel left is
+// refused by the config build instead.
 func TestSetSingboxConfigAcceptsUntickingEveryProtocol(t *testing.T) {
 	m := newFirstRunManager(t)
 	// A downloaded profile beside the sing-box config gives the panel something
@@ -91,29 +89,6 @@ func TestSetSingboxConfigAcceptsUntickingEveryProtocol(t *testing.T) {
 	if !strings.Contains(string(saved), `"disabled_outbounds": [`) ||
 		!strings.Contains(string(saved), `"vless-reality"`) {
 		t.Errorf("the refusal was not recorded:\n%s", saved)
-	}
-}
-
-// The stack is a local setting — which TUN sing-box builds — and has nothing to
-// do with the account. The panel sends whatever UUID is stored, so on a machine
-// where none is it sent an empty line, and the save was refused outright with
-// "UUID required": the stack could not be changed before an account had ever
-// been entered.
-func TestTheStackCanBeChangedBeforeAUUIDExists(t *testing.T) {
-	m := newFirstRunManager(t)
-
-	// What the stack panel sends: no account, no selection, no node — and the
-	// stack on the fourth line.
-	if err := m.SetSingboxConfig([]string{"", "", "", "gvisor"}); err != nil {
-		t.Fatalf("changing the stack without a UUID: %v", err)
-	}
-
-	saved, err := os.ReadFile(m.Paths.CfgFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(saved), `"stack": "gvisor"`) {
-		t.Errorf("the stack was not stored:\n%s", saved)
 	}
 }
 

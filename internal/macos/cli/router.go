@@ -323,8 +323,8 @@ func runManagerCommand(mgr *vpnmgr.Manager, cmd string, args []string) error {
 	case "restart":
 		return mgr.Restart(nonBlank(args[1:]))
 	case "set-singbox-config":
-		// Four: uuid, enabled outbounds, the selector node and the TUN stack.
-		return mgr.SetSingboxConfig(readNStdinLines(4))
+		// Three: uuid, enabled outbounds and the selector node.
+		return mgr.SetSingboxConfig(readNStdinLines(3))
 	case "set-route-rules":
 		// Three: direct domains, bypass processes, bypass paths.
 		return mgr.SetRouteRules(readNStdinLines(3))

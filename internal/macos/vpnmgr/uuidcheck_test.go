@@ -64,8 +64,8 @@ func TestSetSingboxConfigStoresOnlyAUUIDTheServerKnows(t *testing.T) {
 	}
 }
 
-// Only a UUID that changes is asked about: the stack panel sends the stored
-// one back with every stack change, and an empty first line keeps it.
+// Only a UUID that changes is asked about: a save sends the stored one back,
+// and an empty first line keeps it.
 func TestSetSingboxConfigDoesNotAskAboutTheStoredUUID(t *testing.T) {
 	m := newFirstRunManager(t)
 	m.Cfg.Singbox.UUID = testUserUUID

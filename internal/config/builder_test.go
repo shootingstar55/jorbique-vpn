@@ -29,7 +29,7 @@ func TestBuildRuntimeConfig_smoke(t *testing.T) {
 		"vless-reality": true,
 		"tuic":          true,
 	}
-	path, err := BuildRuntimeConfig("system", profile, RuntimeOptions{
+	path, err := BuildRuntimeConfig(profile, RuntimeOptions{
 		UserUUID:        "00000000-0000-0000-0000-000000000001",
 		OutboundEnabled: enabled,
 	})
@@ -61,7 +61,7 @@ func TestBuildRuntimeConfig_smoke(t *testing.T) {
 // ever read them.
 func TestMergeRemoteWithTunShell_smoke(t *testing.T) {
 	remote := []byte(`{"outbounds":[{"type":"direct","tag":"direct"}],"route":{"final":"direct"}}`)
-	cfg, err := MergeRemoteWithTunShell("system", remote)
+	cfg, err := MergeRemoteWithTunShell(remote)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestMergeRemoteWithTunShell_smoke(t *testing.T) {
 		}
 	}
 	// And the template no longer smuggles in a second copy of the server's half.
-	tpl, err := assets.FS.ReadFile("tun_system.json")
+	tpl, err := assets.FS.ReadFile("tun.json")
 	if err != nil {
 		t.Fatal(err)
 	}

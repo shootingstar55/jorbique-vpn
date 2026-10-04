@@ -150,37 +150,6 @@ func (a *App) ActivateUserUUID(userUUID string) (msg string, err error) {
 	return "", nil
 }
 
-// GetCurrentStackMode returns the current stack mode with proper capitalization: System, Gvisor, Mixed
-func (a *App) GetCurrentStackMode() string {
-	data, err := os.ReadFile(filepath.Join(a.GetDataDir(), currentProfileFile))
-	if err != nil {
-		// A disconnect removes that file, so with nothing running this fell back
-		// to a dash — while the macOS window kept showing the stack it would
-		// come up on. The saved preference is that stack: the last one that
-		// started, and the one the next connect will use.
-		return capitalizeStackMode(a.store.GetPreferredStackMode())
-	}
-	return capitalizeStackMode(string(data))
-}
-
-// capitalizeStackMode renders a stack name the way the window shows it, from
-// either a profile file ("tun_gvisor") or a stored preference ("gvisor").
-func capitalizeStackMode(value string) string {
-	s := strings.TrimSpace(value)
-	switch {
-	case strings.Contains(strings.ToLower(s), "system"):
-		return "System"
-	case strings.Contains(strings.ToLower(s), "gvisor"):
-		return "Gvisor"
-	case strings.Contains(strings.ToLower(s), "mixed"):
-		return "Mixed"
-	}
-	if s != "" {
-		return strings.ToUpper(s[:1]) + strings.ToLower(s[1:])
-	}
-	return s
-}
-
 // httpClientNoKeepAlive is what the exit-address lookup goes out on. Keep-alive
 // is off so a connection opened before the tunnel came up is never reused for a
 // question about the route the tunnel replaced.
@@ -203,7 +172,7 @@ func (a *App) GetIPInfo(force bool) (ipinfo.Info, error) {
 	return ipInfoCache.Get(context.Background(), force)
 }
 
-func (a *App) Connect(stackMode string) (msg string, err error) {
+func (a *App) Connect() (msg string, err error) {
 	// Every connect ends here — the window, the tray and the health loop — so
 	// this is what keeps the app closed until the first-run screen has a UUID.
 	if !a.HasUserUUID() {
@@ -247,7 +216,7 @@ func (a *App) Connect(stackMode string) (msg string, err error) {
 		return "Failed to load VPN profile from server: " + err.Error(), ErrConfigUpdate
 	}
 
-	configPath, err := a.buildRuntimeConfig(stackMode, remoteJSON)
+	configPath, err := a.buildRuntimeConfig(remoteJSON)
 	if err != nil {
 		if errors.Is(err, ErrVlessRequired) {
 			return "A valid user UUID is required. Open VPN Configuration and enter your UUID.", err
@@ -255,24 +224,12 @@ func (a *App) Connect(stackMode string) (msg string, err error) {
 		return "Config build failed: " + err.Error(), ErrConfigUpdate
 	}
 
-	var stackName string
-	switch stackMode {
-	case "system":
-		stackName = "Tun System"
-	case "gvisor":
-		stackName = "Tun Gvisor"
-	case "mixed":
-		stackName = "Tun Mixed"
-	default:
-		return "Invalid stack mode", ErrInvalidStackMode
-	}
-
 	// Win10: a singtun adapter left by a prior crash/reboot/unclean exit makes the first
 	// sing-box run fail with "file already exists" (works on retry only because the failed
 	// attempt cleans it up below). Clear it up front so the first Connect succeeds.
 	network.PrepareSingtunForConnect(network.GetTunInterfaceNameFromConfig(configPath), logFn)
 
-	success, errMsg := core.Start(configPath, stackName, dataDir, singboxExe, cfg, logFn)
+	success, errMsg := core.Start(configPath, dataDir, singboxExe, cfg, logFn)
 
 	if !success {
 		network.RemoveNrptDnsCapture(logFn)
@@ -285,14 +242,10 @@ func (a *App) Connect(stackMode string) (msg string, err error) {
 		}
 		return "Startup failed. Check logs for details.", ErrStartupFailed
 	}
-	a.store.SetPreferredStackMode(stackMode)
-	if err := a.store.Save(a.GetDataDir()); err != nil {
-		logFn("Could not save the stack: "+err.Error(), logging.LevelWarn)
-	}
 	return "", nil
 }
 
-func (a *App) buildRuntimeConfig(stackMode string, remoteJSON []byte) (string, error) {
+func (a *App) buildRuntimeConfig(remoteJSON []byte) (string, error) {
 	userUUID, enabled, directDomains := a.effectiveVpnUserForConnect()
 	available := config.ProxyTagsFromJSON(remoteJSON)
 	if gone := a.vanishedOutbounds(enabled, available); len(gone) > 0 {
@@ -302,7 +255,7 @@ func (a *App) buildRuntimeConfig(stackMode string, remoteJSON []byte) (string, e
 		return "", ErrVlessRequired
 	}
 	// The builder checks for a usable tunnel after applying the saved choices.
-	return config.BuildRuntimeConfig(stackMode, remoteJSON, config.RuntimeOptions{
+	return config.BuildRuntimeConfig(remoteJSON, config.RuntimeOptions{
 		UserUUID:            strings.TrimSpace(userUUID),
 		OutboundEnabled:     enabled,
 		IgnoredProcessNames: a.store.GetIgnoredProcessNames(),
@@ -312,21 +265,12 @@ func (a *App) buildRuntimeConfig(stackMode string, remoteJSON []byte) (string, e
 	})
 }
 
-// GetPreferredStackMode returns the last saved TUN stack (system, gvisor, mixed) or empty.
-func (a *App) GetPreferredStackMode() string {
-	return a.store.GetPreferredStackMode()
-}
-
-// ConnectSavedStack connects using persisted stack. openUI is true when VPN config or stack preference is missing.
-func (a *App) ConnectSavedStack() (openUI bool, err error) {
+// ConnectSaved connects with the saved VPN config. openUI is true when there is none.
+func (a *App) ConnectSaved() (openUI bool, err error) {
 	if !a.HasVpnUserConfig() {
 		return true, nil
 	}
-	mode := a.GetPreferredStackMode()
-	if mode == "" {
-		return true, nil
-	}
-	_, err = a.Connect(mode)
+	_, err = a.Connect()
 	return false, err
 }
 

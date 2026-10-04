@@ -66,8 +66,8 @@ func StartLocalServer(query, configPath string, assets fs.FS, memoryFallback fun
 // /api/<path> hands the window its initial values, POST /api/<path> saves them,
 // and POST /api/close closes the window from a Cancel button.
 //
-// Every macOS panel is one of these — the config form, the stack picker, the
-// route rules — so they differ by their state type and their save function
+// Every macOS panel is one of these — the config form, the route rules, the
+// main window — so they differ by their state type and their save function
 // rather than by a server each.
 func StartFormServer(query, path string, assets fs.FS, state any, save func(json.RawMessage) error, closeWindow func()) (*LocalServer, error) {
 	return startFormServer(query, path, assets, func() any { return state }, save, nil, closeWindow)

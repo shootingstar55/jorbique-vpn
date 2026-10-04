@@ -31,9 +31,7 @@ func EnsureDataDirs() error {
 		data,
 		filepath.Join(data, "logs"),
 		filepath.Join(data, "cache"),
-		filepath.Join(data, "cache", "tun_system"),
-		filepath.Join(data, "cache", "tun_gvisor"),
-		filepath.Join(data, "cache", "tun_mixed"),
+		filepath.Join(data, "cache", "tun"),
 		filepath.Join(data, "webview"),
 	}
 	for _, d := range dirs {

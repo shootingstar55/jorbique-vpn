@@ -41,7 +41,6 @@ func TestBuildRuntimeConfig_FullPipeline(t *testing.T) {
 		"vless-reality": true, "vless-grpc": true, "tuic": true, "hysteria2": true, "anytls": true,
 	}
 	outPath, err := BuildRuntimeConfig(
-		"system",
 		[]byte(remoteProfileJSON), RuntimeOptions{
 			UserUUID:            uuid,
 			OutboundEnabled:     enabled,
@@ -122,7 +121,7 @@ func TestBuildRuntimeConfig_RejectsAllOutboundsDisabled(t *testing.T) {
 	disabled := map[string]bool{
 		"vless-reality": false, "vless-grpc": false, "tuic": false, "hysteria2": false, "anytls": false,
 	}
-	if _, err := BuildRuntimeConfig("system", []byte(remoteProfileJSON), RuntimeOptions{
+	if _, err := BuildRuntimeConfig([]byte(remoteProfileJSON), RuntimeOptions{
 		OutboundEnabled: disabled,
 	}); err == nil {
 		t.Error("disabling every VPN outbound should fail the build")
@@ -151,7 +150,7 @@ func TestBuildRuntimeConfig_NestedGroupsAndTransportCredentials(t *testing.T) {
 	if got, want := ProxyTagsFromJSON([]byte(profile)), []string{"b", "off", "a", "fresh"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("nested auto priority = %v, want %v", got, want)
 	}
-	path, err := BuildRuntimeConfig("system", []byte(profile), RuntimeOptions{
+	path, err := BuildRuntimeConfig([]byte(profile), RuntimeOptions{
 		UserUUID:        "user-credential",
 		OutboundEnabled: map[string]bool{"off": false},
 	})
@@ -192,7 +191,7 @@ func TestBuildRuntimeConfig_NestedGroupsAndTransportCredentials(t *testing.T) {
 	// as when every protocol is switched off. The other rule keeps a proxy
 	// routed; without it nothing would tunnel and HasTunnel would refuse.
 	invalid := strings.Replace(profile, `"final":"choose"`, `"final":"first","rules":[{"outbound":"first"},{"domain":["x"],"outbound":"auto"}]`, 1)
-	path, err = BuildRuntimeConfig("system", []byte(invalid), RuntimeOptions{
+	path, err = BuildRuntimeConfig([]byte(invalid), RuntimeOptions{
 		UserUUID:        "user-credential",
 		OutboundEnabled: map[string]bool{"off": false},
 	})
@@ -211,7 +210,7 @@ func TestBuildRuntimeConfig_NestedGroupsAndTransportCredentials(t *testing.T) {
 // it wrote by tag.
 func buildOutbounds(t *testing.T, profile string, enabled map[string]bool) map[string]map[string]any {
 	t.Helper()
-	path, err := BuildRuntimeConfig("system", []byte(profile), RuntimeOptions{
+	path, err := BuildRuntimeConfig([]byte(profile), RuntimeOptions{
 		UserUUID:        "user-credential",
 		OutboundEnabled: enabled,
 	})
@@ -304,7 +303,7 @@ func TestBuildRuntimeConfig_ATransportNothingRoutesToIsNoTunnel(t *testing.T) {
 		`],"route":{"final":"auto","rule_set":[{"type":"remote","tag":"ads","format":"binary","url":"https://example.com/ads.srs","download_detour":"transport"}]}`,
 		`,{"type":"selector","tag":"leftover","outbounds":["transport"]}],"route":{"final":"auto"}`,
 	} {
-		_, err := BuildRuntimeConfig("system", []byte(`{"outbounds":[`+leaves+extra+`}`), RuntimeOptions{
+		_, err := BuildRuntimeConfig([]byte(`{"outbounds":[`+leaves+extra+`}`), RuntimeOptions{
 			UserUUID:        "user-credential",
 			OutboundEnabled: off,
 		})
@@ -334,7 +333,7 @@ func TestBuildRuntimeConfig_DropsEndpoints(t *testing.T) {
 	  ],
 	  "route":{"rules":[{"ip_cidr":["10.0.0.0/8"],"outbound":"ovpn-intra"}],"final":"auto"}
 	}`
-	outPath, err := BuildRuntimeConfig("system", []byte(profile), RuntimeOptions{UserUUID: "user-credential"})
+	outPath, err := BuildRuntimeConfig([]byte(profile), RuntimeOptions{UserUUID: "user-credential"})
 	if err != nil {
 		t.Fatalf("BuildRuntimeConfig: %v", err)
 	}
@@ -348,7 +347,7 @@ func TestBuildRuntimeConfig_DropsEndpoints(t *testing.T) {
 		}
 	}
 
-	_, err = BuildRuntimeConfig("system", []byte(profile), RuntimeOptions{UserUUID: "user-credential", OutboundEnabled: map[string]bool{"a": false}})
+	_, err = BuildRuntimeConfig([]byte(profile), RuntimeOptions{UserUUID: "user-credential", OutboundEnabled: map[string]bool{"a": false}})
 	if err == nil || !strings.Contains(err.Error(), "enable at least one protocol") {
 		t.Errorf("every protocol off with endpoints in the profile: err = %v, want nothing to connect through", err)
 	}

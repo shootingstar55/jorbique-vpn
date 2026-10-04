@@ -71,7 +71,7 @@ func TestPatchSingboxRoundTrip(t *testing.T) {
 	paths, cfgFile := writeSlim(t)
 
 	uuid := "11111111-2222-3333-4444-555555555555"
-	if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, &uuid, []string{"tuic", "hysteria2"}, []string{"anytls"}, nil, nil); err != nil {
+	if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, &uuid, []string{"tuic", "hysteria2"}, []string{"anytls"}, nil); err != nil {
 		t.Fatalf("PatchVpnCfgSingboxUUIDAndOutbounds: %v", err)
 	}
 	cfg, err := core.ReadConfig(paths)
@@ -97,10 +97,10 @@ func TestPatchAddsTheDisabledKeyToAnOlderConfig(t *testing.T) {
 	paths, cfgFile := writeSlim(t)
 
 	uuid := "11111111-2222-3333-4444-555555555555"
-	if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, &uuid, []string{"tuic"}, nil, nil, nil); err != nil {
+	if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, &uuid, []string{"tuic"}, nil, nil); err != nil {
 		t.Fatalf("first save: %v", err)
 	}
-	if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, nil, []string{"tuic"}, []string{"anytls", "hysteria2"}, nil, nil); err != nil {
+	if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, nil, []string{"tuic"}, []string{"anytls", "hysteria2"}, nil); err != nil {
 		t.Fatalf("second save: %v", err)
 	}
 	cfg, err := core.ReadConfig(paths)
@@ -121,7 +121,7 @@ func TestPatchDisabledOnlyInitializesSingboxKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, disabled := range [][]string{{"tuic"}, {}} {
-		if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, nil, nil, disabled, nil, nil); err != nil {
+		if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, nil, nil, disabled, nil); err != nil {
 			t.Fatal(err)
 		}
 		cfg, err := core.ReadConfig(paths)
@@ -148,7 +148,7 @@ func TestPatchDisabledOutboundsAfterJSONMarshal(t *testing.T) {
 		if err := os.WriteFile(cfgFile, data, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, nil, nil, disabled, nil, nil); err != nil {
+		if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, nil, nil, disabled, nil); err != nil {
 			t.Fatal(err)
 		}
 		cfg, err := core.ReadConfig(paths)
@@ -192,7 +192,7 @@ func TestPatchesIgnoreBracketsInsideJSONStrings(t *testing.T) {
 		t.Fatal(err)
 	}
 	node := "node[new]"
-	if err := PatchVpnCfgSingboxUUIDAndOutbounds(path, nil, []string{node}, []string{}, &node, nil); err != nil {
+	if err := PatchVpnCfgSingboxUUIDAndOutbounds(path, nil, []string{node}, []string{}, &node); err != nil {
 		t.Fatal(err)
 	}
 	data, err = os.ReadFile(path)

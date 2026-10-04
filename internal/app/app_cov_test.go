@@ -97,7 +97,7 @@ func TestApp_BuildRuntimeConfigLogsVanishedOutbounds(t *testing.T) {
 	readLog := logToTestDir(t, a)
 	a.store.SetUserUUIDAndOutbounds(appTestUUID, map[string]bool{"retired": true, "proxy": true})
 	profile := []byte(`{"outbounds":[{"type":"direct","tag":"direct"},{"type":"vless","tag":"proxy","uuid":""}],"route":{"rules":[],"final":"direct"}}`)
-	_, _ = a.buildRuntimeConfig("system", profile)
+	_, _ = a.buildRuntimeConfig(profile)
 	if !strings.Contains(readLog(), "the server no longer offers retired") {
 		t.Errorf("vanished outbound not logged:\n%s", readLog())
 	}

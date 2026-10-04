@@ -49,38 +49,33 @@ func TestEndToEndConfigBuild(t *testing.T) {
 		"vless-reality": true, "vless-grpc": true, "tuic": true, "hysteria2": true, "anytls": true,
 	}
 
-	for _, stack := range []string{"system", "gvisor", "mixed"} {
-		t.Run(stack, func(t *testing.T) {
-			outPath, err := config.BuildRuntimeConfig(
-				stack,
-				[]byte(sampleRemoteProfile), config.RuntimeOptions{
-					UserUUID:            uuid,
-					OutboundEnabled:     enabled,
-					IgnoredProcessNames: []string{"chrome"},
-					IgnoredProcessPaths: []string{filepath.FromSlash("/usr/bin/zoom")},
-					SelectedNode:        "tuic",
-					UserDirectDomains:   []string{"example.com"},
-				},
-			)
-			if err != nil {
-				t.Fatalf("BuildRuntimeConfig(%s): %v", stack, err)
-			}
-
-			data, err := os.ReadFile(outPath)
-			if err != nil {
-				t.Fatalf("read config: %v", err)
-			}
-			var cfg map[string]interface{}
-			if err := json.Unmarshal(data, &cfg); err != nil {
-				t.Fatalf("generated config is not valid JSON: %v", err)
-			}
-			if strings.Contains(string(data), `"uuid": ""`) || strings.Contains(string(data), `"password": ""`) {
-				t.Error("the empty credential was not filled in")
-			}
-
-			validateWithSingbox(t, outPath)
-		})
+	outPath, err := config.BuildRuntimeConfig(
+		[]byte(sampleRemoteProfile), config.RuntimeOptions{
+			UserUUID:            uuid,
+			OutboundEnabled:     enabled,
+			IgnoredProcessNames: []string{"chrome"},
+			IgnoredProcessPaths: []string{filepath.FromSlash("/usr/bin/zoom")},
+			SelectedNode:        "tuic",
+			UserDirectDomains:   []string{"example.com"},
+		},
+	)
+	if err != nil {
+		t.Fatalf("BuildRuntimeConfig: %v", err)
 	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	var cfg map[string]interface{}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("generated config is not valid JSON: %v", err)
+	}
+	if strings.Contains(string(data), `"uuid": ""`) || strings.Contains(string(data), `"password": ""`) {
+		t.Error("the empty credential was not filled in")
+	}
+
+	validateWithSingbox(t, outPath)
 }
 
 func TestDashboardReadsRealStartedService(t *testing.T) {

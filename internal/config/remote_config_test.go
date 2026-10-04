@@ -85,7 +85,7 @@ func TestMergeRemoteWithTunShell_takesTheWholeProfile(t *testing.T) {
 		`"services":[{"type":"api","tag":"local-api"}],` +
 		`"log":{"level":"debug"}}`)
 
-	cfg, err := MergeRemoteWithTunShell("system", remote)
+	cfg, err := MergeRemoteWithTunShell(remote)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,13 +100,13 @@ func TestMergeRemoteWithTunShell_takesTheWholeProfile(t *testing.T) {
 	if lvl := field[any](field[*jsonorder.Map](cfg, "log"), "level"); lvl != "debug" {
 		t.Errorf("log level = %v, want the profile's", lvl)
 	}
-	// What the profile leaves out still comes from the template: the TUN inbound
-	// belongs to the stack the user picked, which the server cannot know.
+	// What the profile leaves out still comes from the template: the TUN inbound,
+	// with no stack, so sing-box runs its own.
 	inbounds, ok := mustField[[]any](cfg, "inbounds")
 	if !ok || len(inbounds) == 0 {
 		t.Fatalf("inbounds = %v", field[any](cfg, "inbounds"))
 	}
-	if stack := field[any](inbounds[0].(*jsonorder.Map), "stack"); stack != "system" {
-		t.Errorf("inbound stack = %v, want the requested one", stack)
+	if stack := field[any](inbounds[0].(*jsonorder.Map), "stack"); stack != nil {
+		t.Errorf("inbound stack = %v, want none", stack)
 	}
 }

@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { NButton, NCard, NIcon, NModal, NProgress, NSwitch, NTag } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
 import IpInfoCard from './IpInfoCard.vue';
-import StackPicker from './StackPicker.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
 import HeroTraffic from './HeroTraffic.vue';
 import { dashboardAPI } from '../lib/dashboard-api.js';
@@ -34,9 +33,6 @@ const AUTOSTART_RECHECK_MS = 1500;
 
 
 const connected = ref(false);
-const stackMode = ref('—');
-/** The same value the picker matches its rows against: "system", not "System". */
-const currentStackMode = computed(() => stackModeFromLabel(stackMode.value));
 
 /**
  * What the core has carried, for the columns beside the ring. Read from the same
@@ -88,8 +84,6 @@ const autostartSupported = ref(true);
 const autostartEnabled = ref(false);
 const autostartSwitching = ref(false);
 
-const stackPickerOpen = ref(false);
-
 const bootstrapVisible = ref(false);
 const bootstrapTitle = ref('Setting up sing-box');
 const bootstrapLabel = ref('Downloading sing-box…');
@@ -119,21 +113,7 @@ const primaryLabel = computed(() => {
 
 const autostartDisabled = computed(() => busy.value || autostartSwitching.value);
 
-/** Map GetCurrentStackMode() label to Connect(mode) string */
-function stackModeFromLabel(label) {
-  const s = String(label || '').toLowerCase();
-  if (s.includes('system')) return 'system';
-  if (s.includes('gvisor')) return 'gvisor';
-  if (s.includes('mixed')) return 'mixed';
-  return '';
-}
-
 // --- Status ------------------------------------------------------------------------
-
-/** A binding that has not resolved yet stringifies as [object Promise]; show the dash instead. */
-function displayOrDash(value) {
-  return value && String(value) !== '[object Promise]' ? String(value) : '—';
-}
 
 async function refreshStatus(force = false) {
   if (transition.value && !force) return;
@@ -146,15 +126,6 @@ async function refreshStatus(force = false) {
     connected.value = await isConnected();
   } catch {
     // A transient poll failure keeps the last known state until the next poll.
-  }
-
-  const getStack = binding('GetCurrentStackMode');
-  if (getStack) {
-    try {
-      stackMode.value = displayOrDash(await getStack());
-    } catch {
-      // Keep the last stack while the native service is restarting.
-    }
   }
 
   // Rides the status poll rather than a timer of its own: the columns read the
@@ -334,19 +305,7 @@ async function ensureVpnConfigForConnect() {
   return true;
 }
 
-async function getSavedStackMode() {
-  const get = binding('GetPreferredStackMode');
-  if (!get) return '';
-  try {
-    const mode = String((await get()) || '').toLowerCase();
-    if (mode === 'system' || mode === 'gvisor' || mode === 'mixed') return mode;
-  } catch {
-    // The caller opens the stack picker when no preference can be read.
-  }
-  return '';
-}
-
-async function runConnectWithMode(mode, { switchingStack = false } = {}) {
+async function runConnect() {
   const connect = binding('Connect');
   if (!connect) return;
 
@@ -367,11 +326,11 @@ async function runConnectWithMode(mode, { switchingStack = false } = {}) {
 
   transition.value = {
     phase: 'connecting',
-    text: switchingStack || wasConnected ? 'Switching stack' : 'Connecting',
+    text: wasConnected ? 'Reconnecting' : 'Connecting',
   };
 
   try {
-    await connect(mode);
+    await connect();
     transition.value = { phase: 'connecting', text: 'Establishing tunnel' };
     await new Promise((r) => setTimeout(r, TUNNEL_SETTLE_MS));
     transition.value = null;
@@ -397,20 +356,13 @@ async function runConnectWithMode(mode, { switchingStack = false } = {}) {
   }
 }
 
-/** Connect — uses the saved stack when set; otherwise asks once via the stack picker. */
 async function onConnect() {
   if (connectOpInFlight) return;
   connectOpInFlight = true;
   try {
     if (!(await ensureSingboxReadyForConnect())) return;
     if (!(await ensureVpnConfigForConnect())) return;
-    const saved = await getSavedStackMode();
-    if (saved) {
-      await runConnectWithMode(saved);
-      return;
-    }
-    // No saved stack: hand off to the picker, which re-acquires the guard.
-    stackPickerOpen.value = true;
+    await runConnect();
   } finally {
     connectOpInFlight = false;
   }
@@ -443,67 +395,40 @@ function onPrimaryAction() {
   else void onConnect();
 }
 
-async function pickStack(mode) {
-  stackPickerOpen.value = false;
-  if (connectOpInFlight) return;
-  connectOpInFlight = true;
-  try {
-    if (!(await ensureSingboxReadyForConnect())) return;
-    if (!(await ensureVpnConfigForConnect())) return;
-    const isConnected = binding('IsConnected');
-    const wasConnected = !!(isConnected && (await isConnected()));
-    await runConnectWithMode(mode, { switchingStack: wasConnected });
-  } finally {
-    connectOpInFlight = false;
-  }
-}
-
 // --- Imperative API for the host ---------------------------------------------------
 
-/**
- * Resumes a connect the user already started but which stopped for want of a config: use a
- * saved stack if there is one, otherwise ask once via the picker — exactly what Connect does
- * once a config exists.
- */
+/** Resumes a connect the user already started but which stopped for want of a config. */
 async function resumeConnect() {
   if (connectOpInFlight) return;
   connectOpInFlight = true;
   try {
     if (!(await ensureSingboxReadyForConnect())) return;
-    const saved = await getSavedStackMode();
-    if (saved) {
-      await runConnectWithMode(saved);
-      return;
-    }
-    stackPickerOpen.value = true;
+    await runConnect();
   } finally {
     connectOpInFlight = false;
   }
 }
 
 /**
- * Reconnects on the current stack if a tunnel is up, so sing-box reloads its config — used
- * after the ignore list changed. Routed through runConnectWithMode so the controls and the
+ * Reconnects if a tunnel is up, so sing-box reloads its config — used
+ * after the ignore list changed. Routed through runConnect so the controls and the
  * status poll stay managed; otherwise the poll fires in the disconnect→connect gap, repaints
  * "Disconnected" and lets a second concurrent connect start.
  */
 async function reconnectIfConnected() {
   try {
     const isConnected = binding('IsConnected');
-    const getStack = binding('GetCurrentStackMode');
     const conn = !!(isConnected && (await isConnected()));
-    if (!conn || !binding('Disconnect') || !binding('Connect') || !getStack || connectOpInFlight) return;
+    if (!conn || !binding('Disconnect') || !binding('Connect') || connectOpInFlight) return;
 
-    const mode = stackModeFromLabel(await getStack());
-    if (!mode) return;
     connectOpInFlight = true;
     try {
-      await runConnectWithMode(mode, { switchingStack: true });
+      await runConnect();
     } finally {
       connectOpInFlight = false;
     }
   } catch {
-    // Only the status reads can throw here (runConnectWithMode reports its own failures);
+    // Only the status reads can throw here (runConnect reports its own failures);
     // the list is already saved, so the tunnel picks it up on the next connect.
   }
 }
@@ -614,11 +539,6 @@ onBeforeUnmount(() => {
           <p class="hero__headline">{{ headline }}</p>
           <p class="hero__subline">{{ subline }}</p>
         </div>
-
-        <p class="stack-chip">
-          <span class="stack-chip__label">{{ labels.stack }}</span>
-          <span class="stack-chip__value">{{ stackMode }}</span>
-        </p>
       </div>
     </NCard>
 
@@ -651,28 +571,12 @@ onBeforeUnmount(() => {
           <template #icon><NIcon><AppIcon name="apps" /></NIcon></template>
           Ignore apps/domains
         </NButton>
-        <NButton quaternary :disabled="busy" @click="stackPickerOpen = true">
-          <template #icon><NIcon><AppIcon name="layers" /></NIcon></template>
-          Change stack
-        </NButton>
         <NButton quaternary @click="emit('openLogs')">
           <template #icon><NIcon><AppIcon name="logs" /></NIcon></template>
           {{ labels.logs }}
         </NButton>
       </div>
     </NCard>
-
-    <!-- Stack picker -->
-    <NModal
-      v-model:show="stackPickerOpen"
-      preset="card"
-      title="Select TUN mode"
-      size="small"
-      class="dialog"
-      :bordered="false"
-    >
-      <StackPicker :current="currentStackMode" @pick="pickStack" />
-    </NModal>
 
     <!-- sing-box bootstrap: blocking, no way out; the next launch retries on failure -->
     <NModal
@@ -852,15 +756,6 @@ onBeforeUnmount(() => {
   color: var(--text-muted);
 }
 
-/* The stack is one short value, so it reads as a chip under the status rather
-   than as a panel with an empty half — which is what a two-column grid with one
-   fact left in it had become. */
-.stack-chip {
-  margin: 8px 0 0;
-  padding: 4px 12px;
-  background: var(--border);
-}
-
 /* --- Settings and actions --- */
 
 .setting {
@@ -907,10 +802,6 @@ onBeforeUnmount(() => {
 
   .hero__headline {
     font-size: 16px;
-  }
-
-  .stack-chip {
-    margin-top: 4px;
   }
 
   .screen :deep(.n-card__content) {

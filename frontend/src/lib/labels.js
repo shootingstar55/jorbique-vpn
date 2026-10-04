@@ -21,7 +21,6 @@ export const labels = Object.freeze({
   retry: 'Retry',
   runtime: 'Runtime',
   save: 'Save',
-  stack: 'Stack',
   upload: 'Upload',
   urltest: 'urltest',
 });

@@ -147,11 +147,10 @@ func loadRemoteCacheOrErr(cause error, warnf func(string)) ([]byte, error) {
 // for a client release, and dropping half of a
 // profile left the rest pointing at tags that no longer existed. The profile is
 // the whole config now; the template supplies the parts only this machine knows
-// — the TUN inbound for the stack the user picked, where the log goes, where
+// — the TUN inbound, where the log goes, where
 // the cache lives.
-func MergeRemoteWithTunShell(stackMode string, remoteJSON []byte) (*jsonorder.Map, error) {
-	templateName := "tun_" + stackMode + ".json"
-	tplData, err := assets.FS.ReadFile(templateName)
+func MergeRemoteWithTunShell(remoteJSON []byte) (*jsonorder.Map, error) {
+	tplData, err := assets.FS.ReadFile("tun.json")
 	if err != nil {
 		return nil, err
 	}

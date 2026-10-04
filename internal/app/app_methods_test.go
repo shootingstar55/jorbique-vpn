@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/server"
@@ -60,29 +59,6 @@ func TestApp_GetDataDirAndIsConnected(t *testing.T) {
 	}
 	if a.IsConnected() { // core.IsRunning is false on the stub platform
 		t.Error("IsConnected should be false")
-	}
-}
-
-func TestApp_GetCurrentStackMode(t *testing.T) {
-	a := newTestApp(t)
-	profile := filepath.Join(a.dataDir, ".current_profile")
-
-	if a.GetCurrentStackMode() != "" {
-		t.Error("missing profile should yield empty")
-	}
-	cases := map[string]string{
-		"Tun System": "System",
-		"tun gvisor": "Gvisor",
-		"MIXED":      "Mixed",
-		"custom":     "Custom",
-	}
-	for content, want := range cases {
-		if err := os.WriteFile(profile, []byte(content+"\n"), 0644); err != nil {
-			t.Fatal(err)
-		}
-		if got := a.GetCurrentStackMode(); got != want {
-			t.Errorf("profile %q => %q, want %q", content, got, want)
-		}
 	}
 }
 
@@ -291,18 +267,11 @@ func TestApp_SingboxInstallAndChannel(t *testing.T) {
 	}
 }
 
-func TestApp_ConnectSavedStack_OpenUICases(t *testing.T) {
+func TestApp_ConnectSaved_OpenUIWithoutConfig(t *testing.T) {
 	a := newTestApp(t)
 	// No VPN config -> openUI true, no connect attempt.
-	if openUI, err := a.ConnectSavedStack(); !openUI || err != nil {
+	if openUI, err := a.ConnectSaved(); !openUI || err != nil {
 		t.Errorf("no config: openUI=%v err=%v", openUI, err)
-	}
-
-	// Valid config but no preferred stack -> openUI true.
-	a.store.SetUserUUIDAndOutbounds(appTestUUID, allOutboundsEnabled())
-	a.store.SetConfigSavedAt(time.Now().Unix())
-	if openUI, err := a.ConnectSavedStack(); !openUI || err != nil {
-		t.Errorf("no stack: openUI=%v err=%v", openUI, err)
 	}
 }
 
@@ -465,7 +434,7 @@ func TestWarnConfigInitAndControllerLog(t *testing.T) {
 // false, so the removal branch runs.
 func TestApp_CleanupSingboxCacheOnExit(t *testing.T) {
 	a := newTestApp(t)
-	cacheDir := filepath.Join(a.dataDir, "cache", "tun_system")
+	cacheDir := filepath.Join(a.dataDir, "cache", "tun")
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -477,30 +446,6 @@ func TestApp_CleanupSingboxCacheOnExit(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(a.dataDir, "cache")); !os.IsNotExist(err) {
 		t.Fatal("cache dir survived full-shutdown cleanup")
-	}
-}
-
-// A disconnect removes the running-profile file, and the window still has to
-// say which stack it is on — the one it will come up on, which is the saved
-// preference. It used to show a dash there while macOS showed the stack.
-func TestCurrentStackModeFallsBackToTheSavedOne(t *testing.T) {
-	a := newTestApp(t)
-
-	if got := a.GetCurrentStackMode(); got != "" {
-		t.Errorf("with nothing saved and nothing running the stack is %q, want empty", got)
-	}
-
-	a.store.SetPreferredStackMode("gvisor")
-	if got := a.GetCurrentStackMode(); got != "Gvisor" {
-		t.Errorf("stack = %q, want the saved Gvisor", got)
-	}
-
-	// A running profile still wins: that is the stack actually in use.
-	if err := os.WriteFile(filepath.Join(a.GetDataDir(), ".current_profile"), []byte("tun_mixed"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if got := a.GetCurrentStackMode(); got != "Mixed" {
-		t.Errorf("stack = %q, want the running Mixed", got)
 	}
 }
 

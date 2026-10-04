@@ -135,7 +135,7 @@ func TestPatchVpnCfgReplacesAnExistingSelectedNode(t *testing.T) {
   }
 }`)
 	node := "vless-reality"
-	if err := PatchVpnCfgSingboxUUIDAndOutbounds(p, nil, nil, nil, &node, nil); err != nil {
+	if err := PatchVpnCfgSingboxUUIDAndOutbounds(p, nil, nil, nil, &node); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(p)
@@ -161,25 +161,5 @@ func TestReplaceJSONArrayOfStringsUnterminated(t *testing.T) {
 	const content = `{"enabled_outbounds": ["a", "b"`
 	if got := replaceJSONArrayOfStrings("enabled_outbounds", []string{"c"}, content); got != content {
 		t.Errorf("replaceJSONArrayOfStrings = %q, want it unchanged", got)
-	}
-}
-
-// A config without a stack key gains one beside the outbound lists, so the
-// picked stack is saved rather than silently dropped.
-func TestPatchVpnCfgAddsTheStackToAConfigWithoutOne(t *testing.T) {
-	p := writeCfg(t, `{
-  "singbox": {
-    "uuid": "",
-    "enabled_outbounds": [],
-    "disabled_outbounds": []
-  }
-}`)
-	stack := "system"
-	if err := PatchVpnCfgSingboxUUIDAndOutbounds(p, nil, nil, nil, nil, &stack); err != nil {
-		t.Fatal(err)
-	}
-	sb, _ := mustStillParse(t, p)["singbox"].(map[string]any)
-	if got := sb["stack"]; got != "system" {
-		t.Errorf("stack = %v, want system", got)
 	}
 }

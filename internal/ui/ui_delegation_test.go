@@ -51,8 +51,6 @@ func TestUI_ReadOnlyDelegations(t *testing.T) {
 	if a.IsConnected() {
 		t.Error("IsConnected should be false")
 	}
-	_ = a.GetCurrentStackMode()
-	_ = a.GetPreferredStackMode()
 	if a.IsAutostartEnabled() {
 		t.Error("autostart is unsupported on this platform")
 	}

@@ -109,7 +109,7 @@ func TestApp_SetVpnUserConfig_ChecksOnlyANewUUID(t *testing.T) {
 
 func TestApp_ConnectRefusedWithoutUUID(t *testing.T) {
 	a := newTestApp(t)
-	if _, err := a.Connect("system"); !errors.Is(err, ErrVlessRequired) {
+	if _, err := a.Connect(); !errors.Is(err, ErrVlessRequired) {
 		t.Fatalf("Connect without a UUID = %v, want ErrVlessRequired", err)
 	}
 }

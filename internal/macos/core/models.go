@@ -22,10 +22,6 @@ type SingboxSection struct {
 	// client has always used and the one that lets the server add a protocol.
 	DisabledOutbounds []string `json:"disabled_outbounds"`
 	SelectedNode      string   `json:"selected_node,omitempty"`
-	// Stack is the TUN network stack sing-box runs: system, gvisor or mixed.
-	// Empty means gvisor, which is what this client shipped with and what every
-	// config written before the picker existed carries.
-	Stack string `json:"stack,omitempty"`
 }
 
 type Connectivity struct {

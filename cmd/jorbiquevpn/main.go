@@ -117,7 +117,7 @@ func main() {
 				runtime.WindowShow(ctx)
 			}
 			trayConnect := func() {
-				openUI, err := backend.ConnectSavedStack()
+				openUI, err := backend.ConnectSaved()
 				if openUI {
 					showUI()
 					return

@@ -57,10 +57,7 @@ func TestPanelKeepsTheFiveWhenARefusalWasRecorded(t *testing.T) {
 
 // Every protocol refused. Stored, that
 // is an empty positive list beside a full negative one — which the panel used
-// to read as "nothing was ever chosen" and show as all-on. The stack picker
-// sends this same list to the daemon, which recomputes the refusals from it, so
-// the misreading did not just look wrong: picking a stack turned every protocol
-// back on.
+// to read as "nothing was ever chosen" and show as all-on.
 func TestPanelReadsEveryProtocolRefusedAsRefused(t *testing.T) {
 	dir := t.TempDir()
 	profile := filepath.Join(dir, "singbox_client.json")

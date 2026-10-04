@@ -24,8 +24,8 @@ type RuntimeOptions struct {
 
 // BuildRuntimeConfig generates runtime_config.json from the remote sing-box profile merged into the embedded tun template,
 // then applies user UUID, outbound toggles, ignored processes, direct domains, and the node the user picked in the selector.
-func BuildRuntimeConfig(stackMode string, remoteJSON []byte, options RuntimeOptions) (string, error) {
-	cfg, err := MergeRemoteWithTunShell(stackMode, remoteJSON)
+func BuildRuntimeConfig(remoteJSON []byte, options RuntimeOptions) (string, error) {
+	cfg, err := MergeRemoteWithTunShell(remoteJSON)
 	if err != nil {
 		return "", err
 	}

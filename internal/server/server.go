@@ -43,8 +43,7 @@ type Store struct {
 	IgnoredProcessNames []string        `json:"ignored_process_names,omitempty"`
 	IgnoredProcessPaths []string        `json:"ignored_process_paths,omitempty"` // full paths for sing-box process_path
 	DirectDomains       []string        `json:"direct_domains,omitempty"`
-	ConfigSavedAt       int64           `json:"config_saved_at,omitempty"`      // last successful SetVpnUserConfig; draft older than this loses
-	PreferredStackMode  string          `json:"preferred_stack_mode,omitempty"` // system, gvisor, mixed — last successful Connect
+	ConfigSavedAt       int64           `json:"config_saved_at,omitempty"` // last successful SetVpnUserConfig; draft older than this loses
 
 	VlessSavedAtLegacy int64 `json:"vless_saved_at,omitempty"` // read once; migrated to config_saved_at then cleared
 
@@ -274,27 +273,4 @@ func (s *Store) GetConfigSavedAt() int64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.ConfigSavedAt
-}
-
-// SetPreferredStackMode stores the TUN stack used for quick reconnect (system, gvisor, mixed).
-func (s *Store) SetPreferredStackMode(mode string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.PreferredStackMode = normalizePreferredStackMode(mode)
-}
-
-// GetPreferredStackMode returns saved stack mode or empty if unset/invalid.
-func (s *Store) GetPreferredStackMode() string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return normalizePreferredStackMode(s.PreferredStackMode)
-}
-
-func normalizePreferredStackMode(mode string) string {
-	switch strings.ToLower(strings.TrimSpace(mode)) {
-	case "system", "gvisor", "mixed":
-		return strings.ToLower(strings.TrimSpace(mode))
-	default:
-		return ""
-	}
 }

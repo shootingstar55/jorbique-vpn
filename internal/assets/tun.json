@@ -2,7 +2,7 @@
   "log": {
     "level": "warn",
     "timestamp": true,
-    "output": "logs/tun_gvisor.log"
+    "output": "logs/tun.log"
   },
   "inbounds": [
     {
@@ -14,7 +14,6 @@
       ],
       "auto_route": true,
       "strict_route": true,
-      "stack": "gvisor",
       "mtu": 1280,
       "udp_timeout": "5m"
     }
@@ -30,8 +29,8 @@
   "experimental": {
     "cache_file": {
       "enabled": true,
-      "path": "cache/tun_gvisor/cache.db",
-      "cache_id": "tun_gvisor",
+      "path": "cache/tun/cache.db",
+      "cache_id": "tun",
       "store_fakeip": false,
       "store_dns": true
     }

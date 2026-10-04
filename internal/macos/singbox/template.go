@@ -49,7 +49,6 @@ func defaultTunInbounds() []any {
 	tun.Set("address", []any{"172.31.255.1/30"})
 	tun.Set("auto_route", true)
 	tun.Set("strict_route", true)
-	tun.Set("stack", "gvisor")
 	tun.Set("mtu", 1280)
 	tun.Set("udp_timeout", "5m")
 	return []any{tun}
@@ -538,39 +537,4 @@ func NormalizeLogOutput(root *OrderedMap, logDir string) {
 		return
 	}
 	log.Set("output", utils.RelocatePath(s, "logs/", logDir))
-}
-
-// TunStacks are the three sing-box TUN stacks, in the order the picker shows
-// them. system is the kernel's own, gvisor is the userspace one this client has
-// always used, mixed pairs gvisor's TCP with the system's UDP.
-var TunStacks = []string{"system", "gvisor", "mixed"}
-
-// DefaultTunStack is what an unset choice means: what every config written
-// before the picker existed already carries.
-const DefaultTunStack = "gvisor"
-
-// SetTunStack points the TUN inbound at one of the stacks. An unknown or empty
-// name leaves the config alone rather than writing a value sing-box will refuse
-// to start on.
-func SetTunStack(root *OrderedMap, stack string) {
-	stack = strings.ToLower(strings.TrimSpace(stack))
-	valid := false
-	for _, s := range TunStacks {
-		if s == stack {
-			valid = true
-			break
-		}
-	}
-	if root == nil || !valid {
-		return
-	}
-	raw, _ := root.Get("inbounds")
-	list, _ := raw.([]any)
-	for _, item := range list {
-		m, ok := item.(*OrderedMap)
-		if !ok || m == nil || m.GetString("type") != "tun" {
-			continue
-		}
-		m.Set("stack", stack)
-	}
 }

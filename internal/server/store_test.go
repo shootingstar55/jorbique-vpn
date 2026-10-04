@@ -98,23 +98,6 @@ func TestStore_ConfigSavedAt(t *testing.T) {
 	}
 }
 
-func TestStore_PreferredStackMode(t *testing.T) {
-	s := &Store{}
-	if s.GetPreferredStackMode() != "" {
-		t.Error("default stack mode should be empty")
-	}
-	for _, m := range []string{"system", "GVISOR", " mixed "} {
-		s.SetPreferredStackMode(m)
-		if got := s.GetPreferredStackMode(); got == "" {
-			t.Errorf("valid stack mode %q rejected", m)
-		}
-	}
-	s.SetPreferredStackMode("nonsense")
-	if s.GetPreferredStackMode() != "" {
-		t.Errorf("invalid stack mode should be empty, got %q", s.GetPreferredStackMode())
-	}
-}
-
 func TestStore_SaveLoadRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	s := &Store{UserUUID: testUUID}

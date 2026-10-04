@@ -8,8 +8,7 @@ import (
 
 // The panels write the whole sing-box section; the overlay used to read three
 // fields of it. What the user picked was saved correctly and then read back as
-// the default — a stack change that never reached the config, a node that was
-// ignored.
+// the default — a node that was ignored.
 func TestOverlayCarriesTheWholeSingboxSection(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "vpn_cfg.json")
@@ -18,8 +17,7 @@ func TestOverlayCarriesTheWholeSingboxSection(t *testing.T) {
 	    "uuid": "7998568d-7ae4-4f65-a4cb-b20e78af6a87",
 	    "enabled_outbounds": ["tuic"],
 	    "disabled_outbounds": ["snell"],
-	    "selected_node": "tuic",
-	    "stack": "system"
+	    "selected_node": "tuic"
 	  }
 	}`), 0o644); err != nil {
 		t.Fatal(err)
@@ -30,9 +28,6 @@ func TestOverlayCarriesTheWholeSingboxSection(t *testing.T) {
 		t.Fatalf("ReadConfig: %v", err)
 	}
 
-	if cfg.Singbox.Stack != "system" {
-		t.Errorf("stack = %q, want system", cfg.Singbox.Stack)
-	}
 	if cfg.Singbox.SelectedNode != "tuic" {
 		t.Errorf("selected node = %q, want tuic", cfg.Singbox.SelectedNode)
 	}
@@ -53,7 +48,7 @@ func TestOverlayWithoutTheNewFieldsKeepsTheDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Singbox.Stack != "" || cfg.Singbox.SelectedNode != "" {
+	if cfg.Singbox.SelectedNode != "" {
 		t.Errorf("an older file invented answers: %+v", cfg.Singbox)
 	}
 }

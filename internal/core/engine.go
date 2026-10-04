@@ -407,7 +407,7 @@ func reapSingbox(runCmd *exec.Cmd, outBuf *syncBuffer, logFn func(string, string
 }
 
 // Start launches sing-box with config. Returns (success, errorMessage).
-func Start(cfgPath, stackModeName, dataDir, singboxExe string, cfg config.Config,
+func Start(cfgPath, dataDir, singboxExe string, cfg config.Config,
 	logFn func(string, string)) (bool, string) {
 
 	invalidateIsRunningCache()
@@ -429,7 +429,7 @@ func Start(cfgPath, stackModeName, dataDir, singboxExe string, cfg config.Config
 	_ = os.MkdirAll(logsDir, 0755)
 	go network.ClearDnsCache() // flushing the DNS cache need not block the connect path
 	if logFn != nil {
-		logFn("Config path: "+fullConfigPath+", stack: "+stackModeName, "INFO")
+		logFn("Config path: "+fullConfigPath, "INFO")
 	}
 
 	// Give this run a unique TUN interface name so a leftover adapter can never collide.
@@ -450,9 +450,8 @@ func Start(cfgPath, stackModeName, dataDir, singboxExe string, cfg config.Config
 		return false, errMsg
 	}
 
-	// Save profile
-	profileFile := filepath.Join(dataDir, ".current_profile")
-	_ = os.WriteFile(profileFile, []byte(stackModeName), 0644)
+	// Marks a session in progress; a disconnect removes it.
+	_ = os.WriteFile(filepath.Join(dataDir, ".current_profile"), nil, 0644)
 
 	logTunReadiness(tunReady, fullConfigPath, dataDir, logFn)
 

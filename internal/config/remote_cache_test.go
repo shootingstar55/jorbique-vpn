@@ -87,19 +87,19 @@ func TestFetchSingboxClientJSONOrCache_NoCacheReturnsError(t *testing.T) {
 func TestFixPathsInConfig_RewritesLogAndCachePaths(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
 	cfg := jsonorder.FromMap(map[string]any{
-		"log": jsonorder.FromMap(map[string]any{"output": "logs/tun_system.log"}),
+		"log": jsonorder.FromMap(map[string]any{"output": "logs/tun.log"}),
 		"experimental": jsonorder.FromMap(map[string]any{
-			"cache_file": jsonorder.FromMap(map[string]any{"path": "cache/tun_system/cache.db"}),
+			"cache_file": jsonorder.FromMap(map[string]any{"path": "cache/tun/cache.db"}),
 		}),
 	})
 	fixPathsInConfig(cfg)
 
 	out := field[string](field[*jsonorder.Map](cfg, "log"), "output")
-	if !strings.HasSuffix(out, "logs/tun_system.log") || !strings.Contains(out, "JorbiqueVPN") {
+	if !strings.HasSuffix(out, "logs/tun.log") || !strings.Contains(out, "JorbiqueVPN") {
 		t.Errorf("log output not rewritten to abs data dir: %q", out)
 	}
 	cf := field[string](field[*jsonorder.Map](field[*jsonorder.Map](cfg, "experimental"), "cache_file"), "path")
-	if !strings.HasSuffix(cf, "cache/tun_system/cache.db") || !strings.Contains(cf, "JorbiqueVPN") {
+	if !strings.HasSuffix(cf, "cache/tun/cache.db") || !strings.Contains(cf, "JorbiqueVPN") {
 		t.Errorf("cache path not rewritten: %q", cf)
 	}
 

@@ -3,7 +3,6 @@ package tray
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -179,12 +178,7 @@ func updateMenuItems() {
 	mu.Unlock()
 	if statusItem != nil {
 		if r {
-			profile := getCurrentProfile()
-			if profile != "" {
-				statusItem.SetTitle("Status: Running - " + profile)
-			} else {
-				statusItem.SetTitle("Status: Running")
-			}
+			statusItem.SetTitle("Status: Running")
 		} else {
 			statusItem.SetTitle("Status: Stopped")
 		}
@@ -216,12 +210,4 @@ func getDefaultIcon() []byte {
 	}
 	mask := make([]byte, 32)
 	return append(append(h, pix...), mask...)
-}
-
-func getCurrentProfile() string {
-	if dataDir == "" {
-		return ""
-	}
-	data, _ := os.ReadFile(filepath.Join(dataDir, ".current_profile"))
-	return strings.TrimSpace(string(data))
 }

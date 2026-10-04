@@ -350,7 +350,6 @@ func (m *Manager) startOne(v core.VPNItem) error {
 	experimental := singbox.NewOrderedMap()
 	experimental.Set("cache_file", cacheFile)
 	root.Set("experimental", experimental)
-	singbox.SetTunStack(root, m.singboxStack())
 	singbox.NormalizeLogOutput(root, m.Paths.LogDir)
 	if err := singbox.WriteJSONFileAtomically(root, sbPath); err != nil {
 		return err

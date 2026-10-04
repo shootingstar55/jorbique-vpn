@@ -37,17 +37,9 @@ func (a *App) IsConnected() bool {
 	return a.backend.IsConnected()
 }
 
-func (a *App) GetCurrentStackMode() string {
-	return a.backend.GetCurrentStackMode()
-}
-
 // GetIPInfo backs the IP-information card.
 func (a *App) GetIPInfo(force bool) (ipinfo.Info, error) {
 	return a.backend.GetIPInfo(force)
-}
-
-func (a *App) GetPreferredStackMode() string {
-	return a.backend.GetPreferredStackMode()
 }
 
 func (a *App) IsAutostartEnabled() bool {
@@ -58,8 +50,8 @@ func (a *App) SetAutostartEnabled(on bool) error {
 	return a.backend.SetAutostartEnabled(on)
 }
 
-func (a *App) Connect(stackMode string) error {
-	return wrapBackendError(a.backend.Connect(stackMode))
+func (a *App) Connect() error {
+	return wrapBackendError(a.backend.Connect())
 }
 
 func (a *App) Disconnect() error {

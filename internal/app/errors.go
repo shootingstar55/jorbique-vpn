@@ -3,7 +3,6 @@ package app
 import "errors"
 
 var (
-	ErrInvalidStackMode  = errors.New("invalid stack mode")
 	ErrVlessRequired     = errors.New("VLESS URLs required")
 	ErrSingboxNotFound   = errors.New("sing-box not found")
 	ErrStartupFailed     = errors.New("startup failed")
