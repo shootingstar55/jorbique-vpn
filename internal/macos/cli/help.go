@@ -73,9 +73,9 @@ COMMANDS
              tags), line3=the selector node. Tags come from the downloaded
              sing-box profile; an empty second line switches every outbound off,
              and no second line keeps the stored choice. A blank third line keeps
-             what is stored. line4=the mode: "naive" connects through the naive
-             profile alone, "standard" through the outbounds above; blank keeps
-             what is stored.
+             what is stored. line4=the mode: "naive" connects through the
+             profile's naive outbound alone, "standard" through the outbounds
+             above; blank keeps what is stored.
 
      set-route-rules
              Set direct domains, optional process names, and optional executable paths for direct bypass.

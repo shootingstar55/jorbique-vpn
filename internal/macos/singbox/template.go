@@ -265,23 +265,12 @@ func remoteTemplateCachePath(baseConfigPath string) string {
 	return filepath.Join(filepath.Dir(baseConfigPath), "singbox_client.json")
 }
 
-// naiveTemplateCachePath is the naive profile's own cache, apart from the main
-// one: the protocol panel reads the main cache, and switching modes must not
-// turn its list into "naive" and back.
-func naiveTemplateCachePath(baseConfigPath string) string {
-	return filepath.Join(filepath.Dir(baseConfigPath), "singbox_client.naive.json")
-}
-
 // fetchTemplateOrCache downloads the profile and remembers it, falling back to
 // the last good copy when the server cannot be reached. Without this a blip on
 // the update host meant the VPN would not start at all, even though the profile
 // that started it an hour ago was still perfectly good.
 func fetchTemplateOrCache(cachePath string, timeout time.Duration, warnf func(string)) ([]byte, error) {
-	return fetchProfileOrCache(constants.SingboxClientURL, cachePath, timeout, warnf)
-}
-
-func fetchProfileOrCache(profileURL, cachePath string, timeout time.Duration, warnf func(string)) ([]byte, error) {
-	body, err := downloadURL(profileURL, timeout)
+	body, err := downloadURL(constants.SingboxClientURL, timeout)
 	if err == nil && json.Valid(body) {
 		// In one step: the menu bar and set-singbox-config read this file from
 		// other processes, and a half-written one reads as no profile at all.
@@ -344,15 +333,7 @@ func BuildConfigFromRemoteTemplate(settings core.SingboxSection, baseConfigPath 
 	baseRoot := localRootOrDefault(baseConfigPath)
 	localAPISecret := dashboard.APISecret(baseRoot)
 
-	var body []byte
-	var err error
-	if settings.NaiveMode {
-		body, err = fetchProfileOrCache(constants.SingboxClientNaiveURL, naiveTemplateCachePath(baseConfigPath), timeout, warnf)
-		// The toggles answer for the main profile's protocols, not this one.
-		settings.EnabledOutbounds, settings.DisabledOutbounds = nil, nil
-	} else {
-		body, err = fetchTemplateOrCache(remoteTemplateCachePath(baseConfigPath), timeout, warnf)
-	}
+	body, err := fetchTemplateOrCache(remoteTemplateCachePath(baseConfigPath), timeout, warnf)
 	if err != nil {
 		return nil, err
 	}
@@ -423,17 +404,20 @@ func templateOutbounds(remoteRoot *OrderedMap, settings core.SingboxSection, war
 	// What the server offers decides what can be enabled. A tag the
 	// configuration still names but the template no longer has is dropped here;
 	// one the server added is picked up without a client release.
-	available := ProxyTagsFromOutbounds(outbounds, singboxcfg.RouteEntries(remoteRoot))
+	entries := singboxcfg.RouteEntries(remoteRoot)
+	available := ProxyTagsFromOutbounds(outbounds, entries)
 	if len(available) == 0 {
 		return nil, core.BadConfig("the sing-box profile has no proxy outbounds")
 	}
-	enabled := EnabledProxyTags(available, settings.EnabledOutbounds, settings.DisabledOutbounds)
-	// The UUID is the credential the protocols authenticate with.
-	if u == "" && len(enabled) > 0 {
-		return nil, core.BadConfig("sing-box uuid is empty")
+	if settings.NaiveMode && len(singboxcfg.NaiveTags(outbounds)) == 0 {
+		return nil, core.BadConfig("the sing-box profile has no NaiveProxy outbound")
 	}
-	if warnf != nil {
-		if dropped := missingFrom(settings.EnabledOutbounds, available); len(dropped) > 0 {
+	// The toggles answer for the protocols. NaiveProxy is a mode of its own,
+	// which ModeEnabled below applies whatever the toggles say.
+	protocols := singboxcfg.ProtocolTags(outbounds, entries)
+	enabled := EnabledProxyTags(protocols, settings.EnabledOutbounds, settings.DisabledOutbounds)
+	if warnf != nil && !settings.NaiveMode {
+		if dropped := missingFrom(settings.EnabledOutbounds, protocols); len(dropped) > 0 {
 			warnf("sing-box profile: the server no longer offers " + strings.Join(dropped, ", "))
 		}
 	}
@@ -448,6 +432,11 @@ func templateOutbounds(remoteRoot *OrderedMap, settings core.SingboxSection, war
 	}
 	for _, tag := range enabled {
 		enabledSet[tag] = true
+	}
+	enabledSet = singboxcfg.ModeEnabled(outbounds, available, enabledSet, settings.NaiveMode)
+	// The UUID is the credential the protocols authenticate with.
+	if u == "" && (settings.NaiveMode || len(enabled) > 0) {
+		return nil, core.BadConfig("sing-box uuid is empty")
 	}
 	newOutbounds, err := singboxcfg.FilterOutbounds(outbounds, remoteRoot, enabledSet)
 	if err != nil {
@@ -501,9 +490,10 @@ func missingFrom(want, available []string) []string {
 	return gone
 }
 
-// AvailableProxyTags lists the selectable outbounds of the profile as it was
-// last downloaded, for callers that need the list without building a config —
-// the menu that shows a checkbox per protocol.
+// AvailableProxyTags lists the protocols of the profile as it was last
+// downloaded, for callers that need the list without building a config — the
+// menu that shows a checkbox per protocol. NaiveProxy is a mode, not a
+// checkbox, so it is not among them.
 //
 // Reads the cache only. The menu bar opens this panel on a click and must not
 // wait on the network; the cache is refreshed by RefreshRemoteTemplate and on
@@ -525,7 +515,7 @@ func AvailableProxyTags(baseConfigPath string) []string {
 	if !ok {
 		return nil
 	}
-	return ProxyTagsFromOutbounds(outbounds, singboxcfg.RouteEntries(root))
+	return singboxcfg.ProtocolTags(outbounds, singboxcfg.RouteEntries(root))
 }
 
 // NormalizeLogOutput points the profile's log file at this machine's log

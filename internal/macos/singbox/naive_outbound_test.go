@@ -19,29 +19,60 @@ const naiveProfile = `{"outbounds":[
   {"type":"direct","tag":"direct"}
 ]}`
 
-// naive is an ordinary selectable outbound here: the macOS sing-box build has
-// naiveproxy in it natively, so nothing about this tag is special to the client.
-func TestNaiveIsAnOrdinarySelectableTag(t *testing.T) {
+// naive is a proxy like any other — it carries traffic and takes the user's
+// credential — but not a protocol to toggle: it is a mode of its own, so the
+// panel's checkbox list leaves it out.
+func TestNaiveIsAProxyButNotAToggle(t *testing.T) {
 	got := ProxyTagsFromOutbounds(parseOutbounds(t, naiveProfile), nil)
-	want := []string{"vless-reality", "anytls", "naive"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("selectable tags = %v, want %v", got, want)
+	if want := []string{"vless-reality", "anytls", "naive"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("proxy tags = %v, want %v", got, want)
+	}
+	base := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(naiveProfile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := AvailableProxyTags(base), []string{"vless-reality", "anytls"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("AvailableProxyTags = %v, want %v", got, want)
 	}
 }
 
-// naiveproxy authenticates with a username *and* a password. Only the password
-// is the user's — the username is the server's to set, and a client that put
-// the UUID there would authenticate as the wrong account every time.
-func TestNaiveTakesTheUUIDInPasswordOnly(t *testing.T) {
+// The protocols mode never starts naive: in the failover group it would run
+// beside every other protocol, and it is the heaviest of them.
+func TestProtocolsModeLeavesNaiveOut(t *testing.T) {
+	base := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(naiveProfile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// A 1ns timeout stands in for an unreachable server, so the cached profile
+	// above is what gets built.
+	root, err := BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: "11111111-1111-1111-1111-111111111111"}, base, time.Nanosecond, nil)
+	if err != nil {
+		t.Fatalf("BuildConfigFromRemoteTemplate: %v", err)
+	}
+	out, err := root.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), `"tag":"naive"`) {
+		t.Errorf("the protocols mode kept naive:\n%s", out)
+	}
+	if deps := urltestDeps(t, root); !reflect.DeepEqual(deps, []string{"vless-reality", "anytls"}) {
+		t.Errorf("urltest outbounds = %v, want the protocols without naive", deps)
+	}
+}
+
+// naiveproxy authenticates with a username *and* a password. Every empty field
+// of an outbound is a placeholder for the credential, because naming the
+// fields meant a client release before a new protocol could authenticate, so
+// with both left empty both get the UUID.
+func TestNaiveModeTakesTheUUIDInItsEmptyFields(t *testing.T) {
 	base := filepath.Join(t.TempDir(), "config.json")
 	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(naiveProfile), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	const uuid = "11111111-1111-1111-1111-111111111111"
-	// A 1ns timeout stands in for an unreachable server, so the cached profile
-	// above is what gets built.
-	root, err := BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: uuid}, base, time.Nanosecond, nil)
+	root, err := BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: uuid, NaiveMode: true}, base, time.Nanosecond, nil)
 	if err != nil {
 		t.Fatalf("BuildConfigFromRemoteTemplate: %v", err)
 	}
@@ -54,21 +85,14 @@ func TestNaiveTakesTheUUIDInPasswordOnly(t *testing.T) {
 	if !strings.Contains(built, `"tag":"naive"`) {
 		t.Fatalf("the naive outbound was dropped from the built config:\n%s", built)
 	}
-	if !strings.Contains(built, `"password":"`+uuid+`"`) {
-		t.Errorf("naive did not get the user UUID as its password:\n%s", built)
+	if !strings.Contains(built, `"username":"`+uuid+`"`) || !strings.Contains(built, `"password":"`+uuid+`"`) {
+		t.Errorf("naive did not get the user UUID in its empty fields:\n%s", built)
 	}
-	// Every empty field of an outbound is a placeholder for the credential now,
-	// because naming the fields meant a client release before a new protocol
-	// could authenticate. naive is the one outbound that ships two of them, so
-	// its username is filled in as well.
-	if strings.Contains(built, `"username":""`) {
-		t.Errorf("naive's username was left empty:\n%s", built)
-	}
-	// And it stays in the failover list, or the user cannot actually reach it.
-	// Checked on the parsed urltest rather than on the text, where the tag on
-	// the outbound itself would match and prove nothing.
-	if deps := urltestDeps(t, root); !contains(deps, "naive") {
-		t.Errorf("urltest outbounds = %v, want naive among them", deps)
+	// And the failover list is naive alone. Checked on the parsed urltest
+	// rather than on the text, where the tag on the outbound itself would
+	// match and prove nothing.
+	if deps := urltestDeps(t, root); !reflect.DeepEqual(deps, []string{"naive"}) {
+		t.Errorf("urltest outbounds = %v, want naive alone", deps)
 	}
 }
 
@@ -102,34 +126,21 @@ func urltestDeps(t *testing.T, root *OrderedMap) []string {
 	return nil
 }
 
-func contains(list []string, want string) bool {
-	for _, s := range list {
-		if s == want {
-			return true
-		}
-	}
-	return false
-}
-
-// The NaiveProxy mode builds from the naive profile, kept in a cache of its
-// own, and the protocol toggles — answers about the main profile — have no say
-// in it.
-func TestNaiveModeBuildsFromTheNaiveProfile(t *testing.T) {
+// The NaiveProxy mode builds from the same profile as the protocols, keeps naive
+// alone, and the protocol toggles have no say in it.
+func TestNaiveModeBuildsFromTheMainProfile(t *testing.T) {
 	base := filepath.Join(t.TempDir(), "config.json")
-	main := `{"outbounds":[{"type":"vless","tag":"vless-reality","uuid":""},
-	  {"type":"urltest","tag":"auto","outbounds":["vless-reality"]},{"type":"direct","tag":"direct"}]}`
-	naive := `{"outbounds":[{"type":"naive","tag":"naive","server":"192.0.2.1","server_port":443,
+	profile := `{"outbounds":[{"type":"vless","tag":"vless-reality","uuid":""},
+	  {"type":"naive","tag":"naive","server":"192.0.2.1","server_port":443,
 	  "username":"","password":"naivepassword","insecure_concurrency":2,"udp_over_tcp":true},
-	  {"type":"urltest","tag":"auto","outbounds":["naive"]},{"type":"direct","tag":"direct"}]}`
-	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(main), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(naiveTemplateCachePath(base), []byte(naive), 0o644); err != nil {
+	  {"type":"urltest","tag":"auto","outbounds":["vless-reality"]},{"type":"direct","tag":"direct"}],
+	  "route":{"final":"auto"}}`
+	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(profile), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	const uuid = "11111111-1111-1111-1111-111111111111"
-	settings := core.SingboxSection{UUID: uuid, DisabledOutbounds: []string{"naive", "vless-reality"}, NaiveMode: true}
+	settings := core.SingboxSection{UUID: uuid, DisabledOutbounds: []string{"naive"}, NaiveMode: true}
 	root, err := BuildConfigFromRemoteTemplate(settings, base, time.Nanosecond, nil)
 	if err != nil {
 		t.Fatalf("BuildConfigFromRemoteTemplate: %v", err)
@@ -140,16 +151,31 @@ func TestNaiveModeBuildsFromTheNaiveProfile(t *testing.T) {
 	}
 	built := string(out)
 	if strings.Contains(built, `"vless-reality"`) {
-		t.Errorf("the NaiveProxy mode built the main profile:\n%s", built)
+		t.Errorf("the NaiveProxy mode kept another protocol:\n%s", built)
 	}
 	if !strings.Contains(built, `"username":"`+uuid+`"`) || !strings.Contains(built, `"password":"naivepassword"`) {
 		t.Errorf("naive must sign in with the UUID and the shared password:\n%s", built)
 	}
-	if deps := urltestDeps(t, root); !contains(deps, "naive") {
-		t.Errorf("urltest outbounds = %v, want naive", deps)
+	if deps := urltestDeps(t, root); !reflect.DeepEqual(deps, []string{"naive"}) {
+		t.Errorf("urltest outbounds = %v, want naive alone", deps)
 	}
-	// The protocol panel still lists the main profile.
+	// The protocol panel lists the protocols, not naive.
 	if got := AvailableProxyTags(base); len(got) != 1 || got[0] != "vless-reality" {
-		t.Errorf("AvailableProxyTags = %v, want the main profile's [vless-reality]", got)
+		t.Errorf("AvailableProxyTags = %v, want [vless-reality]", got)
+	}
+}
+
+// The NaiveProxy mode against a profile without naive says so, instead of
+// reading as every protocol switched off.
+func TestNaiveModeWithoutNaiveSaysSo(t *testing.T) {
+	base := filepath.Join(t.TempDir(), "config.json")
+	profile := `{"outbounds":[{"type":"vless","tag":"vless-reality","uuid":""},
+	  {"type":"urltest","tag":"auto","outbounds":["vless-reality"]},{"type":"direct","tag":"direct"}]}`
+	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(profile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: "11111111-1111-1111-1111-111111111111", NaiveMode: true}, base, time.Nanosecond, nil)
+	if err == nil || !strings.Contains(err.Error(), "no NaiveProxy outbound") {
+		t.Fatalf("err = %v, want the missing naive outbound named", err)
 	}
 }

@@ -18,7 +18,7 @@ func TestTheOutboundListComesFromTheFetchedProfile(t *testing.T) {
 	t.Setenv("TMPDIR", t.TempDir())
 	t.Setenv("APPDATA", t.TempDir())
 
-	// What the machine has from last time: no naive.
+	// What the machine has from last time: no anytls.
 	stale := []byte(`{"outbounds":[
       {"type":"vless","tag":"vless-reality","uuid":""},
       {"type":"urltest","tag":"auto","outbounds":["vless-reality"]},
@@ -30,16 +30,16 @@ func TestTheOutboundListComesFromTheFetchedProfile(t *testing.T) {
 		t.Fatalf("the cache should offer only what it holds, got %v", got)
 	}
 
-	// What the server serves now: naive added.
+	// What the server serves now: anytls added.
 	fresh := []byte(`{"outbounds":[
       {"type":"vless","tag":"vless-reality","uuid":""},
-      {"type":"naive","tag":"naive","username":"","password":""},
-      {"type":"urltest","tag":"auto","outbounds":["vless-reality","naive"]},
+      {"type":"anytls","tag":"anytls","password":""},
+      {"type":"urltest","tag":"auto","outbounds":["vless-reality","anytls"]},
       {"type":"direct","tag":"direct"}]}`)
 
 	// The connect path reads the tags out of the fetched bytes, not off disk.
-	got := ProxyTagsFromJSON(fresh)
-	want := []string{"vless-reality", "naive"}
+	got := ProtocolTagsFromJSON(fresh)
+	want := []string{"vless-reality", "anytls"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("tags from the fetched profile = %v, want %v", got, want)
 	}
@@ -55,12 +55,12 @@ func TestASuccessfulFetchUpdatesWhatTheWindowShows(t *testing.T) {
 	if err := os.WriteFile(RemoteSingboxCachePath(), stale, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	fresh := []byte(`{"outbounds":[{"type":"vless","tag":"vless-reality"},{"type":"naive","tag":"naive"}]}`)
+	fresh := []byte(`{"outbounds":[{"type":"vless","tag":"vless-reality"},{"type":"anytls","tag":"anytls"}]}`)
 	if err := os.WriteFile(RemoteSingboxCachePath(), fresh, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	got := AvailableProxyTags()
-	if !reflect.DeepEqual(got, []string{"vless-reality", "naive"}) {
+	if !reflect.DeepEqual(got, []string{"vless-reality", "anytls"}) {
 		t.Errorf("window would show %v, want both outbounds", got)
 	}
 }

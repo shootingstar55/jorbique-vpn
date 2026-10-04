@@ -123,24 +123,24 @@ func TestSetSingboxConfigValidatesAgainstCachedProfile(t *testing.T) {
 		cache                  bool
 		enabled, disabled      []string
 	}{
-		{name: "empty is every protocol off", cache: true, enabled: []string{}, disabled: []string{"tuic", "naive"}},
-		{name: "no outbounds line keeps stored choice", input: "-", cache: true, enabled: []string{"tuic"}, disabled: []string{"naive"}},
-		{name: "empty keeps stored choice without cache", enabled: []string{"tuic"}, disabled: []string{"naive"}},
-		{name: "canonical tags and duplicates", input: "TuIc;tuic", cache: true, enabled: []string{"tuic"}, disabled: []string{"naive"}},
+		{name: "empty is every protocol off", cache: true, enabled: []string{}, disabled: []string{"tuic", "anytls"}},
+		{name: "no outbounds line keeps stored choice", input: "-", cache: true, enabled: []string{"tuic"}, disabled: []string{"anytls"}},
+		{name: "empty keeps stored choice without cache", enabled: []string{"tuic"}, disabled: []string{"anytls"}},
+		{name: "canonical tags and duplicates", input: "TuIc;tuic", cache: true, enabled: []string{"tuic"}, disabled: []string{"anytls"}},
 		{name: "unknown tag", input: "typo", cache: true, wantError: "Unknown outbound"},
 		{name: "mixed valid and unknown", input: "tuic,typo", cache: true, wantError: "Unknown outbound"},
-		{name: "uncached explicit choice", input: "tuic", enabled: []string{"tuic"}, disabled: []string{"naive"}},
+		{name: "uncached explicit choice", input: "tuic", enabled: []string{"tuic"}, disabled: []string{"anytls"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newFirstRunManager(t)
-			if err := os.WriteFile(m.Paths.CfgFile, []byte(`{"singbox":{"uuid":"old","enabled_outbounds":["tuic"],"disabled_outbounds":["naive"]},"vpns":[]}`), 0o644); err != nil {
+			if err := os.WriteFile(m.Paths.CfgFile, []byte(`{"singbox":{"uuid":"old","enabled_outbounds":["tuic"],"disabled_outbounds":["anytls"]},"vpns":[]}`), 0o644); err != nil {
 				t.Fatal(err)
 			}
 			if tt.cache {
 				profile := filepath.Join(filepath.Dir(m.Cfg.VPNs[0].File), "singbox_client.json")
 				if err := os.WriteFile(profile, []byte(`{"outbounds":[
                     {"type":"tuic","tag":"tuic"},
-                    {"type":"naive","tag":"naive"},
+                    {"type":"anytls","tag":"anytls"},
                     {"type":"direct","tag":"direct"}]}`), 0o644); err != nil {
 					t.Fatal(err)
 				}

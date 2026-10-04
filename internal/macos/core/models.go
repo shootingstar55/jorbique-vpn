@@ -22,10 +22,10 @@ type SingboxSection struct {
 	// client has always used and the one that lets the server add a protocol.
 	DisabledOutbounds []string `json:"disabled_outbounds"`
 	SelectedNode      string   `json:"selected_node,omitempty"`
-	// NaiveMode connects through the naive profile alone instead of the main
-	// profile's protocols. A mode of its own, not one more toggle: naive is the
+	// NaiveMode connects through the profile's naive outbound alone instead of
+	// its other protocols. A mode of its own, not one more toggle: naive is the
 	// heaviest protocol, and in the automatic selector it would run beside all
-	// the others. The toggles above answer for the main profile only.
+	// the others. The toggles above answer for the protocols only.
 	NaiveMode bool `json:"naive_mode,omitempty"`
 }
 

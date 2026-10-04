@@ -211,11 +211,7 @@ func (a *App) Connect() (msg string, err error) {
 	cfg, errInit := config.Initialize(cfgName, cfgRoot) // no external file: the embedded copy
 	warnConfigInit(errInit)
 
-	fetchProfile := config.FetchSingboxClientJSONOrCache
-	if a.store.GetNaiveMode() {
-		fetchProfile = config.FetchNaiveClientJSONOrCache
-	}
-	remoteJSON, err := fetchProfile(func(msg string) { logFn(msg, "WARN") })
+	remoteJSON, err := config.FetchSingboxClientJSONOrCache(func(msg string) { logFn(msg, "WARN") })
 	if err != nil {
 		return "Failed to load VPN profile from server: " + err.Error(), ErrConfigUpdate
 	}
@@ -251,12 +247,13 @@ func (a *App) Connect() (msg string, err error) {
 
 func (a *App) buildRuntimeConfig(remoteJSON []byte) (string, error) {
 	userUUID, enabled, directDomains := a.effectiveVpnUserForConnect()
-	if a.store.GetNaiveMode() {
-		// The naive profile is its own mode: the toggles answer for the main
-		// profile's protocols and have nothing to say about this one.
-		enabled = nil
-	} else if gone := a.vanishedOutbounds(enabled, config.ProxyTagsFromJSON(remoteJSON)); len(gone) > 0 {
-		logging.Write("sing-box profile: the server no longer offers "+strings.Join(gone, ", "), logging.LevelWarn)
+	// The NaiveProxy mode builds from naive alone, so the protocol toggles have
+	// nothing to say there.
+	naiveMode := a.store.GetNaiveMode()
+	if !naiveMode {
+		if gone := a.vanishedOutbounds(enabled, config.ProtocolTagsFromJSON(remoteJSON)); len(gone) > 0 {
+			logging.Write("sing-box profile: the server no longer offers "+strings.Join(gone, ", "), logging.LevelWarn)
+		}
 	}
 	if !security.ValidUUID(strings.TrimSpace(userUUID), false) {
 		return "", ErrVlessRequired
@@ -265,6 +262,7 @@ func (a *App) buildRuntimeConfig(remoteJSON []byte) (string, error) {
 	return config.BuildRuntimeConfig(remoteJSON, config.RuntimeOptions{
 		UserUUID:            strings.TrimSpace(userUUID),
 		OutboundEnabled:     enabled,
+		NaiveMode:           naiveMode,
 		IgnoredProcessNames: a.store.GetIgnoredProcessNames(),
 		IgnoredProcessPaths: a.store.GetIgnoredProcessPaths(),
 		SelectedNode:        a.store.GetSelectedNode(),
@@ -503,10 +501,11 @@ func (a *App) SetVpnUserConfig(userUUID string, outboundEnabled map[string]bool)
 	return "", nil
 }
 
-// SetNaiveMode switches the client between the NaiveProxy mode — the naive
-// profile and nothing else — and the main profile's protocols. Two modes rather
-// than one more toggle: naive is the heaviest protocol, and in the automatic
-// selector it would run beside all the others. Takes effect on the next connect.
+// SetNaiveMode switches the client between the NaiveProxy mode — the profile's
+// naive outbound and nothing else — and the profile's other protocols. Two modes
+// rather than one more toggle: naive is the heaviest protocol, and in the
+// automatic selector it would run beside all the others. Takes effect on the
+// next connect.
 func (a *App) SetNaiveMode(on bool) (msg string, err error) {
 	a.store.SetNaiveMode(on)
 	if err := a.store.Save(a.GetDataDir()); err != nil {

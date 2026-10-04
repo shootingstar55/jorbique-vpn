@@ -42,14 +42,6 @@ func RemoteSingboxCachePath() string {
 	return filepath.Join(dir, "singbox_client.json")
 }
 
-// RemoteNaiveCachePath is the naive profile's own cache. Apart from the main
-// one, so switching modes never turns the protocol list into "naive" and back.
-func RemoteNaiveCachePath() string {
-	dir := paths.TempAppDir()
-	_ = os.MkdirAll(dir, 0755)
-	return filepath.Join(dir, "singbox_client.naive.json")
-}
-
 // profileFetchTimeout bounds the profile download. Every connection starts with
 // it, so it is the delay a user waits through before anything happens; the
 // profile is a few kilobytes, and a link that cannot deliver that in this long
@@ -72,20 +64,14 @@ func FetchSingboxClientJSONOrCache(warnf func(string)) ([]byte, error) {
 	return fetchSingboxClientJSON(profileFetchTimeout, warnf)
 }
 
-// FetchNaiveClientJSONOrCache is FetchSingboxClientJSONOrCache for the
-// NaiveProxy mode's profile.
-func FetchNaiveClientJSONOrCache(warnf func(string)) ([]byte, error) {
-	return fetchProfile(constants.SingboxClientNaiveURL, RemoteNaiveCachePath(), profileFetchTimeout, warnf)
-}
-
 // uiProfileFetchTimeout is the same download on the path that opens a window.
 // Shorter than the connecting one: a settings window that takes fifteen seconds
 // to draw its checkboxes reads as a hang, and the cache behind it is good
 // enough to draw with.
 const uiProfileFetchTimeout = 5 * time.Second
 
-// AvailableProxyTagsFresh is the outbound list the server offers now, for the
-// window that shows a checkbox per outbound.
+// AvailableProxyTagsFresh is the protocol list the server offers now, for the
+// window that shows a checkbox per protocol.
 //
 // It downloads rather than reading the cache. The cache is only ever written by
 // a connection or by the launch-time warm-up, so a window opened after the
@@ -98,22 +84,19 @@ func AvailableProxyTagsFresh() []string {
 	if err != nil {
 		return nil
 	}
-	return ProxyTagsFromJSON(body)
+	return ProtocolTagsFromJSON(body)
 }
 
 func fetchSingboxClientJSON(timeout time.Duration, warnf func(string)) ([]byte, error) {
-	return fetchProfile(constants.SingboxClientURL, RemoteSingboxCachePath(), timeout, warnf)
-}
-
-func fetchProfile(remoteURL, cachePath string, timeout time.Duration, warnf func(string)) ([]byte, error) {
+	remoteURL := constants.SingboxClientURL
 	u, err := url.Parse(remoteURL)
 	if err != nil {
-		return loadCacheOrErr(cachePath, err, warnf)
+		return loadRemoteCacheOrErr(err, warnf)
 	}
 	client := httpsclient.ForHost(u.Host, timeout)
 	req, err := http.NewRequest(http.MethodGet, remoteURL, nil)
 	if err != nil {
-		return loadCacheOrErr(cachePath, err, warnf)
+		return loadRemoteCacheOrErr(err, warnf)
 	}
 	req.Header.Set("Accept", "application/json")
 	// The profile decides what the tunnel is built from, so an intermediary's
@@ -121,25 +104,22 @@ func fetchProfile(remoteURL, cachePath string, timeout time.Duration, warnf func
 	req.Header.Set("Cache-Control", "no-cache")
 	resp, err := client.Do(req)
 	if err != nil {
-		return loadCacheOrErr(cachePath, err, warnf)
+		return loadRemoteCacheOrErr(err, warnf)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return loadCacheOrErr(cachePath, err, warnf)
+		return loadRemoteCacheOrErr(err, warnf)
 	}
 	if resp.StatusCode != http.StatusOK || len(body) == 0 || !json.Valid(body) {
-		return loadCacheOrErr(cachePath, fmt.Errorf("remote sing-box profile: HTTP %d", resp.StatusCode), warnf)
+		return loadRemoteCacheOrErr(fmt.Errorf("remote sing-box profile: HTTP %d", resp.StatusCode), warnf)
 	}
-	_ = os.WriteFile(cachePath, body, 0644)
+	_ = os.WriteFile(RemoteSingboxCachePath(), body, 0644)
 	return body, nil
 }
 
 func loadRemoteCacheOrErr(cause error, warnf func(string)) ([]byte, error) {
-	return loadCacheOrErr(RemoteSingboxCachePath(), cause, warnf)
-}
-
-func loadCacheOrErr(p string, cause error, warnf func(string)) ([]byte, error) {
+	p := RemoteSingboxCachePath()
 	data, err := os.ReadFile(p)
 	if err != nil || len(data) == 0 || !json.Valid(data) {
 		if cause != nil {

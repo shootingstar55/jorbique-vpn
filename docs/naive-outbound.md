@@ -12,20 +12,20 @@ macOS with `with_naive_outbound`, which a cross-build from Linux cannot do.
 
 ## A mode of its own
 
-naive is not one more toggle. It is the heaviest protocol, and anything in the
-profile ends up in the automatic selector beside every other protocol, so the
-server publishes it in a profile of its own, `singbox_client.naive.json`, and
-the main `singbox_client.json` never carries it. The client switches between
-the two in VPN Config:
+naive is not one more toggle. It is the heaviest protocol, and in the automatic
+selector it would run beside every other protocol. The server publishes it in
+the one profile, `singbox_client.json`, beside the others but outside `auto`,
+and the client picks a mode in VPN Config:
 
-- **Protocols** builds from the main profile with the user's toggles, as before.
-- **NaiveProxy** builds from the naive profile alone. The toggles answer for the
-  main profile and are not consulted; the profile's own `auto` names only naive.
+- **Protocols** builds with the user's toggles and never starts naive, whatever
+  its toggle would say; the settings window does not offer one.
+- **NaiveProxy** builds from the profile's naive outbound alone; the toggles are
+  not consulted, and `auto` is left naming naive only.
 
-Each profile has its own cache, so the protocol list in the settings window
-never turns into "naive" after a NaiveProxy connect. The mode is `naive_mode` in
-`vpn_cfg.json` on macOS (`set-singbox-config`'s fourth stdin line: `naive`,
-`standard`, or blank to keep it) and in the Windows store.
+naive is found by its outbound type, not its tag. Both clients apply the mode in
+one place, `singboxcfg.ModeEnabled`, before `FilterOutbounds`. The mode is
+`naive_mode` in `vpn_cfg.json` on macOS (`set-singbox-config`'s fourth stdin
+line: `naive`, `standard`, or blank to keep it) and in the Windows store.
 
 On macOS the NaiveProxy mode checks the installed sing-box's `Tags:` line for
 `with_naive_outbound` before it starts. A machine can hold a channel build from

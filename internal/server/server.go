@@ -40,7 +40,7 @@ type Store struct {
 	UserUUID            string          `json:"user_uuid,omitempty"`
 	OutboundEnabled     map[string]bool `json:"outbound_enabled,omitempty"` // vless-reality, vless-grpc, tuic, hysteria2, anytls
 	SelectedNode        string          `json:"selected_node,omitempty"`    // the selector node the user picked, re-applied on every start
-	NaiveMode           bool            `json:"naive_mode,omitempty"`       // connect through the naive profile instead of the main one
+	NaiveMode           bool            `json:"naive_mode,omitempty"`       // connect through the profile's naive outbound instead of its protocols
 	IgnoredProcessNames []string        `json:"ignored_process_names,omitempty"`
 	IgnoredProcessPaths []string        `json:"ignored_process_paths,omitempty"` // full paths for sing-box process_path
 	DirectDomains       []string        `json:"direct_domains,omitempty"`
@@ -211,14 +211,14 @@ func (s *Store) SetIgnoredProcessNames(names []string) {
 }
 
 // GetNaiveMode reports whether the client connects in the NaiveProxy mode:
-// the naive profile alone, instead of the main profile's protocols.
+// the profile's naive outbound alone, instead of its other protocols.
 func (s *Store) GetNaiveMode() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.NaiveMode
 }
 
-// SetNaiveMode switches between the NaiveProxy mode and the main profile.
+// SetNaiveMode switches between the NaiveProxy mode and the protocols.
 func (s *Store) SetNaiveMode(on bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
