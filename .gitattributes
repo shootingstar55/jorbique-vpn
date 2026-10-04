@@ -1,0 +1,4 @@
+# Installer scripts must use LF only; CRLF breaks macOS postinstall shebang.
+scripts/pkg/postinstall text eol=lf
+scripts/pkg/build-flat-pkg.sh text eol=lf
+scripts/pkg/JorbiqueVPN-launcher.sh text eol=lf

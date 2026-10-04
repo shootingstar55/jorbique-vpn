@@ -1,0 +1,20 @@
+{
+  "name": "jorbique-vpn-frontend",
+  "version": "0.0.0",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "test": "node src/lib/activation.check.mjs && node src/lib/outbounds.check.mjs && node src/lib/stacks.check.mjs && node src/lib/theme.check.mjs && node src/components/RouteRulesPanel.check.mjs && node src/components/config-safety.check.mjs"
+  },
+  "dependencies": {
+    "naive-ui": "^2.44.1",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.7"
+  },
+  "overrides": {
+    "nanoid": "^3.3.17"
+  }
+}

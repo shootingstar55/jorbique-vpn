@@ -1,0 +1,47 @@
+#!/bin/sh
+# Runs as root before the payload lands. Preserves the user's vpn_cfg.json: the
+# package always ships the repository template, and an upgrade must not throw
+# away the UUID and settings someone entered.
+set -e
+PREFIX="${JORBIQUE_VPN_PKG_PREFIX:-}"
+SUPPORT="${PREFIX}/Library/Application Support/JorbiqueVPN"
+CFG="$SUPPORT/cfg/vpn_cfg.json"
+STARTED="$SUPPORT/started.list"
+PRESERVE="${PREFIX}/private/tmp/jorbique-vpn-preserve-vpn_cfg.json"
+PRESERVE_STARTED="${PREFIX}/private/tmp/jorbique-vpn-preserve-started.list"
+
+mkdir -p "${PREFIX}/private/tmp"
+rm -f "$PRESERVE" "$PRESERVE_STARTED"
+if [ -f "$CFG" ]; then
+  cp -p "$CFG" "$PRESERVE"
+fi
+
+# Stop clears the desired list. Save it first, and put it back if the upgrade
+# does not go through.
+if [ -f "$STARTED" ]; then
+  cp -p "$STARTED" "$PRESERVE_STARTED"
+fi
+restore_started_on_failure() {
+  result="$1"
+  if [ "$result" -ne 0 ] && [ -f "$PRESERVE_STARTED" ]; then
+    mkdir -p "$(dirname "$STARTED")"
+    cp -p "$PRESERVE_STARTED" "$STARTED"
+  fi
+  exit "$result"
+}
+trap 'restore_started_on_failure $?' 0
+
+# The installed client stops its own tunnel before the payload replaces it.
+CLIENT="${PREFIX}/usr/local/libexec/jorbique-vpn/JorbiqueVPN"
+if [ -x "$CLIENT" ]; then
+  if ! "$CLIENT" stop all; then
+    echo "preinstall: the installed client could not stop tunnels; keeping the old binaries" >&2
+    exit 1
+  fi
+fi
+# Keep the old daemon from restarting the tunnel while the payload changes.
+# Never reach outside a prefixed test installation.
+if [ -z "$PREFIX" ] && /bin/launchctl print system/one.jorbique.vpn >/dev/null 2>&1; then
+  /bin/launchctl bootout system/one.jorbique.vpn
+fi
+exit 0

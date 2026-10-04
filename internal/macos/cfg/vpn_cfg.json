@@ -1,0 +1,10 @@
+{
+  "singbox": {
+    "uuid": "",
+    "enabled_outbounds": [],
+    "disabled_outbounds": []
+  },
+  "direct_domains": [],
+  "direct_bypass_processes": [],
+  "direct_bypass_paths": []
+}

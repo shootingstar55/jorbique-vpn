@@ -1,0 +1,12 @@
+# Sing-box Controller Configuration
+# All configuration variables for the controller script
+#
+# TUN Interface Configuration
+tun:
+  # gateway_ip: set it only to override constants.SingboxGatewayIP; left unset so
+  # the two cannot drift apart.
+
+# Startup Configuration
+startup:
+  max_checks: 5
+  check_delay: 1

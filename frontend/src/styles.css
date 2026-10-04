@@ -1,0 +1,240 @@
+/*
+ * Global styles.
+ *
+ * Naive UI owns the components and their theming (src/lib/theme.js); everything here is the
+ * little that lives outside a component: the reset, the window background, and the sizing of
+ * modals, which Naive teleports to <body> and so cannot be reached from a scoped block.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+/*
+ * The palette the windows are painted from. Naive UI themes its own components;
+ * these cover what sits outside them — the window background and the panels'
+ * surfaces — so a page follows the theme without every component knowing which
+ * one is on.
+ */
+:root,
+:root[data-theme='dark'] {
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --surface: rgba(30, 41, 59, 0.55);
+  --surface-hover: rgba(51, 65, 85, 0.7);
+  --border: rgba(71, 85, 105, 0.5);
+  --border-hover: rgba(100, 116, 139, 0.6);
+  --surface-sunken: rgba(2, 6, 23, 0.5);
+  --window-bg:
+    radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 0%, rgba(16, 185, 129, 0.14), transparent 35%),
+    #020617;
+}
+
+/*
+ * The light window is Pantone Cloud Dancer (11-4201 TCX, #f0eee9) — a warm
+ * off-white, which is why the surfaces here are warm too: white cards on it
+ * would read blue by comparison, and the slate greys the dark theme uses would
+ * read dirty. The gradients the dark window has are gone, so the colour is the
+ * colour rather than a wash over it.
+ */
+:root[data-theme='light'] {
+  --text: #1c1a17;
+  --text-muted: #55504a;
+  --text-dim: #7a736b;
+  --surface: rgba(255, 255, 253, 0.9);
+  --surface-hover: rgba(247, 245, 240, 0.98);
+  --border: rgba(160, 152, 140, 0.4);
+  --border-hover: rgba(120, 112, 100, 0.5);
+  --surface-sunken: rgba(233, 230, 223, 0.75);
+  --window-bg: #f0eee9;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  background: var(--window-bg);
+  background-attachment: fixed;
+  /* Nothing in a desktop window should be selectable by accident; the places where text is
+     meant to be copied opt back in. */
+  user-select: none;
+  cursor: default;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+input,
+textarea,
+pre,
+code,
+[contenteditable] {
+  user-select: text;
+}
+
+/* Modals: Naive renders these into <body>, out of reach of any component's scoped styles. */
+.dialog {
+  width: 92vw;
+  max-width: 460px;
+}
+
+.dialog--wide {
+  max-width: 780px;
+}
+
+.dialog--dashboard {
+  width: 94vw;
+  max-width: 1080px;
+}
+
+.dialog--dashboard.n-card > .n-card-content {
+  padding: 22px 24px 24px;
+}
+
+.dialog.n-card {
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 40px 80px -30px rgba(2, 6, 23, 0.95);
+  /* Keep the header and footer in place and scroll the body, rather than letting a long
+     modal grow past the window and take the whole page scrollbar with it. */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+}
+
+.dialog.n-card > .n-card-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dialog.n-card > .n-card-header,
+.dialog.n-card > .n-card__footer {
+  flex-shrink: 0;
+}
+
+/* Scrollbars in the panes that are not wrapped in NScrollbar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+/* ---------------------------------------------------------------------------
+ * The connect ring and the stack chip are drawn by the main window and by the
+ * menu-bar panel, from the same markup. Shape, motion and the connected colour
+ * are the same in both; each component keeps its own surface, resting colours
+ * and spacing in its scoped block, which outranks these by specificity.
+ * ------------------------------------------------------------------------ */
+.ring {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border: 2px solid var(--ring, var(--border));
+  box-shadow: var(--ring-glow, none);
+  transition: color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
+}
+
+.ring:disabled {
+  cursor: default;
+}
+
+.ring:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.ring:not(:disabled):active {
+  transform: translateY(0) scale(0.98);
+}
+
+.ring.is-on {
+  --ring: #10b981;
+  --ring-glow: 0 0 0 6px rgba(16, 185, 129, 0.08), 0 0 34px rgba(16, 185, 129, 0.28);
+}
+
+.ring.is-pending {
+  --ring: #f59e0b;
+}
+
+/* One expanding halo, only while something is in flight. */
+.ring__pulse {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+}
+
+.ring.is-pending .ring__pulse {
+  animation: ring-pulse 1.4s ease-out infinite;
+}
+
+@keyframes ring-pulse {
+  0% { opacity: 0.55; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.28); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring.is-pending .ring__pulse { animation: none; opacity: 0.4; }
+}
+
+.stack-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.stack-chip__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stack-chip__value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}

@@ -1,0 +1,59 @@
+# Build outputs
+/Jorbique-VPN.exe
+/JorbiqueVPN.exe
+/Jorbique-VPN_debug.exe
+*.syso
+cmd/jorbiquevpn/rsrc.syso
+
+# Test / lint reports
+/coverage.out
+/coverage.xml
+/junit-report.xml
+/junit-integration.xml
+/gl-code-quality-report.json
+/gl-code-quality-report-windows.json
+
+# Embedded sing-box (from build-windows.bat / CI; use `git add -f` if you must commit)
+internal/embed/sing-box.exe
+
+# Frontend tooling
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Logs under repo (e.g. dev runs with cwd in project)
+logs/
+*.log
+startup_error.log
+
+# macOS client local files
+internal/macos/logs/
+internal/macos/JorbiqueVPN
+internal/macos/sing-box
+/JorbiqueVPN
+
+# Runtime state the macOS client writes next to the running binary — a dev build
+# lives in the repo, so it lands here. sing-box's persistent DNS cache is
+# local-only and must never be committed.
+cache/
+
+# Last good copy of the downloaded sing-box profile (kept so a blip on the
+# update host does not stop the VPN from starting) — runtime state, not source.
+internal/macos/cfg/singbox_client.json
+cfg/singbox_client.json
+
+# Prebuilt full-UI macOS binary for Linux CI .pkg (optional: git add -f … to ship)
+/prebuilt/darwin-arm64/JorbiqueVPN
+
+# Release artifacts (built zips/exes), repo root only
+/release/
+
+# Project-local GitLab UI assets; upload manually if needed, do not ship with app sources.
+/assets/gitlab-avatar.png
+/assets/gitlab-avatar-192.png
+
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+.compound-engineering/*.local.yaml

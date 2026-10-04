@@ -1,0 +1,22 @@
+# Team GitLab rule (merge / squash): first line must match conventional commits, e.g.
+#   type(optional-scope): subject
+# Types: build chore ci docs feat fix perf refactor revert style test
+# Scope (if present): only [a-zA-Z0-9_-] — no slashes, no dots inside parentheses.
+# MR title must also match if you squash with the default MR title ("Feature/..." fails).
+#
+# <type>(<optional scope>): <imperative subject, ~72 chars>
+#
+# Types: feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert
+#
+# Examples:
+#
+# chore(git): ignore JorbiqueVPN at repo root
+# fix(windows): enable WebView2 default context menu in release
+# fix(macos): expose standard edit menu on form text fields
+# ci: add toolkit security scans and shared pipeline includes
+# chore(release): limit changelog to user-facing commit types
+# chore(meta): add conventional commit message template
+#
+# Body: explain why, not only what. Wrap at ~72 chars.
+#
+# Footer: BREAKING CHANGE: ... / Refs #123

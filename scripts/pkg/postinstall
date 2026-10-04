@@ -1,0 +1,134 @@
+#!/bin/sh
+# Runs as root once the payload is on disk: finishes the layout and sets who owns what.
+#
+# The client uses the locations macOS defines, and the split is deliberate:
+#
+#   root:wheel  the binaries. The daemon runs them as root, so anything a
+#               non-root user can rewrite is a way to become root — this part
+#               cannot be handed over and stays 0755/0644.
+#   root:admin  the configuration and the downloaded profiles: readable by the
+#               admin group so the menu bar can show what is configured, and
+#               writable by nobody but root: the daemon consumes this config.
+#   root:wheel  the rest of the system-wide data. The menu bar keeps its own log
+#               in the user's ~/Library/Logs/JorbiqueVPN and needs nothing here.
+set -e
+# Every path hangs off a prefix, the same way scripts/pkg/jorbique-vpn-admin.sh
+# does, so permissions can be checked in a throwaway tree. Empty on a machine,
+# where the installer targets /.
+PREFIX="${JORBIQUE_VPN_PKG_PREFIX:-}"
+LIBEXEC="${PREFIX}/usr/local/libexec/jorbique-vpn"
+SUPPORT="${PREFIX}/Library/Application Support/JorbiqueVPN"
+LOGS="${PREFIX}/Library/Logs/JorbiqueVPN"
+CACHES="${PREFIX}/Library/Caches/JorbiqueVPN"
+PRESERVE="${PREFIX}/private/tmp/jorbique-vpn-preserve-vpn_cfg.json"
+PRESERVE_STARTED="${PREFIX}/private/tmp/jorbique-vpn-preserve-started.list"
+
+if [ ! -d "$LIBEXEC" ]; then
+  echo "postinstall: expected ${LIBEXEC} missing" >&2
+  exit 1
+fi
+
+mkdir -p "$SUPPORT/cfg" "$LOGS" "$CACHES"
+
+# Restore the user's config saved in preinstall (upgrade over an existing install).
+if [ -f "$PRESERVE" ]; then
+  cp -f "$PRESERVE" "$SUPPORT/cfg/vpn_cfg.json"
+  rm -f "$PRESERVE"
+fi
+if [ -f "$PRESERVE_STARTED" ]; then
+  cp -f "$PRESERVE_STARTED" "$SUPPORT/started.list"
+  rm -f "$PRESERVE_STARTED"
+fi
+
+# Binaries: root-owned, world-executable, not writable by anyone else.
+chown -R root:wheel "$LIBEXEC"
+chmod 755 "$LIBEXEC" "$LIBEXEC/JorbiqueVPN" 2>/dev/null || true
+chmod 755 "$LIBEXEC/sing-box" 2>/dev/null || true
+chmod 755 "$LIBEXEC/jorbique-vpn-admin" 2>/dev/null || true
+
+# System-wide data: root's to write, everyone's to read. Nothing here is
+# group-writable — a file a regular user can rewrite is a file root reads later.
+for d in "$SUPPORT" "$LOGS" "$CACHES"; do
+  chown -R root:wheel "$d" 2>/dev/null || true
+  chmod -R go-w "$d" 2>/dev/null || true
+  chmod 755 "$d" 2>/dev/null || true
+done
+# The configuration and the downloaded profile: the admin group reads them (the
+# menu bar shows what is configured), root alone writes them. The UUID in them
+# stays out of reach of everyone else.
+chown -R root:admin "$SUPPORT/cfg" 2>/dev/null || true
+chmod 750 "$SUPPORT/cfg" 2>/dev/null || true
+find "$SUPPORT/cfg" -type f -exec chmod 640 {} + 2>/dev/null || true
+
+BIN="${PREFIX}/usr/local/bin"
+mkdir -p "$BIN"
+# Same binary; libexec is where it lives, /usr/local/bin is where a person finds it.
+ln -sf "$LIBEXEC/JorbiqueVPN" "$BIN/jorbique-vpn"
+# Upgrades and rollbacks are run from the machine being upgraded, so the tool
+# that does them is on its PATH.
+ln -sf "$LIBEXEC/jorbique-vpn-admin" "$BIN/jorbique-vpn-admin"
+
+/usr/bin/xattr -cr "$LIBEXEC" 2>/dev/null || true
+/usr/bin/xattr -cr "${PREFIX}/Applications/Jorbique VPN.app" 2>/dev/null || true
+/usr/bin/codesign --force --sign - "$LIBEXEC/JorbiqueVPN" 2>/dev/null || true
+/usr/bin/codesign --force --sign - "${PREFIX}/Applications/Jorbique VPN.app" 2>/dev/null || true
+
+# Tell the system about the bundle rather than waiting for it to notice.
+#
+# Spotlight indexes a new app on its own schedule, so for a minute or two after
+# an install the app is in /Applications but not in search — and the re-signing
+# just above touches the bundle, which is not the way to make an indexer hurry.
+# mdimport asks for it directly; lsregister does the same for Launch Services,
+# which is what "Open with" and the Dock icon read.
+#
+# Both are best-effort and both are skipped for a prefixed (test) install, which
+# has no business touching the machine's indexes.
+if [ -z "$PREFIX" ] && [ -d "/Applications/Jorbique VPN.app" ]; then
+  /usr/bin/mdimport "/Applications/Jorbique VPN.app" 2>/dev/null || true
+  /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+    -f "/Applications/Jorbique VPN.app" 2>/dev/null || true
+fi
+
+# The daemon is the client's privileged component: the menu bar runs as the
+# logged-in user and asks it for anything that needs root, over a socket. It is
+# installed with the client rather than when someone ticks "boot autostart" —
+# that choice is now a marker file the daemon reads, so a machine that never
+# asked for autostart still gets a daemon and still brings nothing up at boot.
+# Its output goes to the installer log: a daemon that did not come back is the
+# difference between a working client and one where nothing starts, and
+# swallowing the reason has already cost a debugging session.
+# A failure here is not cosmetic: without the daemon the client cannot start a
+# tunnel or save a setting, and nothing on screen would say why. Better a package that reports it failed — the files are in place, so
+# relaunching the app offers to finish the setup — than a client that looks
+# installed and does nothing.
+#
+# It is retried before that verdict is reached. launchd refuses a bootstrap
+# while the job it is replacing is still on its way out, and an installer runs
+# on a machine that is busy doing everything else at once — failing the package
+# on the first refusal turns a slow second into a failed install. The client
+# retries internally too; this is the outer budget, for the case where the whole
+# attempt was too early rather than one launchctl call.
+daemon_installed=0
+attempt=1
+while [ "$attempt" -le 3 ]; do
+  if "$LIBEXEC/JorbiqueVPN" install-service; then
+    daemon_installed=1
+    break
+  fi
+  echo "postinstall: daemon install attempt ${attempt} failed" >&2
+  attempt=$((attempt + 1))
+  [ "$attempt" -le 3 ] && sleep 2
+done
+if [ "$daemon_installed" -ne 1 ]; then
+  echo "postinstall: the privileged daemon could not be installed; the client cannot start tunnels without it" >&2
+  exit 1
+fi
+# Restart a loaded daemon so it cannot keep a pre-upgrade binary image.
+#
+# Only against the machine itself. launchd is system-wide and has no notion of
+# a prefix, so a run against a throwaway tree would reach past it and restart
+# the daemon of whoever is running it.
+if [ -z "$PREFIX" ] && /bin/launchctl print system/one.jorbique.vpn >/dev/null 2>&1; then
+  /bin/launchctl kickstart -k system/one.jorbique.vpn 2>/dev/null || true
+fi
+exit 0

@@ -1,0 +1,35 @@
+run:
+  timeout: 5m
+  build-tags:
+    - desktop
+
+linters-settings:
+  errcheck:
+    # Two Windows call shapes where a checked error would be wrong or useless. Both only
+    # appear under GOOS=windows, which is why they surfaced when the Windows lint pass was
+    # added rather than with the rest.
+    exclude-functions:
+      # LazyProc.Call's error return is the thread's last error, which the system sets
+      # whether or not the call failed — checking it is a known way to report a success as a
+      # failure. What a caller reads is the first return value, where there is one to read;
+      # the calls left bare here are DestroyIcon/DeleteDC/DeleteObject-style cleanup and
+      # ShowWindow, none of which have a result worth acting on.
+      - (*syscall.LazyProc).Call
+      - (*golang.org/x/sys/windows.LazyProc).Call
+      # A handle that will not close in a defer leaves the caller nothing to do about it.
+      - golang.org/x/sys/windows.CloseHandle
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+issues:
+  exclude-dirs:
+    - frontend
+    - release
+    - prebuilt
+    - node_modules
