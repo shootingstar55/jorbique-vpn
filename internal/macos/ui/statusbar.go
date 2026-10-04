@@ -65,6 +65,7 @@ type statusBarController struct {
 
 	app        applekit.App
 	statusItem applekit.StatusItem
+	barIcons   map[string]applekit.Image // the face per status color keyword, built on first use
 
 	headerItem  applekit.MenuItem
 	detailItem  applekit.MenuItem
@@ -123,7 +124,8 @@ func RunStatusBarAppPurego(exePath, displayName string) error {
 // finishStartup is the app proper: the status item, its menu and the loops.
 func (c *statusBarController) finishStartup() {
 	c.statusItem = applekit.InstallStatusItem()
-	c.statusItem.SetTitle("○", applekit.StopColor())
+	c.statusItem.SetToolTip(c.displayName)
+	c.setBarIcon("stop", 1)
 	c.statusItem.SetMenu(c.buildMenu())
 
 	c.refresh()
@@ -347,12 +349,27 @@ func (c *statusBarController) applyRefresh(running []string, ms MenuStatus, avai
 		return
 	}
 	color := applekit.StatusColor(p.color)
-	c.statusItem.SetTitle(p.glyph, color)
+	c.setBarIcon(barIconKeyword(p), 1)
 	if p.colored {
 		c.headerItem.SetColoredTitle(p.header, color)
 	} else {
 		c.headerItem.SetMutedTitle(p.header)
 	}
+}
+
+// setBarIcon shows the face for a status color keyword ("ok"/"yellow"/"stop")
+// at the given opacity. Main thread only.
+func (c *statusBarController) setBarIcon(keyword string, alpha float64) {
+	img, ok := c.barIcons[keyword]
+	if !ok {
+		data, template := barIconPNG(keyword)
+		img = applekit.NewImage(data, BarIconPoints, BarIconPoints, template, c.displayName)
+		if c.barIcons == nil {
+			c.barIcons = map[string]applekit.Image{}
+		}
+		c.barIcons[keyword] = img
+	}
+	c.statusItem.SetImage(img, alpha)
 }
 
 // safeGo runs fn in a goroutine, recovering panics so a background handler can
@@ -652,10 +669,10 @@ func (c *statusBarController) startSpinner() {
 			if !ok {
 				return
 			}
-			frame := spinnerFrame(tick)
+			alpha := spinnerAlpha(tick)
 			applekit.RunOnMain(func() {
 				color := applekit.StatusColor(act.color)
-				c.statusItem.SetTitle(frame, color)
+				c.setBarIcon(act.color, alpha)
 				c.headerItem.SetColoredTitle(act.verb+"…", color)
 			})
 			<-t.C
