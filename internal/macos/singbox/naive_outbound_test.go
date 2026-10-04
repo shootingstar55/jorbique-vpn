@@ -110,3 +110,46 @@ func contains(list []string, want string) bool {
 	}
 	return false
 }
+
+// The NaiveProxy mode builds from the naive profile, kept in a cache of its
+// own, and the protocol toggles — answers about the main profile — have no say
+// in it.
+func TestNaiveModeBuildsFromTheNaiveProfile(t *testing.T) {
+	base := filepath.Join(t.TempDir(), "config.json")
+	main := `{"outbounds":[{"type":"vless","tag":"vless-reality","uuid":""},
+	  {"type":"urltest","tag":"auto","outbounds":["vless-reality"]},{"type":"direct","tag":"direct"}]}`
+	naive := `{"outbounds":[{"type":"naive","tag":"naive","server":"192.0.2.1","server_port":443,
+	  "username":"","password":"naivepassword","insecure_concurrency":2,"udp_over_tcp":true},
+	  {"type":"urltest","tag":"auto","outbounds":["naive"]},{"type":"direct","tag":"direct"}]}`
+	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(main), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(naiveTemplateCachePath(base), []byte(naive), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	const uuid = "11111111-1111-1111-1111-111111111111"
+	settings := core.SingboxSection{UUID: uuid, DisabledOutbounds: []string{"naive", "vless-reality"}, NaiveMode: true}
+	root, err := BuildConfigFromRemoteTemplate(settings, base, time.Nanosecond, nil)
+	if err != nil {
+		t.Fatalf("BuildConfigFromRemoteTemplate: %v", err)
+	}
+	out, err := root.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	built := string(out)
+	if strings.Contains(built, `"vless-reality"`) {
+		t.Errorf("the NaiveProxy mode built the main profile:\n%s", built)
+	}
+	if !strings.Contains(built, `"username":"`+uuid+`"`) || !strings.Contains(built, `"password":"naivepassword"`) {
+		t.Errorf("naive must sign in with the UUID and the shared password:\n%s", built)
+	}
+	if deps := urltestDeps(t, root); !contains(deps, "naive") {
+		t.Errorf("urltest outbounds = %v, want naive", deps)
+	}
+	// The protocol panel still lists the main profile.
+	if got := AvailableProxyTags(base); len(got) != 1 || got[0] != "vless-reality" {
+		t.Errorf("AvailableProxyTags = %v, want the main profile's [vless-reality]", got)
+	}
+}

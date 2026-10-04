@@ -211,7 +211,11 @@ func (a *App) Connect() (msg string, err error) {
 	cfg, errInit := config.Initialize(cfgName, cfgRoot) // no external file: the embedded copy
 	warnConfigInit(errInit)
 
-	remoteJSON, err := config.FetchSingboxClientJSONOrCache(func(msg string) { logFn(msg, "WARN") })
+	fetchProfile := config.FetchSingboxClientJSONOrCache
+	if a.store.GetNaiveMode() {
+		fetchProfile = config.FetchNaiveClientJSONOrCache
+	}
+	remoteJSON, err := fetchProfile(func(msg string) { logFn(msg, "WARN") })
 	if err != nil {
 		return "Failed to load VPN profile from server: " + err.Error(), ErrConfigUpdate
 	}
@@ -247,8 +251,11 @@ func (a *App) Connect() (msg string, err error) {
 
 func (a *App) buildRuntimeConfig(remoteJSON []byte) (string, error) {
 	userUUID, enabled, directDomains := a.effectiveVpnUserForConnect()
-	available := config.ProxyTagsFromJSON(remoteJSON)
-	if gone := a.vanishedOutbounds(enabled, available); len(gone) > 0 {
+	if a.store.GetNaiveMode() {
+		// The naive profile is its own mode: the toggles answer for the main
+		// profile's protocols and have nothing to say about this one.
+		enabled = nil
+	} else if gone := a.vanishedOutbounds(enabled, config.ProxyTagsFromJSON(remoteJSON)); len(gone) > 0 {
 		logging.Write("sing-box profile: the server no longer offers "+strings.Join(gone, ", "), logging.LevelWarn)
 	}
 	if !security.ValidUUID(strings.TrimSpace(userUUID), false) {
@@ -496,6 +503,18 @@ func (a *App) SetVpnUserConfig(userUUID string, outboundEnabled map[string]bool)
 	return "", nil
 }
 
+// SetNaiveMode switches the client between the NaiveProxy mode — the naive
+// profile and nothing else — and the main profile's protocols. Two modes rather
+// than one more toggle: naive is the heaviest protocol, and in the automatic
+// selector it would run beside all the others. Takes effect on the next connect.
+func (a *App) SetNaiveMode(on bool) (msg string, err error) {
+	a.store.SetNaiveMode(on)
+	if err := a.store.Save(a.GetDataDir()); err != nil {
+		return "Failed to save config", ErrConfigUpdate
+	}
+	return "", nil
+}
+
 func (a *App) GetLogContent(logName string) (string, error) {
 	if logName == "" {
 		logName = controllerLogFile
@@ -570,6 +589,7 @@ type VpnUserConfigForm struct {
 	UUID            string          `json:"uuid"`
 	DirectDomains   string          `json:"directDomains"`
 	OutboundEnabled map[string]bool `json:"outboundEnabled"`
+	NaiveMode       bool            `json:"naiveMode"`
 }
 
 // GetVpnUserConfig returns UUID, toggles, and direct-domain block — prefers a newer auto-saved draft over last official save.
@@ -578,6 +598,7 @@ func (a *App) GetVpnUserConfig() VpnUserConfigForm {
 		UUID:            a.store.GetUserUUID(),
 		DirectDomains:   strings.Join(a.store.GetDirectDomains(), "\n"),
 		OutboundEnabled: a.store.GetOutboundEnabled(),
+		NaiveMode:       a.store.GetNaiveMode(),
 	}
 	savedAt := a.store.GetConfigSavedAt()
 	draft, err := readVpnFormDraft(a.GetDataDir())
@@ -613,7 +634,9 @@ func (a *App) GetVpnUserConfig() VpnUserConfigForm {
 // account the protocols authenticate with, and a protocol to route through.
 func (a *App) HasVpnUserConfig() bool {
 	stored := a.store.GetOutboundEnabled()
-	if configuredEnough(a.store.GetUserUUID()) && hasSomethingToRouteThrough(stored, config.AvailableProxyTags()) {
+	// The NaiveProxy mode routes through naive whatever the toggles say.
+	routable := a.store.GetNaiveMode() || hasSomethingToRouteThrough(stored, config.AvailableProxyTags())
+	if configuredEnough(a.store.GetUserUUID()) && routable {
 		return true
 	}
 	draft, err := readVpnFormDraft(a.GetDataDir())
@@ -635,7 +658,7 @@ func (a *App) HasVpnUserConfig() bool {
 	if strings.TrimSpace(draft.UUID) != "" {
 		uuid = strings.TrimSpace(draft.UUID)
 	}
-	return configuredEnough(uuid) && hasSomethingToRouteThrough(en, config.AvailableProxyTags())
+	return configuredEnough(uuid) && (a.store.GetNaiveMode() || hasSomethingToRouteThrough(en, config.AvailableProxyTags()))
 }
 
 // configuredEnough reports whether the account side of the configuration is

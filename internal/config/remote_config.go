@@ -42,6 +42,14 @@ func RemoteSingboxCachePath() string {
 	return filepath.Join(dir, "singbox_client.json")
 }
 
+// RemoteNaiveCachePath is the naive profile's own cache. Apart from the main
+// one, so switching modes never turns the protocol list into "naive" and back.
+func RemoteNaiveCachePath() string {
+	dir := paths.TempAppDir()
+	_ = os.MkdirAll(dir, 0755)
+	return filepath.Join(dir, "singbox_client.naive.json")
+}
+
 // profileFetchTimeout bounds the profile download. Every connection starts with
 // it, so it is the delay a user waits through before anything happens; the
 // profile is a few kilobytes, and a link that cannot deliver that in this long
@@ -62,6 +70,12 @@ const profileFetchTimeout = 15 * time.Second
 // it is said out loud.
 func FetchSingboxClientJSONOrCache(warnf func(string)) ([]byte, error) {
 	return fetchSingboxClientJSON(profileFetchTimeout, warnf)
+}
+
+// FetchNaiveClientJSONOrCache is FetchSingboxClientJSONOrCache for the
+// NaiveProxy mode's profile.
+func FetchNaiveClientJSONOrCache(warnf func(string)) ([]byte, error) {
+	return fetchProfile(constants.SingboxClientNaiveURL, RemoteNaiveCachePath(), profileFetchTimeout, warnf)
 }
 
 // uiProfileFetchTimeout is the same download on the path that opens a window.
@@ -88,15 +102,18 @@ func AvailableProxyTagsFresh() []string {
 }
 
 func fetchSingboxClientJSON(timeout time.Duration, warnf func(string)) ([]byte, error) {
-	remoteURL := constants.SingboxClientURL
+	return fetchProfile(constants.SingboxClientURL, RemoteSingboxCachePath(), timeout, warnf)
+}
+
+func fetchProfile(remoteURL, cachePath string, timeout time.Duration, warnf func(string)) ([]byte, error) {
 	u, err := url.Parse(remoteURL)
 	if err != nil {
-		return loadRemoteCacheOrErr(err, warnf)
+		return loadCacheOrErr(cachePath, err, warnf)
 	}
 	client := httpsclient.ForHost(u.Host, timeout)
 	req, err := http.NewRequest(http.MethodGet, remoteURL, nil)
 	if err != nil {
-		return loadRemoteCacheOrErr(err, warnf)
+		return loadCacheOrErr(cachePath, err, warnf)
 	}
 	req.Header.Set("Accept", "application/json")
 	// The profile decides what the tunnel is built from, so an intermediary's
@@ -104,22 +121,25 @@ func fetchSingboxClientJSON(timeout time.Duration, warnf func(string)) ([]byte, 
 	req.Header.Set("Cache-Control", "no-cache")
 	resp, err := client.Do(req)
 	if err != nil {
-		return loadRemoteCacheOrErr(err, warnf)
+		return loadCacheOrErr(cachePath, err, warnf)
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return loadRemoteCacheOrErr(err, warnf)
+		return loadCacheOrErr(cachePath, err, warnf)
 	}
 	if resp.StatusCode != http.StatusOK || len(body) == 0 || !json.Valid(body) {
-		return loadRemoteCacheOrErr(fmt.Errorf("remote sing-box profile: HTTP %d", resp.StatusCode), warnf)
+		return loadCacheOrErr(cachePath, fmt.Errorf("remote sing-box profile: HTTP %d", resp.StatusCode), warnf)
 	}
-	_ = os.WriteFile(RemoteSingboxCachePath(), body, 0644)
+	_ = os.WriteFile(cachePath, body, 0644)
 	return body, nil
 }
 
 func loadRemoteCacheOrErr(cause error, warnf func(string)) ([]byte, error) {
-	p := RemoteSingboxCachePath()
+	return loadCacheOrErr(RemoteSingboxCachePath(), cause, warnf)
+}
+
+func loadCacheOrErr(p string, cause error, warnf func(string)) ([]byte, error) {
 	data, err := os.ReadFile(p)
 	if err != nil || len(data) == 0 || !json.Valid(data) {
 		if cause != nil {

@@ -83,6 +83,10 @@ profile does not have, fail the build with an error naming the tag.
 | Applied when building | `singbox.BuildConfigFromRemoteTemplate` | `config.filterOutboundsAndUrltests` |
 | Shown to the user | the sing-box panel in the menu bar | the VPN Configuration window (`GetAvailableOutbounds`) |
 
+The NaiveProxy mode is the one place a profile is chosen rather than read: it
+builds from `singbox_client.naive.json` instead, and the toggles above do not
+apply to it (see [naive-outbound.md](naive-outbound.md)).
+
 Nothing in either client names an outbound tag any more. The one exception is
 cosmetic: the Windows window has prettier labels for the five tags served
 today (`VLESS Reality` rather than `vless-reality`), and shows anything else by

@@ -203,3 +203,19 @@ func TestPatchesIgnoreBracketsInsideJSONStrings(t *testing.T) {
 		t.Fatalf("patch damaged the choice: %s", data)
 	}
 }
+
+func TestPatchNaiveModeRoundTrip(t *testing.T) {
+	paths, cfgFile := writeSlim(t)
+	for _, on := range []bool{true, false, true} {
+		if err := PatchVpnCfgSingboxNaiveMode(cfgFile, on); err != nil {
+			t.Fatalf("PatchVpnCfgSingboxNaiveMode(%v): %v", on, err)
+		}
+		cfg, err := core.ReadConfig(paths)
+		if err != nil {
+			t.Fatalf("ReadConfig: %v", err)
+		}
+		if cfg.Singbox.NaiveMode != on {
+			t.Errorf("naive_mode = %v, want %v", cfg.Singbox.NaiveMode, on)
+		}
+	}
+}

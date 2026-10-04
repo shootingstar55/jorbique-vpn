@@ -10,7 +10,7 @@ import (
 )
 
 func TestSingboxConfigState(t *testing.T) {
-	state := singboxConfigState("user-id", []string{"TUIC"}, []string{"vless-reality", "tuic"})
+	state := singboxConfigState("user-id", []string{"TUIC"}, []string{"vless-reality", "tuic"}, false)
 	if state.OutboundEnabled["vless-reality"] || !state.OutboundEnabled["tuic"] {
 		t.Fatalf("outbounds = %#v", state.OutboundEnabled)
 	}
@@ -18,10 +18,10 @@ func TestSingboxConfigState(t *testing.T) {
 	// protocol off. What "no opinion" means is resolved before this —
 	// singboxEnabledOutbounds hands back what the profile offers when nothing
 	// was ever refused.
-	if off := singboxConfigState("", nil, []string{"tuic"}); off.OutboundEnabled["tuic"] {
+	if off := singboxConfigState("", nil, []string{"tuic"}, false); off.OutboundEnabled["tuic"] {
 		t.Fatal("an empty selection must show every protocol off")
 	}
-	if on := singboxConfigState("", []string{"tuic"}, []string{"tuic"}); !on.OutboundEnabled["tuic"] {
+	if on := singboxConfigState("", []string{"tuic"}, []string{"tuic"}, false); !on.OutboundEnabled["tuic"] {
 		t.Fatal("a protocol on the list must show on")
 	}
 }

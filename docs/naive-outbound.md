@@ -6,8 +6,32 @@ implement it: the Windows build loads it at runtime from a library published by
 neither sing-box nor this client. So a Windows client that is offered a `naive`
 outbound has to fetch that library itself.
 
-The macOS build has naiveproxy in it natively and loads nothing, so `naive` is
-an ordinary selectable outbound there, like every other tag the profile offers.
+The macOS build has naiveproxy in it natively and loads nothing. The channel
+serves the official SagerNet macOS binaries for that reason: they are built on
+macOS with `with_naive_outbound`, which a cross-build from Linux cannot do.
+
+## A mode of its own
+
+naive is not one more toggle. It is the heaviest protocol, and anything in the
+profile ends up in the automatic selector beside every other protocol, so the
+server publishes it in a profile of its own, `singbox_client.naive.json`, and
+the main `singbox_client.json` never carries it. The client switches between
+the two in VPN Config:
+
+- **Protocols** builds from the main profile with the user's toggles, as before.
+- **NaiveProxy** builds from the naive profile alone. The toggles answer for the
+  main profile and are not consulted; the profile's own `auto` names only naive.
+
+Each profile has its own cache, so the protocol list in the settings window
+never turns into "naive" after a NaiveProxy connect. The mode is `naive_mode` in
+`vpn_cfg.json` on macOS (`set-singbox-config`'s fourth stdin line: `naive`,
+`standard`, or blank to keep it) and in the Windows store.
+
+On macOS the NaiveProxy mode checks the installed sing-box's `Tags:` line for
+`with_naive_outbound` before it starts. A machine can hold a channel build from
+before the switch to the official binaries, and an update only runs when the
+version changes; the mode downloads the channel's build once, and refuses to
+start with a reason if that one cannot run naive either.
 
 ## Where the library goes, and under what name
 
@@ -72,12 +96,13 @@ effect without a client release.
 
 ## Credentials
 
-The user's UUID goes into `naive`'s `password` and nowhere else. Unlike every
-other outbound here, naiveproxy also authenticates with a `username`, and that
-one is the server's to set: it is written through exactly as the profile serves
-it. This falls out of the existing rule — the UUID goes into whichever of `uuid`
-or `password` the profile carries — and is pinned by
-`TestBuildRuntimeConfig_NaiveTakesTheUUIDInPasswordOnly`.
+naiveproxy authenticates with a `username` and a `password`. The server signs
+users in by their UUID as the username and one password shared by everyone, so
+the profile ships `username` empty and `password` filled. The existing rule —
+the UUID goes into every top-level field the profile left empty — puts the UUID
+into the username and leaves the password alone, with no client code that names
+naive. `TestBuildRuntimeConfig_NaiveTakesTheUUIDInItsEmptyFields` and
+`TestNaiveModeBuildsFromTheNaiveProfile` pin it.
 
 ## If the profile is served from somewhere else
 

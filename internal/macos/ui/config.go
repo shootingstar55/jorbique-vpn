@@ -56,6 +56,11 @@ func singboxUUID(cfg *core.AppConfig) string {
 	return strings.TrimSpace(cfg.Singbox.UUID)
 }
 
+// singboxNaiveMode reports whether the client connects in the NaiveProxy mode.
+func singboxNaiveMode(cfg *core.AppConfig) bool {
+	return cfg != nil && cfg.Singbox.NaiveMode
+}
+
 // singboxEnabledOutbounds returns the protocols that are actually on (never
 // nil): what the profile offers, minus what the user refused, resolved by the
 // same function the config builder uses.

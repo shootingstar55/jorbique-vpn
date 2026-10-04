@@ -107,6 +107,7 @@ func applyOverlay(base *AppConfig, data []byte) {
 	if ov.Singbox.SelectedNode != "" {
 		base.Singbox.SelectedNode = ov.Singbox.SelectedNode
 	}
+	base.Singbox.NaiveMode = ov.Singbox.NaiveMode
 	if ov.DirectDomains != nil {
 		base.DirectDomains = ov.DirectDomains
 	}

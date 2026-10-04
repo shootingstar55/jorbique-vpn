@@ -887,6 +887,15 @@ func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 		node := cleaned[2]
 		selectedNode = &node
 	}
+	// Fourth line: the mode. Blank is "no opinion", like the node above it.
+	var naiveMode *bool
+	if len(cleaned) > 3 && cleaned[3] != "" {
+		on, err := parseSingboxMode(cleaned[3])
+		if err != nil {
+			return err
+		}
+		naiveMode = &on
+	}
 	tokens := splitTagList(enabledRaw)
 
 	// A tag the profile does not offer is refused rather than stored: kept, it
@@ -921,6 +930,12 @@ func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 		m.Logger.Error("Failed to save sing-box uuid/outbounds: " + err.Error())
 		return err
 	}
+	if naiveMode != nil {
+		if err := routerules.PatchVpnCfgSingboxNaiveMode(m.Paths.CfgFile, *naiveMode); err != nil {
+			m.Logger.Error("Failed to save the sing-box mode: " + err.Error())
+			return err
+		}
+	}
 	m.Logger.Log(ansiutil.Green("✓ Saved sing-box uuid/outbounds into " + m.Paths.CfgFile))
 
 	cfg, err := core.ReadConfig(m.Paths)
@@ -937,6 +952,18 @@ func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 	}
 
 	return m.rebuildSingboxConfigs(uuid, enabled, disabled)
+}
+
+// parseSingboxMode reads set-singbox-config's mode line: "naive" for the
+// NaiveProxy mode, "standard" for the main profile's outbounds.
+func parseSingboxMode(raw string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "naive":
+		return true, nil
+	case "standard":
+		return false, nil
+	}
+	return false, core.BadConfig(`unknown sing-box mode "` + raw + `": use "naive" or "standard"`)
 }
 
 func (m *Manager) validatedConfigUUID(cleaned []string) (string, *string, error) {
@@ -969,7 +996,7 @@ func (m *Manager) rebuildSingboxConfigs(uuid string, enabled, disabled []string)
 	}
 	for _, p := range targets {
 		baseConfigPath := filepath.Join(filepath.Dir(p), "singbox.json")
-		root, err := singbox.BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: uuid, EnabledOutbounds: enabled, DisabledOutbounds: disabled, SelectedNode: m.selectedNode()}, baseConfigPath, 12*time.Second, m.Logger.Warn)
+		root, err := singbox.BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: uuid, EnabledOutbounds: enabled, DisabledOutbounds: disabled, SelectedNode: m.selectedNode(), NaiveMode: m.Cfg.Singbox.NaiveMode}, baseConfigPath, 12*time.Second, m.Logger.Warn)
 		if err != nil {
 			if uuid == "" {
 				// With no account there may be nothing to build yet. What this

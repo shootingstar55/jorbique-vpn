@@ -21,7 +21,7 @@ SYNOPSIS
      %[1]s start [name|all]
      %[1]s stop [name|all]
      %[1]s restart [name|all]
-     %[1]s set-singbox-config  (stdin: line1=uuid, line2=enabled outbound tags, line3=selector node)
+     %[1]s set-singbox-config  (stdin: line1=uuid, line2=enabled outbound tags, line3=selector node, line4=mode)
      %[1]s set-route-rules     (stdin: line1=direct domains, line2=process names, line3=executable paths tab-separated for direct bypass)
      %[1]s refresh-profile
      %[1]s update-singbox
@@ -73,6 +73,8 @@ COMMANDS
              tags), line3=the selector node. Tags come from the downloaded
              sing-box profile; an empty second line switches every outbound off,
              and no second line keeps the stored choice. A blank third line keeps
+             what is stored. line4=the mode: "naive" connects through the naive
+             profile alone, "standard" through the outbounds above; blank keeps
              what is stored.
 
      set-route-rules

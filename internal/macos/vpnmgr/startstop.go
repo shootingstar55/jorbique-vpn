@@ -322,12 +322,17 @@ func (m *Manager) startOne(v core.VPNItem) error {
 		return core.StartFailed("cannot create the config directory for " + v.Name + ": " + err.Error())
 	}
 	m.Logger.Debug("Using sing-box config: " + sbPath)
+	if m.Cfg.Singbox.NaiveMode {
+		if err := m.ensureNaiveSingbox(); err != nil {
+			return err
+		}
+	}
 
 	uuid := strings.TrimSpace(m.Cfg.Singbox.UUID)
 	enabled := m.effectiveEnabledSingboxOutbounds()
 	disabled := m.disabledSingboxOutbounds()
 	baseConfigPath := filepath.Join(filepath.Dir(sbPath), "singbox.json")
-	root, err := singbox.BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: uuid, EnabledOutbounds: enabled, DisabledOutbounds: disabled, SelectedNode: m.selectedNode()}, baseConfigPath, 12*time.Second, m.Logger.Warn)
+	root, err := singbox.BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: uuid, EnabledOutbounds: enabled, DisabledOutbounds: disabled, SelectedNode: m.selectedNode(), NaiveMode: m.Cfg.Singbox.NaiveMode}, baseConfigPath, 12*time.Second, m.Logger.Warn)
 	if err != nil {
 		return err
 	}
