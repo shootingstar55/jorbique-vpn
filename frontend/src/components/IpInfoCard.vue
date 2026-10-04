@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 /**
  * Where the traffic comes out, and what it looks like from the outside: the

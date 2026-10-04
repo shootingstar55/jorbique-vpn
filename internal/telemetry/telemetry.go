@@ -144,16 +144,16 @@ func (e *deviceMetadataExporter) Export(ctx context.Context, data *metricdata.Re
 	return e.Exporter.Export(ctx, &current)
 }
 
-// observeTunnels makes reader report mancala_vpn.tunnel.up for this install.
+// observeTunnels makes reader report jorbique_vpn.tunnel.up for this install.
 //
 // The names are the server's protocol, not the app's brand: its collector keeps
-// only mancala_vpn.* metrics, and Prometheus turns target_info from
-// service.name mancala-vpn into the device list. Renamed, every push is dropped.
+// only jorbique_vpn.* metrics, and Prometheus turns target_info from
+// service.name jorbique-vpn into the device list. Renamed, every push is dropped.
 func observeTunnels(stateDir string, reader sdkmetric.Reader, tunnels func() map[string]bool) error {
 	osName, osVersion, osBuild := operatingSystem()
 	provider := sdkmetric.NewMeterProvider(
 		sdkmetric.WithResource(resource.NewSchemaless(
-			attribute.String("service.name", "mancala-vpn"),
+			attribute.String("service.name", "jorbique-vpn"),
 			attribute.String("service.version", constants.AppVersion),
 			attribute.String("service.instance.id", instanceID(stateDir)),
 			attribute.String("os.type", runtime.GOOS),
@@ -163,7 +163,7 @@ func observeTunnels(stateDir string, reader sdkmetric.Reader, tunnels func() map
 		)),
 		sdkmetric.WithReader(reader),
 	)
-	_, err := provider.Meter("mancalavpn").Int64ObservableGauge("mancala_vpn.tunnel.up",
+	_, err := provider.Meter("jorbiquevpn").Int64ObservableGauge("jorbique_vpn.tunnel.up",
 		metric.WithDescription("1 while the tunnel is up, 0 while it is configured but down."),
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			for name, up := range tunnels() {

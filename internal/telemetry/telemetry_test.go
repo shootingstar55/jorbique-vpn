@@ -99,7 +99,7 @@ func TestVerifyTellsUnknownUUIDFromUnreachableServer(t *testing.T) {
 		}
 	}
 	// The push carried the metrics, signed with the candidate, under this install's ID.
-	if !bytes.Contains(gotBody, []byte("mancala_vpn.tunnel.up")) || !bytes.Contains(gotBody, []byte(instanceID(dir))) {
+	if !bytes.Contains(gotBody, []byte("jorbique_vpn.tunnel.up")) || !bytes.Contains(gotBody, []byte(instanceID(dir))) {
 		t.Fatalf("push body lacks the gauge or the instance ID: %q", gotBody)
 	}
 	if want := "Bearer " + id; gotAuth[0] != want {

@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 import { NConfigProvider, NDialogProvider, NMessageProvider } from 'naive-ui';
 import AppShell from './components/AppShell.vue';

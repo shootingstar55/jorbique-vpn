@@ -83,7 +83,7 @@ func TestDeviceMetadataReachesOTLPAndFollowsRenamesAndCoreUpdates(t *testing.T) 
 			attrs[a.Key] = a.Value.GetStringValue()
 		}
 		for key, want := range map[string]string{
-			"service.name": "mancala-vpn", "service.version": constants.AppVersion,
+			"service.name": "jorbique-vpn", "service.version": constants.AppVersion,
 			"service.instance.id": instanceID(dir), "singbox.version": knownVersion(current.version),
 			"host.name": current.name,
 			"os.type":   runtime.GOOS, "os.name": name,

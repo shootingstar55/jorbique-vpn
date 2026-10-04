@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 import { ref, watch } from 'vue';
 import { NButton, NIcon, NModal, NScrollbar, NSelect, NSpin, useDialog } from 'naive-ui';

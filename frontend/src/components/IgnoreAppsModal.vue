@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 import { NButton, NCheckbox, NEmpty, NIcon, NInput, NModal, NScrollbar, NSpin, NTooltip } from 'naive-ui';

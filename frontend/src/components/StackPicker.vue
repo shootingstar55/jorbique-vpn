@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 /** The stack cards themselves, shared by the Windows modal and the macOS panel. */
 import { STACK_OPTIONS } from '../lib/stacks.js';

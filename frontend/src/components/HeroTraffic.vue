@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 /**
  * The two columns beside the connect ring: what the tunnel has carried, up and

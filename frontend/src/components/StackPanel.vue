@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 /** The macOS window around the stack cards: load what is in force, save the pick, close. */
 import { onMounted, ref } from 'vue';

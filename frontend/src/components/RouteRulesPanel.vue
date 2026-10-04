@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 /**
  * The route-rules window on macOS: which domains and which applications bypass

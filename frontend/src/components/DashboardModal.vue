@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 import { NModal } from 'naive-ui';
 import DashboardView from './DashboardView.vue';

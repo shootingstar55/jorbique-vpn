@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 /**
  * The macOS main window: the same shape the Windows client has — a connect ring

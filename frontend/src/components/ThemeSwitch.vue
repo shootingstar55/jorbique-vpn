@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 /** Auto / Light / Dark, remembered per machine. */
 import { NTabs, NTab } from 'naive-ui';

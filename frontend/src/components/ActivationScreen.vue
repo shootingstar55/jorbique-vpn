@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 /**
  * The first-run screen: the app stays closed until the user enters a UUID the

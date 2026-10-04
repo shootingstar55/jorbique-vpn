@@ -1,4 +1,3 @@
-<!-- Copyright (c) 2026 Mancala Gaming. All rights reserved. -->
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { NButton, NCard, NIcon, NModal, NProgress, NSwitch, NTag } from 'naive-ui';
