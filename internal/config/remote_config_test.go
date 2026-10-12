@@ -6,44 +6,6 @@ import (
 	"jorbiquevpn/internal/jsonorder"
 )
 
-func TestNormalizeHysteria2ServerPorts_hyphenToColon(t *testing.T) {
-	cfg := jsonorder.FromMap(map[string]any{
-		"outbounds": []any{
-			jsonorder.FromMap(map[string]any{
-				"type":         "hysteria2",
-				"tag":          "hysteria2",
-				"server_ports": []any{"2080-3000"},
-			}),
-		},
-	})
-	NormalizeHysteria2ServerPorts(cfg)
-	ob := field[[]any](cfg, "outbounds")
-	m := ob[0].(*jsonorder.Map)
-	sp := field[[]any](m, "server_ports")
-	if sp[0] != "2080:3000" {
-		t.Fatalf("want 2080:3000 got %v", sp[0])
-	}
-}
-
-func TestNormalizeHysteria2ServerPorts_alreadyColon(t *testing.T) {
-	cfg := jsonorder.FromMap(map[string]any{
-		"outbounds": []any{
-			jsonorder.FromMap(map[string]any{
-				"type":         "hysteria2",
-				"tag":          "hysteria2",
-				"server_ports": []any{"2080:3000"},
-			}),
-		},
-	})
-	NormalizeHysteria2ServerPorts(cfg)
-	ob := field[[]any](cfg, "outbounds")
-	m := ob[0].(*jsonorder.Map)
-	sp := field[[]any](m, "server_ports")
-	if sp[0] != "2080:3000" {
-		t.Fatalf("want 2080:3000 got %v", sp[0])
-	}
-}
-
 func TestApplyUserUUID_badOutboundType(t *testing.T) {
 	cfg := jsonorder.FromMap(map[string]any{
 		"outbounds": []any{

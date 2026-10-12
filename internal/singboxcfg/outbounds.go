@@ -410,11 +410,11 @@ func RouteEntries(root *jsonorder.Map) []string { return references(root, false)
 // ApplyCredential puts the user's credential into every field the profile left
 // empty for it, and returns how many it filled. The empty string is the
 // placeholder, and the field it sits in is whatever the protocol calls its
-// credential: uuid for vless and tuic, password for hysteria2 and anytls.
+// credential: uuid for vless, password for anytls, userkey for snell.
 // Naming the fields here meant a client release before a new outbound could
 // authenticate at all, so nothing is named. A field the server filled is its
-// own: TUIC ships a shared password beside the per-user uuid, and only the
-// uuid is left empty.
+// own: Snell ships a shared psk beside the per-user userkey, and only the
+// userkey is left empty.
 //
 // Only the outbound's own fields, never a nested object: an empty short_id
 // under tls.reality is a legitimate value, not a placeholder.

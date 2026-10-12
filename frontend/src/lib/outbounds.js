@@ -9,8 +9,6 @@ const LABELS = {
   __proto__: null,
   'vless-reality': 'VLESS Reality',
   'vless-grpc': 'VLESS gRPC',
-  tuic: 'TUIC',
-  hysteria2: 'Hysteria2',
   anytls: 'AnyTLS',
   naive: 'NaiveProxy',
 };

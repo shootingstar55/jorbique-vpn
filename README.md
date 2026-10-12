@@ -3,7 +3,7 @@
 Personal VPN client for **Windows** and **macOS**, built on sing-box.
 
 The client downloads its profile from the server and runs only the profile's
-proxy outbounds (VLESS Reality, VLESS gRPC, TUIC, Hysteria2, AnyTLS, …), so
+proxy outbounds (VLESS Reality, VLESS gRPC, AnyTLS, Snell, …), so
 every connection changes the external IP. `endpoints` (WireGuard, OpenVPN,
 Tailscale) are dropped from the profile, together with every DNS server and
 route rule that pointed at them.

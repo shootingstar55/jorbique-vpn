@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -20,9 +19,6 @@ import (
 	"jorbiquevpn/internal/singboxcfg"
 	"jorbiquevpn/internal/utils"
 )
-
-// hy2PortRangeHyphen matches a single numeric port range written with a hyphen; sing-box expects "start:end".
-var hy2PortRangeHyphen = regexp.MustCompile(`^(\d+)-(\d+)$`)
 
 // MarshalSingBoxConfigOrdered renders a config the way it was read: keys in the
 // order the profile wrote them, strings unescaped, two-space indentation.
@@ -194,45 +190,6 @@ func fixPathsInConfig(cfg *jsonorder.Map) {
 			if path := cf.GetString("path"); path != "" {
 				cf.Set("path", utils.RelocatePath(path, "cache/", cacheDir))
 			}
-		}
-	}
-}
-
-// NormalizeHysteria2ServerPorts rewrites hysteria2 server_ports entries "2080-3000" → "2080:3000".
-// Remote profiles sometimes use a hyphen; sing-box expects a colon for port ranges.
-func NormalizeHysteria2ServerPorts(cfg *jsonorder.Map) {
-	if cfg == nil {
-		return
-	}
-	ob, ok := getSlice(cfg, "outbounds")
-	if !ok {
-		return
-	}
-	for _, o := range ob {
-		m, ok := o.(*jsonorder.Map)
-		if !ok || m == nil {
-			continue
-		}
-		if m.GetString("type") != "hysteria2" {
-			continue
-		}
-		sp, ok := getSlice(m, "server_ports")
-		if !ok || len(sp) == 0 {
-			continue
-		}
-		normalizePortRanges(sp)
-		m.Set("server_ports", sp)
-	}
-}
-
-func normalizePortRanges(sp []any) {
-	for i, v := range sp {
-		s, ok := v.(string)
-		if !ok {
-			continue
-		}
-		if sub := hy2PortRangeHyphen.FindStringSubmatch(strings.TrimSpace(s)); len(sub) == 3 {
-			sp[i] = sub[1] + ":" + sub[2]
 		}
 	}
 }

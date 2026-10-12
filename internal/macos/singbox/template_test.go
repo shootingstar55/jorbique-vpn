@@ -99,42 +99,6 @@ func TestRemoteTemplateKeepsOutboundTopology(t *testing.T) {
 	}
 }
 
-// A profile written with a hyphenated port range is one sing-box refuses
-// outright, so the same file that works on Windows would not start here.
-func TestNormalizeHysteria2ServerPorts(t *testing.T) {
-	outbounds := []any{}
-	for _, raw := range []string{
-		`{"type":"hysteria2","tag":"hysteria2","server_ports":["2080-3000","443","5000:6000"]}`,
-		`{"type":"vless","tag":"vless-reality","server_ports":["2080-3000"]}`,
-	} {
-		om := NewOrderedMap()
-		if err := om.UnmarshalJSON([]byte(raw)); err != nil {
-			t.Fatal(err)
-		}
-		outbounds = append(outbounds, om)
-	}
-
-	normalizeHysteria2ServerPorts(outbounds)
-
-	hy2 := outbounds[0].(*OrderedMap)
-	got, _ := hy2.Get("server_ports")
-	want := []any{"2080:3000", "443", "5000:6000"}
-	ports := got.([]any)
-	if len(ports) != len(want) {
-		t.Fatalf("server_ports = %v", ports)
-	}
-	for i := range want {
-		if ports[i] != want[i] {
-			t.Errorf("server_ports[%d] = %v, want %v", i, ports[i], want[i])
-		}
-	}
-	// Only hysteria2 uses this form; nothing else is touched.
-	other := outbounds[1].(*OrderedMap)
-	if p, _ := other.Get("server_ports"); p.([]any)[0] != "2080-3000" {
-		t.Errorf("a non-hysteria2 outbound was rewritten: %v", p)
-	}
-}
-
 // The profile that started the tunnel an hour ago is still good: a blip on the
 // update host must not be the reason the VPN will not come up.
 func TestFetchTemplateFallsBackToCache(t *testing.T) {
