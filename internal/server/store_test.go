@@ -170,8 +170,6 @@ func TestLoad_SetsConfigSavedAtWhenUUIDPresent(t *testing.T) {
 func TestExtractUUIDFromLegacyURL(t *testing.T) {
 	cases := map[string]string{
 		"vless reality":  "vless://" + testUUID + "@example.com:443?pbk=key&sni=host&sid=ab",
-		"tuic":           "tuic://" + testUUID + ":pass@example.com:443",
-		"hysteria2":      "hysteria2://" + testUUID + "@example.com:443",
 		"anytls uuid pw": "anytls://" + testUUID + "@example.com:443",
 	}
 	for name, u := range cases {

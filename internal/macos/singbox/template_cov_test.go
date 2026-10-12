@@ -12,16 +12,6 @@ import (
 	"jorbiquevpn/internal/macos/core"
 )
 
-// Only string ranges are rewritten; a numeric port is left as it came.
-func TestNormalizePortRangesLeavesNonStrings(t *testing.T) {
-	ports := []any{json.Number("443"), " 2080-3000 ", "5000"}
-	normalizePortRanges(ports)
-	want := []any{json.Number("443"), "2080:3000", "5000"}
-	if !reflect.DeepEqual(ports, want) {
-		t.Errorf("ports = %v, want %v", ports, want)
-	}
-}
-
 // A local base that does not parse is replaced by the built-in local half
 // instead of failing the build.
 func TestLocalRootOrDefaultOnUnparsableFile(t *testing.T) {

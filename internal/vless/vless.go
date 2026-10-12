@@ -13,10 +13,8 @@ import (
 var ErrInvalidURL = errors.New("invalid URL")
 
 var (
-	vlessURLRe    = regexp.MustCompile(`^vless://([^@]+)@([^?#]+)\??(.*)$`)
-	tuicURLRe     = regexp.MustCompile(`^tuic://([^:]+):([^@]+)@([^?#]+)\??(.*)$`)
-	anyTLSURLRe   = regexp.MustCompile(`^anytls://([^@]+)@([^?#]+)\??(.*)$`)
-	hysteriaURLRe = regexp.MustCompile(`^hysteria2://([^@]+)@([^?#]+)\??(.*)$`)
+	vlessURLRe  = regexp.MustCompile(`^vless://([^@]+)@([^?#]+)\??(.*)$`)
+	anyTLSURLRe = regexp.MustCompile(`^anytls://([^@]+)@([^?#]+)\??(.*)$`)
 )
 
 type ParsedGrpc struct {
@@ -25,23 +23,6 @@ type ParsedGrpc struct {
 	UUID        string
 	ServiceName string
 	Security    string
-	ServerName  string
-}
-
-type ParsedTuic struct {
-	Server     string
-	ServerPort int
-	UUID       string
-	Password   string
-	ServerName string
-}
-
-type ParsedHysteria2 struct {
-	Server      string
-	ServerPort  int
-	ServerPorts []string
-	UUID        string
-	Password    string
 	ServerName  string
 }
 
@@ -102,45 +83,6 @@ func ParseVlessGrpc(vlessURL string) (*ParsedGrpc, error) {
 	return result, nil
 }
 
-// ParseTuic parses tuic:// URL
-func ParseTuic(tuicURL string) (*ParsedTuic, error) {
-	tuicURL = strings.TrimSpace(tuicURL)
-	if idx := strings.Index(tuicURL, "#"); idx >= 0 {
-		tuicURL = tuicURL[:idx]
-	}
-	if !strings.HasPrefix(tuicURL, "tuic://") {
-		return nil, nil
-	}
-	m := tuicURLRe.FindStringSubmatch(tuicURL)
-	if m == nil {
-		return nil, nil
-	}
-	uuid := strings.TrimSpace(m[1])
-	password := strings.TrimSpace(m[2])
-	hostPort := strings.TrimSpace(m[3])
-	query := m[4]
-
-	server, port, err := parseHostPort(hostPort)
-	if err != nil {
-		return nil, err
-	}
-	if !security.ValidUUID(uuid, false) {
-		return nil, nil
-	}
-
-	params := parseQuery(query)
-	sni := params["sni"]
-
-	pt := &ParsedTuic{
-		Server:     server,
-		ServerPort: port,
-		UUID:       uuid,
-		Password:   password,
-		ServerName: serverName(server, sni),
-	}
-	return pt, nil
-}
-
 func serverName(server, sni string) string {
 	if sni != "" {
 		return sni
@@ -184,49 +126,6 @@ func ParseAnyTLS(anytlsURL string) (*ParsedAnyTLS, error) {
 	}, nil
 }
 
-// ParseHysteria2 parses hysteria2:// URL
-func ParseHysteria2(hy2URL string) (*ParsedHysteria2, error) {
-	hy2URL = strings.TrimSpace(hy2URL)
-	if idx := strings.Index(hy2URL, "#"); idx >= 0 {
-		hy2URL = hy2URL[:idx]
-	}
-	hy2URL = strings.TrimSuffix(hy2URL, "/")
-	if !strings.HasPrefix(hy2URL, "hysteria2://") {
-		return nil, nil
-	}
-	m := hysteriaURLRe.FindStringSubmatch(hy2URL)
-	if m == nil {
-		return nil, nil
-	}
-	uuid := strings.TrimSpace(m[1])
-	hostPort := strings.TrimSpace(m[2])
-	query := m[3]
-
-	server, port, ports, err := parseHostPortHy2(hostPort)
-	if err != nil {
-		return nil, err
-	}
-	if !security.ValidUUID(uuid, false) {
-		return nil, nil
-	}
-
-	params := parseQuery(query)
-	sni := params["sni"]
-
-	result := &ParsedHysteria2{
-		Server:     server,
-		UUID:       uuid,
-		Password:   uuid,
-		ServerName: serverName(server, sni),
-	}
-	if len(ports) > 0 {
-		result.ServerPorts = ports
-	} else {
-		result.ServerPort = port
-	}
-	return result, nil
-}
-
 func parseHostPort(hostPort string) (string, int, error) {
 	hostPort = strings.TrimSpace(hostPort)
 	if strings.HasPrefix(hostPort, "[") {
@@ -251,39 +150,6 @@ func parseHostPort(hostPort string) (string, int, error) {
 		return "", 0, ErrInvalidURL
 	}
 	return server, port, nil
-}
-
-func parseHostPortHy2(hostPort string) (string, int, []string, error) {
-	hostPort = strings.TrimSuffix(hostPort, "/")
-	var server, portSpec string
-	if strings.HasPrefix(hostPort, "[") {
-		idx := strings.Index(hostPort, "]:")
-		if idx < 0 {
-			return "", 0, nil, nil
-		}
-		server = hostPort[1:idx]
-		portSpec = hostPort[idx+2:]
-	} else {
-		idx := strings.LastIndex(hostPort, ":")
-		if idx < 0 {
-			return "", 0, nil, nil
-		}
-		server = hostPort[:idx]
-		portSpec = hostPort[idx+1:]
-	}
-	if port, err := strconv.Atoi(portSpec); err == nil {
-		return server, port, nil, nil
-	}
-	// Port range or list
-	parts := strings.Split(portSpec, ",")
-	var ports []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			ports = append(ports, p)
-		}
-	}
-	return server, 0, ports, nil
 }
 
 func parseQuery(query string) map[string]string {

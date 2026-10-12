@@ -42,7 +42,6 @@ func BuildRuntimeConfig(remoteJSON []byte, options RuntimeOptions) (string, erro
 	if err := dashboard.ConfigureAPI(cfg, ""); err != nil {
 		return "", err
 	}
-	NormalizeHysteria2ServerPorts(cfg)
 
 	// Read before filtering: a transport kept only because a group nothing
 	// routes to still names it has, once its proxies are off, nothing detouring

@@ -15,22 +15,6 @@ func TestParseVlessGrpc(t *testing.T) {
 	}
 }
 
-// Options the server may add to the URL are ignored, not refused: the client
-// takes the credential out of it and the template carries everything else.
-func TestParseTuicIgnoresTheOptionalQuery(t *testing.T) {
-	u := "tuic://7998568d-7ae4-4f65-a4cb-b20e78af6a87:testpass@cdn.example.com:443?alpn=h3&congestion_control=bbr&udp_relay_mode=native&sni=cdn.example.com#name-tuic"
-	p, err := ParseTuic(u)
-	if err != nil || p == nil {
-		t.Fatal("Valid TUIC URL should parse", err)
-	}
-	if p.Server != "cdn.example.com" || p.ServerPort != 443 || p.Password != "testpass" {
-		t.Errorf("host/password: %+v", p)
-	}
-	if p.UUID != "7998568d-7ae4-4f65-a4cb-b20e78af6a87" || p.ServerName != "cdn.example.com" {
-		t.Errorf("uuid/sni: %+v", p)
-	}
-}
-
 func TestParseAnyTLS(t *testing.T) {
 	u := "anytls://e97a0972-0ca0-43b9-ba24-5f52f1c63f4f@tls.edge-nl-01.jorbique.one:443?sni=tls.edge-nl-01.jorbique.one#anytls"
 	p, err := ParseAnyTLS(u)

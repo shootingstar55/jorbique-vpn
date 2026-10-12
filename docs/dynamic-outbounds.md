@@ -1,6 +1,6 @@
 # The outbound list comes from the server
 
-Which proxy outbounds exist — `vless-reality`, `tuic`, whatever replaces them —
+Which proxy outbounds exist — `vless-reality`, `anytls`, whatever replaces them —
 is the sing-box profile's answer, not the client's. Both clients read the tags
 out of the profile they download, so adding, renaming or removing an outbound
 server-side takes effect on the next launch with no client release.
@@ -44,10 +44,10 @@ user reopens a menu.
 
 The user's UUID goes into every top-level field the profile left empty in an
 outbound the user can pick, rather than a field decided from the protocol name:
-`uuid` for VLESS and TUIC, `password` for Hysteria2 and AnyTLS, `userkey` for
+`uuid` for VLESS, `password` for AnyTLS, `userkey` for
 Snell. A profile that adds a protocol works with no client change. A field the
-server filled is left alone — TUIC ships a shared `password` beside the per-user
-`uuid`, and only the `uuid` is empty. Both clients use
+server filled is left alone — Snell ships a shared `psk` beside the per-user
+`userkey`, and only the `userkey` is empty. Both clients use
 `singboxcfg.ApplyCredential` for this. On Windows a profile with nowhere at all
 to put the credential is reported, because a config that cannot authenticate is
 worse than an error.

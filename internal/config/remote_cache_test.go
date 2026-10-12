@@ -129,26 +129,3 @@ func TestOutboundEnabled_Defaults(t *testing.T) {
 		t.Error("explicit true should enable")
 	}
 }
-
-func TestNormalizeHysteria2ServerPorts_Variants(t *testing.T) {
-	cfg := jsonorder.FromMap(map[string]any{
-		"outbounds": []any{
-			jsonorder.FromMap(map[string]any{"type": "hysteria2", "server_ports": []any{"2080-3000", "443:443", 123}}),
-			jsonorder.FromMap(map[string]any{"type": "vless"}),     // ignored: not hysteria2
-			jsonorder.FromMap(map[string]any{"type": "hysteria2"}), // no server_ports: skipped
-			"not-a-map",
-		},
-	})
-	NormalizeHysteria2ServerPorts(cfg)
-	sp := field[[]any](field[[]any](cfg, "outbounds")[0].(*jsonorder.Map), "server_ports")
-	if sp[0] != "2080:3000" {
-		t.Errorf("hyphen range not converted: %v", sp[0])
-	}
-	if sp[1] != "443:443" {
-		t.Errorf("colon range altered: %v", sp[1])
-	}
-
-	NormalizeHysteria2ServerPorts(nil)                                                 // no panic
-	NormalizeHysteria2ServerPorts(jsonorder.FromMap(map[string]any{}))                 // no outbounds
-	NormalizeHysteria2ServerPorts(jsonorder.FromMap(map[string]any{"outbounds": "x"})) // wrong type
-}

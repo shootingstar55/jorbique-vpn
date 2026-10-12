@@ -38,7 +38,7 @@ type Store struct {
 	Servers             []Server        `json:"servers"`
 	Subscriptions       []Subscription  `json:"subscriptions"`
 	UserUUID            string          `json:"user_uuid,omitempty"`
-	OutboundEnabled     map[string]bool `json:"outbound_enabled,omitempty"` // vless-reality, vless-grpc, tuic, hysteria2, anytls
+	OutboundEnabled     map[string]bool `json:"outbound_enabled,omitempty"` // keyed by outbound tag, e.g. vless-reality, anytls
 	SelectedNode        string          `json:"selected_node,omitempty"`    // the selector node the user picked, re-applied on every start
 	NaiveMode           bool            `json:"naive_mode,omitempty"`       // connect through the profile's naive outbound instead of its protocols
 	IgnoredProcessNames []string        `json:"ignored_process_names,omitempty"`
@@ -99,7 +99,7 @@ func migrateLegacyVlessURLsFromRaw(s *Store, raw map[string]interface{}) {
 	if !ok {
 		return
 	}
-	for _, key := range []string{"reality", "grpc", "tuic", "hy2", "anytls"} {
+	for _, key := range []string{"reality", "grpc", "anytls"} {
 		u, _ := vu[key].(string)
 		if id := extractUUIDFromLegacyURL(u); id != "" {
 			s.UserUUID = id
@@ -116,14 +116,6 @@ func extractUUIDFromLegacyURL(u string) string {
 	switch {
 	case strings.HasPrefix(u, "vless://"):
 		if p, err := vless.ParseVlessGrpc(u); err == nil && p != nil {
-			return p.UUID
-		}
-	case strings.HasPrefix(u, "tuic://"):
-		if p, err := vless.ParseTuic(u); err == nil && p != nil {
-			return p.UUID
-		}
-	case strings.HasPrefix(u, "hysteria2://"):
-		if p, err := vless.ParseHysteria2(u); err == nil && p != nil {
 			return p.UUID
 		}
 	case strings.HasPrefix(u, "anytls://"):

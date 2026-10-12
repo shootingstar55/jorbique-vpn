@@ -3,13 +3,11 @@ package singbox
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -218,47 +216,6 @@ func downloadURL(rawURL string, timeout time.Duration) ([]byte, error) {
 	return body, nil
 }
 
-// hy2PortRangeHyphen matches a numeric port range written with a hyphen;
-// sing-box expects "start:end".
-var hy2PortRangeHyphen = regexp.MustCompile(`^(\d+)-(\d+)$`)
-
-// normalizeHysteria2ServerPorts rewrites hysteria2 server_ports "2080-3000" to
-// "2080:3000". Profiles are written with a hyphen often enough, and sing-box
-// refuses the config outright.
-func normalizeHysteria2ServerPorts(outbounds []any) {
-	for _, o := range outbounds {
-		om, ok := o.(*OrderedMap)
-		if !ok {
-			continue
-		}
-		if t, _ := om.Get("type"); strings.ToLower(fmt.Sprint(t)) != "hysteria2" {
-			continue
-		}
-		raw, ok := om.Get("server_ports")
-		if !ok {
-			continue
-		}
-		ports, ok := raw.([]any)
-		if !ok {
-			continue
-		}
-		normalizePortRanges(ports)
-		om.Set("server_ports", ports)
-	}
-}
-
-func normalizePortRanges(ports []any) {
-	for i, v := range ports {
-		s, ok := v.(string)
-		if !ok {
-			continue
-		}
-		if sub := hy2PortRangeHyphen.FindStringSubmatch(strings.TrimSpace(s)); len(sub) == 3 {
-			ports[i] = sub[1] + ":" + sub[2]
-		}
-	}
-}
-
 // remoteTemplateCachePath is where the last profile that parsed is kept — next
 // to the config it feeds, so it survives everything but an uninstall.
 func remoteTemplateCachePath(baseConfigPath string) string {
@@ -399,8 +356,6 @@ func templateOutbounds(remoteRoot *OrderedMap, settings core.SingboxSection, war
 	if !ok {
 		return nil, core.BadConfig("template outbounds is not array")
 	}
-	normalizeHysteria2ServerPorts(outbounds)
-
 	// What the server offers decides what can be enabled. A tag the
 	// configuration still names but the template no longer has is dropped here;
 	// one the server added is picked up without a client release.
