@@ -153,19 +153,3 @@ func outboundTags(cfg *jsonorder.Map) []string {
 	}
 	return out
 }
-
-// dnsServer finds one dns server by tag, for the assertions above.
-func dnsServer(t *testing.T, cfg *jsonorder.Map, tag string) *jsonorder.Map {
-	t.Helper()
-	dns, _ := cfg.Get("dns")
-	dnsMap, _ := dns.(*jsonorder.Map)
-	raw, _ := dnsMap.Get("servers")
-	list, _ := raw.([]any)
-	for _, s := range list {
-		if m, ok := s.(*jsonorder.Map); ok && m.GetString("tag") == tag {
-			return m
-		}
-	}
-	t.Fatalf("no dns server tagged %q", tag)
-	return nil
-}

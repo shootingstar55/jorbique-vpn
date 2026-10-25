@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build installable Jorbique-VPN-macOS.pkg from a staging tree that mirrors absolute paths under /.
+# Build installable Jorbique-VPN-Extended-macOS.pkg from a staging tree that mirrors absolute paths under /.
 #   pkgroot/usr/local/libexec/jorbique-vpn/...
-#   pkgroot/Applications/Jorbique VPN.app/...
+#   pkgroot/Applications/Jorbique VPN Extended.app/...
 # On macOS prefers pkgbuild; on Linux builds a flat package (xar + Payload + Bom) per bomutils tutorial.
 set -euo pipefail
 
@@ -80,7 +80,7 @@ chmod 755 "${SCRIPTS_DIR}/preinstall" "${SCRIPTS_DIR}/postinstall"
 mkbom -u 0 -g 80 "${PKGROOT}" "${FLAT}/base.pkg/Bom"
 
 # PackageInfo: bundle entry must match .app Info.plist CFBundleIdentifier / CFBundleVersion.
-MACOS_APP_BUNDLE_REL="${MACOS_APP_BUNDLE_REL:-./Applications/Jorbique VPN.app}"
+MACOS_APP_BUNDLE_REL="${MACOS_APP_BUNDLE_REL:-./Applications/Jorbique VPN Extended.app}"
 cat > "${FLAT}/base.pkg/PackageInfo" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <pkg-info format-version="2" identifier="one.jorbique.vpn.pkg" version="${VERSION}" install-location="/" auth="root">
@@ -117,7 +117,7 @@ cat > "${FLAT}/Distribution" <<EOF
     <choices-outline>
         <line choice="choice1"/>
     </choices-outline>
-    <choice id="choice1" title="Jorbique VPN">
+    <choice id="choice1" title="Jorbique VPN Extended">
         <pkg-ref id="one.jorbique.vpn.pkg"/>
     </choice>
     <pkg-ref id="one.jorbique.vpn.pkg" installKBytes="${INSTALL_KB}" version="${VERSION}" auth="Root">#base.pkg</pkg-ref>

@@ -31,7 +31,8 @@ bin_dir="${prefix}/usr/local/bin"
 support_dir="${prefix}/Library/Application Support/JorbiqueVPN"
 logs_dir="${prefix}/Library/Logs/JorbiqueVPN"
 caches_dir="${prefix}/Library/Caches/JorbiqueVPN"
-app_bundle="${prefix}/Applications/Jorbique VPN.app"
+app_bundle="${prefix}/Applications/Jorbique VPN Extended.app"
+legacy_app_bundle="${prefix}/Applications/Jorbique VPN.app"
 daemon_label="one.jorbique.vpn"
 bar_label="one.jorbique.vpn.bar"
 daemon_plist="${prefix}/Library/LaunchDaemons/${daemon_label}.plist"
@@ -259,7 +260,9 @@ take_snapshot() {
 		run ditto --rsrc "${support_dir}/cfg" "${rollback_dir}/cfg"
 	fi
 	if [ -d "${app_bundle}" ]; then
-		run ditto --rsrc "${app_bundle}" "${rollback_dir}/Jorbique VPN.app"
+		run ditto --rsrc "${app_bundle}" "${rollback_dir}/Jorbique VPN Extended.app"
+	elif [ -d "${legacy_app_bundle}" ]; then
+		run ditto --rsrc "${legacy_app_bundle}" "${rollback_dir}/Jorbique VPN.app"
 	fi
 	if [ -f "${daemon_plist}" ]; then
 		run cp -p "${daemon_plist}" "${rollback_dir}/daemon.plist"
@@ -453,9 +456,12 @@ restore_snapshot() {
 	if [ -d "${rollback_dir}/cfg" ]; then
 		try ditto --rsrc "${rollback_dir}/cfg" "${support_dir}/cfg"
 	fi
-	if [ -d "${rollback_dir}/Jorbique VPN.app" ]; then
+	if [ -d "${rollback_dir}/Jorbique VPN Extended.app" ]; then
 		try rm -rf "${app_bundle}"
-		try ditto --rsrc "${rollback_dir}/Jorbique VPN.app" "${app_bundle}"
+		try ditto --rsrc "${rollback_dir}/Jorbique VPN Extended.app" "${app_bundle}"
+	elif [ -d "${rollback_dir}/Jorbique VPN.app" ]; then
+		try rm -rf "${app_bundle}"
+		try ditto --rsrc "${rollback_dir}/Jorbique VPN.app" "${legacy_app_bundle}"
 	fi
 	if [ -f "${rollback_dir}/daemon.plist" ]; then
 		install_root 644 "${rollback_dir}/daemon.plist" "${daemon_plist}"

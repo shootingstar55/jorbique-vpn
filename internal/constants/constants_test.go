@@ -8,7 +8,7 @@ import (
 // Both clients fetch the binary manifest and the profile from the server's
 // extended channel, one directory under the configured host.
 func TestSingboxEndpoints(t *testing.T) {
-	channel := "https://" + ServerHost + "/chI6dwCVntNE-extended/"
+	channel := "https://" + ServerHost + "/chI6dwCVntNE-extended-v2/"
 	if SingboxManifestURL != channel+"version.json" {
 		t.Errorf("manifest URL = %q", SingboxManifestURL)
 	}
@@ -21,7 +21,7 @@ func TestSingboxEndpoints(t *testing.T) {
 // manifest must stay independent of the new engine distribution's channel.
 func TestExtendedChannelDoesNotReuseLegacyURLs(t *testing.T) {
 	const legacyPath = "/chI6dwCVntNE/"
-	if ExtendedUpdatePath == legacyPath {
+	if ExtendedUpdatePath == legacyPath || ExtendedUpdatePath == "/chI6dwCVntNE-extended/" {
 		t.Fatal("extended builds must use a separate channel from installed legacy clients")
 	}
 	for _, endpoint := range []string{SingboxManifestURL, SingboxClientURL} {

@@ -80,7 +80,7 @@ func TestAdminUninstallPlanRemovesEverythingInstalled(t *testing.T) {
 	for _, want := range []string{
 		"/Library/LaunchDaemons/one.jorbique.vpn.plist",
 		"one.jorbique.vpn.bar.plist",
-		"/Applications/Jorbique VPN.app",
+		"/Applications/Jorbique VPN Extended.app",
 		"/usr/local/libexec/jorbique-vpn",
 		"/usr/local/bin/jorbique-vpn",
 		"pkgutil --forget one.jorbique.vpn.pkg",

@@ -65,7 +65,7 @@ async function activate() {
   <form class="activation" @submit.prevent="activate">
     <div class="activation__card">
       <img :src="appIconUrl" alt="" width="56" height="56" />
-      <h1>Jorbique VPN</h1>
+      <h1>Jorbique VPN Extended</h1>
       <p>Enter the user UUID you were given to start using the app.</p>
 
       <NInput

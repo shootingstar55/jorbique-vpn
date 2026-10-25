@@ -18,6 +18,7 @@ import (
 	"jorbiquevpn/internal/jsonorder"
 	"jorbiquevpn/internal/network"
 	"jorbiquevpn/internal/paths"
+	"jorbiquevpn/internal/singboxcfg"
 	"jorbiquevpn/internal/sysexec"
 	"jorbiquevpn/internal/utils"
 )
@@ -348,6 +349,7 @@ func (b *syncBuffer) String() string {
 func launchSingboxOnce(singboxExe, fullConfigPath, dataDir string, cfg config.Config, logFn func(string, string)) (running, tunReady bool, outBuf *syncBuffer) {
 	outBuf = &syncBuffer{}
 	runCmd := sysexec.Command(singboxExe, "run", "-c", fullConfigPath)
+	runCmd.Env = singboxcfg.EngineEnvironment(os.Environ())
 	runCmd.Dir = dataDir
 	runCmd.Stdout = outBuf
 	runCmd.Stderr = outBuf

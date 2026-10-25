@@ -119,10 +119,14 @@ func hasBuildTag(versionOutput, tag string) bool {
 // that; if the channel's build has no naive either, the start is refused with
 // a reason instead of a sing-box that exits on its config.
 func (m *Manager) ensureNaiveSingbox() error {
-	if hasBuildTag(m.singboxVersionOutput(), naiveBuildTag) {
+	return m.ensureSingboxBuildTag(naiveBuildTag, "naive outbound")
+}
+
+func (m *Manager) ensureSingboxBuildTag(tag, feature string) error {
+	if hasBuildTag(m.singboxVersionOutput(), tag) {
 		return nil
 	}
-	m.Logger.Log("The installed sing-box has no naive outbound; downloading the channel's build for the NaiveProxy mode")
+	m.Logger.Log("The installed sing-box has no " + feature + "; downloading the channel's build")
 	if m.Paths != nil && m.Paths.BinDir != "" {
 		path, err := update.DownloadAndExtract(m.Paths.BinDir, func(msg, level string) {
 			if strings.EqualFold(strings.TrimSpace(level), "ERROR") {
@@ -130,16 +134,15 @@ func (m *Manager) ensureNaiveSingbox() error {
 			}
 		})
 		if err != nil {
-			m.Logger.Warn("sing-box download for the NaiveProxy mode failed: " + err.Error())
+			m.Logger.Warn("sing-box download for " + feature + " failed: " + err.Error())
 		} else if path != "" {
 			m.singboxExe = path
 		}
 	}
-	if hasBuildTag(m.singboxVersionOutput(), naiveBuildTag) {
+	if hasBuildTag(m.singboxVersionOutput(), tag) {
 		return nil
 	}
-	return core.StartFailed("this sing-box build has no naive outbound, which the NaiveProxy mode needs; " +
-		"switch the mode off in VPN Config, or update sing-box once the server publishes a build with naive")
+	return core.StartFailed("this sing-box build has no " + feature + "; update sing-box from the Extended channel")
 }
 
 // SingboxVersionsInfo gathers the local and remote sing-box versions.

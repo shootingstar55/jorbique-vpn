@@ -1,4 +1,4 @@
-# Local Windows release build (frontend + go-winres + Jorbique-VPN.exe).
+# Local Windows release build (frontend + go-winres + Jorbique-VPN-Extended.exe).
 # sing-box is NOT embedded — the client downloads it from the update server on
 # first launch (with a progress bar). Requires: Go, Node/npm, PowerShell 5.1+.
 param(
@@ -34,7 +34,7 @@ function Resolve-AppVersion {
 }
 
 $appVersion = Resolve-AppVersion -Current $AppVersion
-Write-Host "==> Jorbique VPN Windows build (version: $appVersion)"
+Write-Host "==> Jorbique VPN Extended Windows build (version: $appVersion)"
 
 Write-Host '==> frontend'
 $frontendDir = Join-Path $root 'frontend'
@@ -59,8 +59,8 @@ go run github.com/tc-hib/go-winres@v0.3.3 make --out cmd/jorbiquevpn/rsrc
 
 $outDir = Join-Path $root 'release\binaries'
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-$outExe = Join-Path $outDir 'Jorbique-VPN.exe'
-$outZip = Join-Path $outDir 'Jorbique-VPN-windows.zip'
+$outExe = Join-Path $outDir 'Jorbique-VPN-Extended.exe'
+$outZip = Join-Path $outDir 'Jorbique-VPN-Extended-windows.zip'
 Write-Host '==> go build'
 # 'production' is required by Wails itself (dev vs production runtime); it no
 # longer embeds sing-box (that file was removed) — the client downloads it.

@@ -6,7 +6,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${root}"
 
 app_version="$(bash "${root}/scripts/app-version.sh")"
-echo "==> Jorbique VPN Windows build (version: ${app_version})"
+echo "==> Jorbique VPN Extended Windows build (version: ${app_version})"
 
 if [ "${SKIP_FRONTEND:-0}" != "1" ]; then
   echo "==> frontend"
@@ -46,8 +46,8 @@ fi
 go run "github.com/tc-hib/go-winres@${GO_WINRES_VERSION:-v0.3.3}" make --out "cmd/jorbiquevpn/rsrc"
 
 out_dir="${root}/release/binaries"
-win_exe_name="Jorbique-VPN.exe"
-win_zip_name="Jorbique-VPN-windows.zip"
+win_exe_name="Jorbique-VPN-Extended.exe"
+win_zip_name="Jorbique-VPN-Extended-windows.zip"
 mkdir -p "${out_dir}"
 
 echo "==> go build"

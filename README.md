@@ -1,9 +1,9 @@
-# Jorbique VPN
+# Jorbique VPN Extended
 
 Personal VPN client for **Windows** and **macOS**, built on sing-box.
 
 The client downloads its profile from the server and runs only the profile's
-proxy outbounds (VLESS Reality, VLESS gRPC, AnyTLS, Snell, …), so
+proxy outbounds (VLESS/Reality RMUX, VLESS/XHTTP, Mieru, Sudoku and AnyTLS), so
 every connection changes the external IP. `endpoints` (WireGuard, OpenVPN,
 Tailscale) are dropped from the profile, together with every DNS server and
 route rule that pointed at them.
@@ -12,24 +12,27 @@ route rule that pointed at them.
 
 | What | URL |
 |------|-----|
-| Client profile | `https://jorbique.one/chI6dwCVntNE-extended/singbox_client.json` |
-| sing-box manifest | `https://jorbique.one/chI6dwCVntNE-extended/version.json` |
+| Client profile | `https://jorbique.one/chI6dwCVntNE-extended-v2/singbox_client.json` |
+| sing-box manifest | `https://jorbique.one/chI6dwCVntNE-extended-v2/version.json` |
 | UUID check and metrics (OTLP) | `https://jorbique.one/otlp/v1/metrics` |
 
 The profile is shared by every user: it carries no user UUID. The UUID entered
-on first launch is checked against the server and then filled into every empty
-`uuid` / `password` field of the proxy outbounds. nginx serves one of eight
+on first launch is checked against the server. The server marks the exact UUID
+fields with `__JORBIQUE_USER_UUID__`; the client replaces only these markers in
+the new profile. Sudoku receives its server key and TLS settings unchanged;
+its marker is the HTTPMask path authorized by nginx. Legacy profiles still
+support empty top-level credential fields. NaiveProxy remains a separate mode. nginx serves one of eight
 profile variants per request (`singbox_client.r0.json` … `r7.json`), each with
 its own Reality `short_id`.
 
 The host is a build-time variable: `-X jorbiquevpn/internal/constants.ServerHost=<host>`
 (`SERVER_HOST=<host>` for `scripts/build-windows.sh`).
 
-New app builds use the separate `chI6dwCVntNE-extended` channel for
+New app builds use the separate `chI6dwCVntNE-extended-v2` channel for
 [sing-box-extended](https://github.com/shtorm-7/sing-box-extended). Installed
 older apps keep their original `chI6dwCVntNE` URLs, profile, and SagerNet
 `1.15.0-alpha.12` engine; deploying the extended server does not switch their
-engine channel. Publish the new channel before releasing the new app.
+engine channel. Version 1.3.0 keeps its existing `chI6dwCVntNE-extended` channel too. Publish the new channel before releasing the new app.
 
 Upgrading the app opts that installation into the extended channel. The new
 app can migrate its installed SagerNet engine even when the fork's upstream
@@ -44,7 +47,7 @@ fork version.
 Build (on Windows: `build-windows.bat`; elsewhere: `scripts/build-windows.sh`),
 then:
 
-1. Extract **Jorbique-VPN-windows.zip**.
+1. Extract **Jorbique-VPN-Extended-windows.zip**.
 2. Run **Jorbique-VPN.exe** with administrator privileges.
 3. Enter your user UUID, then use **Connect** / **Disconnect**, protocol settings, VPN Config and Logs in the main window.
 
@@ -58,11 +61,11 @@ downloaded from the server on first launch.
 ### Build and install
 
 ```bash
-./build-macos.sh package   # Jorbique-VPN-macOS.pkg
+./build-macos.sh package   # Jorbique-VPN-Extended-macOS.pkg
 ./build-macos.sh install   # build and install on this Mac
 ```
 
-1. Open **Jorbique-VPN-macOS.pkg** and install it.
+1. Open **Jorbique-VPN-Extended-macOS.pkg** and install it.
 2. **Jorbique VPN.app** appears in **Applications**.
 3. Launch the app and enter your user UUID. The package installs the privileged daemon; an administrator prompt appears only if that service needs to be restored.
 
@@ -85,7 +88,7 @@ without touching it.
 ### Upgrade and rollback
 
 ```bash
-sudo jorbique-vpn-admin upgrade Jorbique-VPN-macOS.pkg   # snapshots first, rolls itself back if the new build fails
+sudo jorbique-vpn-admin upgrade Jorbique-VPN-Extended-macOS.pkg   # snapshots first, rolls itself back if the new build fails
 sudo jorbique-vpn-admin rollback                        # back to the previous version
 jorbique-vpn-admin status                               # what is installed, what a rollback would restore
 ```
@@ -119,7 +122,7 @@ version; `APP_VERSION=x.y.z` overrides it for one build.
 GitHub Actions runs [the build workflow](.github/workflows/ci.yml) for pull
 requests, pushes to `main`, version tags, and manual dispatches. It checks and
 builds the frontend, runs Go vet/unit/integration checks on Linux, and produces
-`Jorbique-VPN-windows.zip` and `Jorbique-VPN-macOS.pkg` as downloadable workflow
+`Jorbique-VPN-Extended-windows.zip` and `Jorbique-VPN-Extended-macOS.pkg` as downloadable workflow
 artifacts. Windows is cross-built on Linux; the universal macOS installer
 (Apple Silicon and Intel) is built on a macOS runner, which also runs the
 macOS-only CLI tests. Linux integration checks use a pinned, checksum-verified

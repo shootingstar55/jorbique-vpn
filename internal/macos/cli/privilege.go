@@ -98,7 +98,7 @@ func escalateIfNeeded(cmd string, args []string, exe string) error {
 	case !isStdinTerminal():
 		// The menu bar, or anything else without someone watching: a password
 		// prompt would hang forever with nobody to answer it.
-		return core.Permission(cmd + " needs the Jorbique VPN daemon, which is not running. " +
+		return core.Permission(cmd + " needs the Jorbique VPN Extended daemon, which is not running. " +
 			"Reinstall the client, or start it with: sudo launchctl kickstart -k system/one.jorbique.vpn")
 	}
 

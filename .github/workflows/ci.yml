@@ -144,13 +144,13 @@ jobs:
       - name: Build and validate Windows archive
         run: |
           bash scripts/build-windows.sh
-          unzip -t release/binaries/Jorbique-VPN-windows.zip
-          test "$(unzip -Z1 release/binaries/Jorbique-VPN-windows.zip)" = Jorbique-VPN.exe
-          file release/binaries/Jorbique-VPN.exe | grep -F 'PE32+'
+          unzip -t release/binaries/Jorbique-VPN-Extended-windows.zip
+          test "$(unzip -Z1 release/binaries/Jorbique-VPN-Extended-windows.zip)" = Jorbique-VPN-Extended.exe
+          file release/binaries/Jorbique-VPN-Extended.exe | grep -F 'PE32+'
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: windows-package
-          path: release/binaries/Jorbique-VPN-windows.zip
+          path: release/binaries/Jorbique-VPN-Extended-windows.zip
           if-no-files-found: error
           compression-level: 0
           retention-days: 28
@@ -199,7 +199,7 @@ jobs:
           bash build-macos.sh package
           lipo internal/macos/JorbiqueVPN -verify_arch arm64 x86_64
           codesign --verify --strict internal/macos/JorbiqueVPN
-          pkg=release/binaries/Jorbique-VPN-macOS.pkg
+          pkg=release/binaries/Jorbique-VPN-Extended-macOS.pkg
           test -s "$pkg"
           xar -tf "$pkg" | sed 's|^\./||' > "$RUNNER_TEMP/pkg-contents.txt"
           for entry in Payload Bom PackageInfo Scripts; do
@@ -207,11 +207,11 @@ jobs:
           done
           pkgutil --payload-files "$pkg" > "$RUNNER_TEMP/pkg-payload.txt"
           grep -F 'usr/local/libexec/jorbique-vpn/JorbiqueVPN' "$RUNNER_TEMP/pkg-payload.txt"
-          grep -F 'Applications/Jorbique VPN.app/Contents/Resources/AppIcon.icns' "$RUNNER_TEMP/pkg-payload.txt"
+          grep -F 'Applications/Jorbique VPN Extended.app/Contents/Resources/AppIcon.icns' "$RUNNER_TEMP/pkg-payload.txt"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: macos-package
-          path: release/binaries/Jorbique-VPN-macOS.pkg
+          path: release/binaries/Jorbique-VPN-Extended-macOS.pkg
           if-no-files-found: error
           compression-level: 0
           retention-days: 28
@@ -233,9 +233,9 @@ jobs:
       - name: Generate release checksums
         working-directory: release
         run: |
-          test -s Jorbique-VPN-windows.zip
-          test -s Jorbique-VPN-macOS.pkg
-          sha256sum Jorbique-VPN-windows.zip Jorbique-VPN-macOS.pkg > SHA256SUMS
+          test -s Jorbique-VPN-Extended-windows.zip
+          test -s Jorbique-VPN-Extended-macOS.pkg
+          sha256sum Jorbique-VPN-Extended-windows.zip Jorbique-VPN-Extended-macOS.pkg > SHA256SUMS
           sha256sum --check SHA256SUMS
       - name: Publish complete release
         working-directory: release
@@ -251,8 +251,8 @@ jobs:
             }
           else
             gh release create "$RELEASE_TAG" --verify-tag --draft \
-              --title "Jorbique VPN $RELEASE_TAG" --generate-notes
+              --title "Jorbique VPN Extended $RELEASE_TAG" --generate-notes
           fi
           gh release upload "$RELEASE_TAG" --clobber \
-            Jorbique-VPN-windows.zip Jorbique-VPN-macOS.pkg SHA256SUMS
+            Jorbique-VPN-Extended-windows.zip Jorbique-VPN-Extended-macOS.pkg SHA256SUMS
           gh release edit "$RELEASE_TAG" --draft=false

@@ -263,6 +263,11 @@ func LastLines(path string, count int) string {
 // Spawn starts a process redirecting stdout/stderr to logURL and writing pid.
 // Returns the child PID. When asRoot=true and not currently root, runs via sudo -n.
 func Spawn(launchPath string, args []string, logPath string, pidPath string, asRoot bool) (int, error) {
+	return SpawnWithEnvironment(launchPath, args, logPath, pidPath, asRoot, nil)
+}
+
+// SpawnWithEnvironment uses an explicit environment when supplied.
+func SpawnWithEnvironment(launchPath string, args []string, logPath string, pidPath string, asRoot bool, environment []string) (int, error) {
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return 0, core.StartFailed("open log file failed: " + err.Error())
@@ -275,6 +280,7 @@ func Spawn(launchPath string, args []string, logPath string, pidPath string, asR
 		cmd = sysexec.Command(launchPath, args...)
 	}
 	cmd.Stdout = logFile
+	cmd.Env = environment
 	cmd.Stderr = logFile
 	cmd.Stdin = nil
 	if err := cmd.Start(); err != nil {

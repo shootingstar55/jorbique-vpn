@@ -314,3 +314,31 @@ func TestApplyCredentialFillsOnlyEmptyFields(t *testing.T) {
 		t.Errorf("hysteria2 = %v", maps[1])
 	}
 }
+
+func TestExplicitCredentialMarkersPreserveSudokuKeyAndTLS(t *testing.T) {
+	const user = "a8ad6435-7922-4cc6-ab54-9697cf4e7f49"
+	objects := outboundMaps(parseOutbounds(t, `[
+		{"type":"sudoku","tag":"sudoku","key":"server-shared-key","http_mask":{"path_root":"__JORBIQUE_USER_UUID__","host":"media.example.test","tls":{"server_name":"media.example.test","reality":{"short_id":""}}}},
+		{"type":"mieru","tag":"mieru","username":"__JORBIQUE_USER_UUID__","password":"__JORBIQUE_USER_UUID__"},
+		{"type":"sudoku","tag":"fixed","key":"server-key","http_mask":{"path_root":"fixed-by-server"}},
+		{"type":"sudoku","tag":"missing-key","key":"","http_mask":{"path_root":"__JORBIQUE_USER_UUID__"}}
+	]`))
+	for i, want := range []int{1, 2, 0, 1} {
+		if got := ApplyCredential(objects[i], user); got != want {
+			t.Fatalf("outbound %d: filled %d, want %d", i, got, want)
+		}
+	}
+	if objects[3].GetString("key") != "" {
+		t.Fatal("an empty server key received the UUID despite an explicit credential marker")
+	}
+	mask, _ := objects[0].Get("http_mask")
+	m := mask.(*jsonorder.Map)
+	if m.GetString("path_root") != user || m.GetString("host") != "media.example.test" || objects[0].GetString("key") != "server-shared-key" {
+		t.Fatal("server-owned Sudoku configuration was rewritten")
+	}
+	tls, _ := m.Get("tls")
+	reality, _ := tls.(*jsonorder.Map).Get("reality")
+	if reality.(*jsonorder.Map).GetString("short_id") != "" || tls.(*jsonorder.Map).GetString("server_name") != "media.example.test" {
+		t.Fatal("nested TLS settings were rewritten")
+	}
+}

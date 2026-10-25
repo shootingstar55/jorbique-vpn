@@ -9,6 +9,10 @@ const LABELS = {
   __proto__: null,
   'vless-reality': 'VLESS Reality',
   'vless-grpc': 'VLESS gRPC',
+  'vless-reality-rmux': 'VLESS Reality · RMUX',
+  'vless-xhttp': 'VLESS XHTTP',
+  mieru: 'Mieru',
+  sudoku: 'Sudoku',
   anytls: 'AnyTLS',
   naive: 'NaiveProxy',
 };

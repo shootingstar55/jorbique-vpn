@@ -416,10 +416,18 @@ func RouteEntries(root *jsonorder.Map) []string { return references(root, false)
 // own: Snell ships a shared psk beside the per-user userkey, and only the
 // userkey is left empty.
 //
-// Only the outbound's own fields, never a nested object: an empty short_id
-// under tls.reality is a legitimate value, not a placeholder.
+// New profiles mark exact fields with CredentialPlaceholder, including nested
+// fields. Empty top-level fields remain supported for previously served profiles.
+// An empty nested TLS field is never treated as a credential.
+const CredentialPlaceholder = "__JORBIQUE_USER_UUID__"
+
 func ApplyCredential(m *jsonorder.Map, value string) int {
-	filled := 0
+	_, filled := applyExplicitCredential(m, value)
+	if filled > 0 {
+		// A marked outbound uses the explicit contract exclusively. Even an
+		// accidentally empty server key/flow must never receive the user's UUID.
+		return filled
+	}
 	for _, key := range m.Keys() {
 		if v, _ := m.Get(key); v == "" {
 			m.Set(key, value)
@@ -427,4 +435,28 @@ func ApplyCredential(m *jsonorder.Map, value string) int {
 		}
 	}
 	return filled
+}
+
+func applyExplicitCredential(raw any, credential string) (any, int) {
+	filled := 0
+	switch v := raw.(type) {
+	case string:
+		if v == CredentialPlaceholder {
+			return credential, 1
+		}
+	case *jsonorder.Map:
+		for _, key := range v.Keys() {
+			field, _ := v.Get(key)
+			replaced, count := applyExplicitCredential(field, credential)
+			v.Set(key, replaced)
+			filled += count
+		}
+	case []any:
+		for i, field := range v {
+			replaced, count := applyExplicitCredential(field, credential)
+			v[i] = replaced
+			filled += count
+		}
+	}
+	return raw, filled
 }

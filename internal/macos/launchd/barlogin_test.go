@@ -84,7 +84,7 @@ func TestTheAgentStartsTheBarThroughTheAppBundle(t *testing.T) {
 	if err := os.WriteFile(binary, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	bundle := filepath.Join(dir, "Jorbique VPN.app", "Contents", "MacOS")
+	bundle := filepath.Join(dir, "Jorbique VPN Extended.app", "Contents", "MacOS")
 	if err := os.MkdirAll(bundle, 0o755); err != nil {
 		t.Fatal(err)
 	}
