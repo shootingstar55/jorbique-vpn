@@ -69,9 +69,19 @@ ln -sf "$LIBEXEC/JorbiqueVPN" "$BIN/jorbique-vpn"
 ln -sf "$LIBEXEC/jorbique-vpn-admin" "$BIN/jorbique-vpn-admin"
 
 /usr/bin/xattr -cr "$LIBEXEC" 2>/dev/null || true
-/usr/bin/xattr -cr "${PREFIX}/Applications/Jorbique VPN.app" 2>/dev/null || true
+/usr/bin/xattr -cr "${PREFIX}/Applications/Jorbique VPN Extended.app" 2>/dev/null || true
 /usr/bin/codesign --force --sign - "$LIBEXEC/JorbiqueVPN" 2>/dev/null || true
-/usr/bin/codesign --force --sign - "${PREFIX}/Applications/Jorbique VPN.app" 2>/dev/null || true
+/usr/bin/codesign --force --sign - "${PREFIX}/Applications/Jorbique VPN Extended.app" 2>/dev/null || true
+
+# Remove the previous launcher only when its bundle identity is ours. The
+# persistent data and launchd service keep their existing identifiers.
+LEGACY_APP="${PREFIX}/Applications/Jorbique VPN.app"
+if [ -d "${PREFIX}/Applications/Jorbique VPN Extended.app" ] && [ -f "$LEGACY_APP/Contents/Info.plist" ]; then
+  legacy_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$LEGACY_APP/Contents/Info.plist" 2>/dev/null || true)
+  if [ "$legacy_id" = "one.jorbique.vpn" ]; then
+    rm -rf "$LEGACY_APP"
+  fi
+fi
 
 # Tell the system about the bundle rather than waiting for it to notice.
 #
@@ -83,10 +93,10 @@ ln -sf "$LIBEXEC/jorbique-vpn-admin" "$BIN/jorbique-vpn-admin"
 #
 # Both are best-effort and both are skipped for a prefixed (test) install, which
 # has no business touching the machine's indexes.
-if [ -z "$PREFIX" ] && [ -d "/Applications/Jorbique VPN.app" ]; then
-  /usr/bin/mdimport "/Applications/Jorbique VPN.app" 2>/dev/null || true
+if [ -z "$PREFIX" ] && [ -d "/Applications/Jorbique VPN Extended.app" ]; then
+  /usr/bin/mdimport "/Applications/Jorbique VPN Extended.app" 2>/dev/null || true
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
-    -f "/Applications/Jorbique VPN.app" 2>/dev/null || true
+    -f "/Applications/Jorbique VPN Extended.app" 2>/dev/null || true
 fi
 
 # The daemon is the client's privileged component: the menu bar runs as the

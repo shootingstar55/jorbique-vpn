@@ -515,7 +515,7 @@ onBeforeUnmount(() => {
           <img :src="appIconUrl" alt="" width="48" height="48" />
         </div>
         <div class="brand__text">
-          <h1>Jorbique VPN</h1>
+          <h1>Jorbique VPN Extended</h1>
           <p v-if="protocols" :title="protocols">{{ protocols }}</p>
           <p v-else class="brand__pending">Protocol list loads with the profile</p>
         </div>

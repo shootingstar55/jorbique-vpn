@@ -106,7 +106,7 @@ onBeforeUnmount(() => {
     <header class="dashboard__header">
       <div>
         <div class="eyebrow"><span class="live-dot" /> LIVE CONTROL</div>
-        <h1>Jorbique VPN Dashboard</h1>
+        <h1>Jorbique VPN Extended Dashboard</h1>
         <p>sing-box {{ snapshot?.version || '1.14' }}</p>
       </div>
       <NButton v-if="!standalone" quaternary circle aria-label="Close dashboard" @click="emit('close')">

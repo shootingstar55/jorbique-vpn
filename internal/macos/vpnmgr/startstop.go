@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"jorbiquevpn/internal/constants"
+	"jorbiquevpn/internal/jsonorder"
 	"jorbiquevpn/internal/macos/ansiutil"
 	"jorbiquevpn/internal/macos/core"
 	"jorbiquevpn/internal/macos/procutil"
 	"jorbiquevpn/internal/macos/routerules"
 	"jorbiquevpn/internal/macos/singbox"
+	"jorbiquevpn/internal/singboxcfg"
 )
 
 func (m *Manager) resolveTargets(name string) []core.VPNItem {
@@ -336,6 +338,18 @@ func (m *Manager) startOne(v core.VPNItem) error {
 	if err != nil {
 		return err
 	}
+	if raw, ok := root.Get("outbounds"); ok {
+		if outbounds, ok := raw.([]any); ok {
+			for _, rawOutbound := range outbounds {
+				if outbound, ok := rawOutbound.(*jsonorder.Map); ok && outbound.GetString("type") == "sudoku" {
+					if err := m.ensureSingboxBuildTag("with_sudoku", "Sudoku outbound"); err != nil {
+						return err
+					}
+					break
+				}
+			}
+		}
+	}
 	// Persist sing-box's DNS cache across stop/start: without cache_file the
 	// resolver cache lives only in process memory and dies with every stop.
 	// A directory and a cache_id per profile, so two sing-box profiles never
@@ -372,7 +386,7 @@ func (m *Manager) startOne(v core.VPNItem) error {
 	// The program is the first argument and it is an absolute path, so the
 	// /usr/bin/env hop this used to take resolved nothing and only added a
 	// process between us and the tunnel.
-	spawnPid, err := procutil.Spawn(args[0], args[1:], logPath, pidPath, true)
+	spawnPid, err := procutil.SpawnWithEnvironment(args[0], args[1:], logPath, pidPath, true, singboxcfg.EngineEnvironment(os.Environ()))
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,7 @@ import (
 // share the binary and must not be mistaken for the bar.
 // The executable is what is left once the arguments are taken off the end, not
 // the first space-separated field: the bar is started through the app bundle
-// now, and "/Applications/Jorbique VPN.app/Contents/MacOS/JorbiqueVPN" has a
+// now, and "/Applications/Jorbique VPN Extended.app/Contents/MacOS/JorbiqueVPN" has a
 // space in it. Splitting on spaces would read that as a program called
 // "/Applications/Jorbique", and a second instance would start.
 func isBarCommandLine(cmdline, exeName string) bool {

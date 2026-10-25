@@ -171,7 +171,7 @@ func TestPostinstallNudgesTheIndexesOnlyForARealInstall(t *testing.T) {
 
 	// The guard has to be on the same block: without it a prefixed run would
 	// reach past its own tree into the machine's Launch Services database.
-	guard := strings.Index(script, `if [ -z "$PREFIX" ] && [ -d "/Applications/Jorbique VPN.app" ]; then`)
+	guard := strings.Index(script, `if [ -z "$PREFIX" ] && [ -d "/Applications/Jorbique VPN Extended.app" ]; then`)
 	if guard < 0 {
 		t.Fatal("the index calls are not guarded by an unprefixed-install check")
 	}

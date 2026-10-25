@@ -48,7 +48,7 @@ func showMainPanel(state func() mainState, act func(mainAction) error, ipInfo fu
 	if err != nil {
 		return nil, err
 	}
-	panel, err := showWebPanel("Jorbique VPN", 560, 880, 440, 560,
+	panel, err := showWebPanel("Jorbique VPN Extended", 560, 880, 440, 560,
 		func(closeWindow func()) (*dashboard.LocalServer, error) {
 			return dashboard.StartFormServerFunc(panelQuery("main"), "main", assets,
 				func() any { return state() },

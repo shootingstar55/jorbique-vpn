@@ -17,7 +17,7 @@ func showUUIDGatePanel(onSubmit func(uuid string) error, onClosed func()) (*webP
 	if err != nil {
 		return nil, err
 	}
-	return showWebPanel("Jorbique VPN", 520, 400, 440, 340, func(closeWindow func()) (*dashboard.LocalServer, error) {
+	return showWebPanel("Jorbique VPN Extended", 520, 400, 440, 340, func(closeWindow func()) (*dashboard.LocalServer, error) {
 		return dashboard.StartFormServerWithActions(panelQuery("activate"), "uuid", assets, struct{}{},
 			func(raw json.RawMessage) error {
 				var form struct {

@@ -32,7 +32,7 @@ const DefaultBarLabel = "one.jorbique.vpn.bar"
 // nothing about where the client reads and writes.
 //
 // A variable so a test can point it at a bundle it built itself.
-var appBundleExecutable = "/Applications/Jorbique VPN.app/Contents/MacOS/JorbiqueVPN"
+var appBundleExecutable = "/Applications/Jorbique VPN Extended.app/Contents/MacOS/JorbiqueVPN"
 
 // BundledExecutable is bundledExecutable for the callers that start the menu
 // bar themselves — the root bootstrap after an install, and the detached

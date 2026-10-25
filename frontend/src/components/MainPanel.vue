@@ -143,7 +143,7 @@ onBeforeUnmount(() => clearInterval(timer));
           <img :src="appIconUrl" alt="" width="40" height="40" />
         </div>
         <div class="head__text">
-          <h1>Jorbique VPN</h1>
+          <h1>Jorbique VPN Extended</h1>
           <p class="head__note" :title="protocols">{{ protocols || 'Protocol list loads with the profile' }}</p>
         </div>
         <ThemeSwitch @change="(mode) => act('theme', mode)" />

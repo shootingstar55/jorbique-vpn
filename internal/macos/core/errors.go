@@ -70,7 +70,7 @@ func (e *CLIError) Suggestion() string {
 	case ErrBadConfig:
 		return "Check cfg/vpn_cfg.json for syntax and required fields."
 	case ErrToolNotFound:
-		return "Install the sing-box core from Jorbique VPN settings"
+		return "Install the sing-box core from Jorbique VPN Extended settings"
 	case ErrPermission:
 		return "Run with sudo for install-autostart/uninstall-autostart."
 	case ErrStartFailed:

@@ -9,9 +9,9 @@ GOCOVER_COBERTURA_VERSION ?= v1.5.0
 GO_WINRES_VERSION ?= v0.3.3
 
 APP_VERSION ?= 0.0.0-dev
-WINDOWS_EXE := Jorbique-VPN.exe
-WINDOWS_ZIP := Jorbique-VPN-windows.zip
-MACOS_PKG := Jorbique-VPN-macOS.pkg
+WINDOWS_EXE := Jorbique-VPN-Extended.exe
+WINDOWS_ZIP := Jorbique-VPN-Extended-windows.zip
+MACOS_PKG := Jorbique-VPN-Extended-macOS.pkg
 BINARY_DIR := release/binaries
 
 # The unit suite builds like the shipped macOS binary and the Linux runner: without cgo.
@@ -119,7 +119,7 @@ build-smoke-windows: frontend-stub
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
 		$(GO) build -tags desktop \
 		-ldflags "-w -s -H windowsgui" \
-		-o /tmp/Jorbique-VPN-smoke.exe ./cmd/jorbiquevpn
+		-o /tmp/Jorbique-VPN-Extended-smoke.exe ./cmd/jorbiquevpn
 
 build-smoke-macos: frontend-stub
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 $(GO) build -o /tmp/JorbiqueVPN-smoke ./cmd/jorbiquevpn-macos

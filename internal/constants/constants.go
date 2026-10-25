@@ -5,7 +5,7 @@ package constants
 // constant here that nothing in Go reads is a second copy that drifts.
 const (
 	// User-visible product name (window title, tray, installers, macOS menu).
-	AppDisplayName = "Jorbique VPN"
+	AppDisplayName = "Jorbique VPN Extended"
 
 	// Optional icon beside the executable (generated from assets/app-icon.png via scripts/branding/render-icons.sh).
 	AppIconICO = "icon.ico"
@@ -51,7 +51,7 @@ var ServerHost = "jorbique.one"
 // Installed older apps retain /chI6dwCVntNE/ and its SagerNet 1.15 alpha builds;
 // switching engine distributions requires upgrading the app, not changing that
 // legacy channel underneath an installed client.
-const ExtendedUpdatePath = "/chI6dwCVntNE-extended/"
+const ExtendedUpdatePath = "/chI6dwCVntNE-extended-v2/"
 
 // The sing-box binary manifest and the client profile. The profile carries no
 // user UUID — the client fills in its own — so the link is the same for

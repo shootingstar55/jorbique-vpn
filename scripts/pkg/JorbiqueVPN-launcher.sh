@@ -1,5 +1,5 @@
 #!/bin/bash
-# Finder launcher for /Applications/Jorbique VPN.app — runs the installed binary under /usr/local/libexec/jorbique-vpn/.
+# Finder launcher for /Applications/Jorbique VPN Extended.app — runs the installed binary under /usr/local/libexec/jorbique-vpn/.
 #
 # Normal launch: start the menu bar as the logged-in user, straight away. The app
 # needs no privilege of its own — the operations that do go to the background
@@ -12,7 +12,7 @@
 #
 # macOS Finder passes -psn_* argv; never forward it into the client (unknown CLI command).
 #
-# If the user passes real CLI args (e.g. open -a "Jorbique VPN.app" --args status), skip the admin wrapper and exec directly.
+# If the user passes real CLI args (e.g. open -a "Jorbique VPN Extended.app" --args status), skip the admin wrapper and exec directly.
 set -e
 BIN=/usr/local/libexec/jorbique-vpn/JorbiqueVPN
 DAEMON_PLIST=/Library/LaunchDaemons/one.jorbique.vpn.plist
@@ -37,7 +37,7 @@ exec_real_bin() {
 }
 
 if [ ! -x "$UNPRIV_BIN" ]; then
-	/usr/bin/osascript -e 'display dialog "Jorbique VPN: the client binary was not found. Reinstall the .pkg." buttons {"OK"} default button "OK" with title "Jorbique VPN"' 2>/dev/null || true
+	/usr/bin/osascript -e 'display dialog "Jorbique VPN Extended: the client binary was not found. Reinstall the .pkg." buttons {"OK"} default button "OK" with title "Jorbique VPN Extended"' 2>/dev/null || true
 	exit 1
 fi
 
@@ -104,17 +104,17 @@ on run
 	set u to (system attribute "JORBIQUE_VPN_USER")
 	set fr to (system attribute "JORBIQUE_VPN_FIRST_RUN")
 	if binPath is missing value or binPath is "" then
-		display dialog "Jorbique VPN: internal error (binary path is missing)." buttons {"OK"} default button "OK" with title "Jorbique VPN"
+		display dialog "Jorbique VPN Extended: internal error (binary path is missing)." buttons {"OK"} default button "OK" with title "Jorbique VPN Extended"
 		return
 	end if
 	if u is missing value or u is "" then
-		display dialog "Jorbique VPN: could not detect the console user." buttons {"OK"} default button "OK" with title "Jorbique VPN"
+		display dialog "Jorbique VPN Extended: could not detect the console user." buttons {"OK"} default button "OK" with title "Jorbique VPN Extended"
 		return
 	end if
 	if fr is "1" then
-		set intro to "Jorbique VPN needs to set up its background service." & return & return & "macOS will ask for an administrator password or Touch ID, just like when installing software." & return & return & "This service performs the operations that need administrator rights. The app itself runs as you, and will not ask again while the service is in place." & return & return & "Continue?"
+		set intro to "Jorbique VPN Extended needs to set up its background service." & return & return & "macOS will ask for an administrator password or Touch ID, just like when installing software." & return & return & "This service performs the operations that need administrator rights. The app itself runs as you, and will not ask again while the service is in place." & return & return & "Continue?"
 		try
-			set d to display dialog intro buttons {"Cancel", "Continue"} default button "Continue" with title "Jorbique VPN setup" with icon caution
+			set d to display dialog intro buttons {"Cancel", "Continue"} default button "Continue" with title "Jorbique VPN Extended setup" with icon caution
 			if button returned of d is "Cancel" then
 				return
 			end if
@@ -125,16 +125,16 @@ on run
 		end try
 	end if
 	try
-		set authPrompt to "Jorbique VPN: checking the background service, then starting the VPN manager."
+		set authPrompt to "Jorbique VPN Extended: checking the background service, then starting the VPN manager."
 		if fr is "1" then
-			set authPrompt to "Jorbique VPN: installing the background service and starting the VPN manager."
+			set authPrompt to "Jorbique VPN Extended: installing the background service and starting the VPN manager."
 		end if
 		do shell script "export SUDO_USER=" & quoted form of u & " && exec " & quoted form of binPath with administrator privileges with prompt authPrompt
 	on error errMsg number errNum
 		if errNum is -128 then
 			return
 		end if
-		display dialog errMsg buttons {"OK"} default button "OK" with title "Jorbique VPN"
+		display dialog errMsg buttons {"OK"} default button "OK" with title "Jorbique VPN Extended"
 	end try
 end run
 APPLESCRIPT

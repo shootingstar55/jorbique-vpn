@@ -200,9 +200,9 @@ package_bundle() {
   fi
 
   # Installer .pkg: the binary under /usr/local/libexec/jorbique-vpn, data under
-  # /Library, and /Applications/Jorbique VPN.app, whose launcher runs the
+  # /Library, and /Applications/Jorbique VPN Extended.app, whose launcher runs the
   # installed binary.
-  local macos_app_bundle_name="Jorbique VPN.app"
+  local macos_app_bundle_name="Jorbique VPN Extended.app"
   # The bundle holds two executables. CFBundleExecutable is the launcher script,
   # which is what Finder runs; next to it is JorbiqueVPN, a symlink to the
   # installed binary. Everything that starts the menu bar goes through the
@@ -213,7 +213,7 @@ package_bundle() {
   local macos_app_bundle_exe="JorbiqueVPN-launcher"
   local macos_app_bundle_bin="JorbiqueVPN"
   local macos_app_bundle_rel="Applications/${macos_app_bundle_name}"
-  local pkg_path="${out_dir}/Jorbique-VPN-macOS.pkg"
+  local pkg_path="${out_dir}/Jorbique-VPN-Extended-macOS.pkg"
   rm -f "${pkg_path}"
   local pkg_work
   pkg_work="$(mktemp -d)"
@@ -266,9 +266,9 @@ package_bundle() {
   <key>CFBundleIdentifier</key>
   <string>one.jorbique.vpn</string>
   <key>CFBundleName</key>
-  <string>Jorbique VPN</string>
+  <string>Jorbique VPN Extended</string>
   <key>CFBundleDisplayName</key>
-  <string>Jorbique VPN</string>
+  <string>Jorbique VPN Extended</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -295,7 +295,7 @@ EOF
   chmod 644 "${plist}"
   echo "==> Creating macOS installer package (.pkg)…"
   MACOS_APP_BUNDLE_REL="./${macos_app_bundle_rel}" \
-    bash "${root}/scripts/pkg/build-flat-pkg.sh" "${pkgroot}" "${pkg_path}" "${pkg_semver}" "Jorbique VPN ${app_version}" "${root}"
+    bash "${root}/scripts/pkg/build-flat-pkg.sh" "${pkgroot}" "${pkg_path}" "${pkg_semver}" "Jorbique VPN Extended ${app_version}" "${root}"
   echo "✓ Built: ${pkg_path}"
   rm -rf "${pkg_work}"
 

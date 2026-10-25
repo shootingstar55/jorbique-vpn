@@ -17,7 +17,7 @@ echo CD=%ROOT%>> "%LOG%"
 echo BAT=%~f0>> "%LOG%"
 
 echo.
-echo === Jorbique VPN Windows build ===
+echo === Jorbique VPN Extended Windows build ===
 echo Project: %ROOT%
 echo Log: %LOG%
 echo.
@@ -98,8 +98,8 @@ if not "%RC%"=="0" (
 
 echo.
 echo BUILD OK
-echo   %ROOT%\release\binaries\Jorbique-VPN.exe
-echo   %ROOT%\release\binaries\Jorbique-VPN-windows.zip
+echo   %ROOT%\release\binaries\Jorbique-VPN-Extended.exe
+echo   %ROOT%\release\binaries\Jorbique-VPN-Extended-windows.zip
 goto done
 
 :fail
