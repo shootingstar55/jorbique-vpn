@@ -423,6 +423,11 @@ const CredentialPlaceholder = "__JORBIQUE_USER_UUID__"
 
 func ApplyCredential(m *jsonorder.Map, value string) int {
 	_, filled := applyExplicitCredential(m, value)
+	if filled > 0 {
+		// A marked outbound uses the explicit contract exclusively. Even an
+		// accidentally empty server key/flow must never receive the user's UUID.
+		return filled
+	}
 	for _, key := range m.Keys() {
 		if v, _ := m.Get(key); v == "" {
 			m.Set(key, value)

@@ -320,12 +320,16 @@ func TestExplicitCredentialMarkersPreserveSudokuKeyAndTLS(t *testing.T) {
 	objects := outboundMaps(parseOutbounds(t, `[
 		{"type":"sudoku","tag":"sudoku","key":"server-shared-key","http_mask":{"path_root":"__JORBIQUE_USER_UUID__","host":"media.example.test","tls":{"server_name":"media.example.test","reality":{"short_id":""}}}},
 		{"type":"mieru","tag":"mieru","username":"__JORBIQUE_USER_UUID__","password":"__JORBIQUE_USER_UUID__"},
-		{"type":"sudoku","tag":"fixed","key":"server-key","http_mask":{"path_root":"fixed-by-server"}}
+		{"type":"sudoku","tag":"fixed","key":"server-key","http_mask":{"path_root":"fixed-by-server"}},
+		{"type":"sudoku","tag":"missing-key","key":"","http_mask":{"path_root":"__JORBIQUE_USER_UUID__"}}
 	]`))
-	for i, want := range []int{1, 2, 0} {
+	for i, want := range []int{1, 2, 0, 1} {
 		if got := ApplyCredential(objects[i], user); got != want {
 			t.Fatalf("outbound %d: filled %d, want %d", i, got, want)
 		}
+	}
+	if objects[3].GetString("key") != "" {
+		t.Fatal("an empty server key received the UUID despite an explicit credential marker")
 	}
 	mask, _ := objects[0].Get("http_mask")
 	m := mask.(*jsonorder.Map)
