@@ -197,7 +197,7 @@ jobs:
           trap report_failure EXIT
           exec > >(tee "$RUNNER_TEMP/macos-package.log") 2>&1
           bash build-macos.sh package
-          lipo -verify_arch arm64 x86_64 internal/macos/JorbiqueVPN
+          lipo internal/macos/JorbiqueVPN -verify_arch arm64 x86_64
           codesign --verify --strict internal/macos/JorbiqueVPN
           pkg=release/binaries/Jorbique-VPN-macOS.pkg
           test -s "$pkg"
