@@ -15,7 +15,7 @@ import (
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/macos/applekit"
 	"jorbiquevpn/internal/macos/core"
-	"jorbiquevpn/internal/semver"
+	"jorbiquevpn/internal/update"
 )
 
 const setSingboxConfigCommand = "set-singbox-config"
@@ -466,8 +466,8 @@ func (c *statusBarController) fetchExitIP(gen int) {
 
 // autoUpdateSingboxIfNeeded keeps the installed sing-box in sync with the update
 // server on launch. It asks `singbox-versions` for the local and server versions
-// and installs the server build via `update-singbox` only when the server version
-// is strictly newer or nothing is installed yet (never a downgrade). On a FIRST
+// and installs newer releases or the channel's migration to sing-box-extended.
+// Within one distribution it never downgrades. On a FIRST
 // install (no local binary — the bundle is no longer shipped) it shows a progress
 // window so the download is visible; a routine background upgrade stays silent. A
 // matching version is a no-op, and an unreachable server leaves the binary as-is.
@@ -495,8 +495,8 @@ func (c *statusBarController) autoUpdateSingboxIfNeeded() {
 		c.recordSingboxCheck(c.downloadSingboxWithProgress("Downloading sing-box "+server+"…") == 0)
 		return
 	}
-	if semver.Compare(server, local) <= 0 {
-		c.recordSingboxCheck(true) // already up to date, or server older — never downgrade
+	if !update.ShouldUpdateSingbox(local, server) {
+		c.recordSingboxCheck(true)
 		return
 	}
 	// An upgrade downloads the same way a first install does. It used to run

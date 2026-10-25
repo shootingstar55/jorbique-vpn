@@ -26,7 +26,6 @@ import (
 	"jorbiquevpn/internal/network"
 	"jorbiquevpn/internal/paths"
 	"jorbiquevpn/internal/security"
-	"jorbiquevpn/internal/semver"
 	"jorbiquevpn/internal/server"
 	"jorbiquevpn/internal/sysexec"
 	"jorbiquevpn/internal/telemetry"
@@ -816,9 +815,8 @@ func (a *App) GetSingboxLocalVersion() string {
 	return ver
 }
 
-// IsSingboxUpdateAvailable is true only when the server build is strictly newer
-// than the installed one — never on an equal or older server version, so the
-// launch-time auto-update never downgrades (matching the macOS client).
+// IsSingboxUpdateAvailable follows the same channel migration and version policy
+// as macOS, including the transition from SagerNet to sing-box-extended.
 func (a *App) IsSingboxUpdateAvailable() bool {
 	if !a.IsSingboxInstalled() {
 		return false
@@ -831,7 +829,7 @@ func (a *App) IsSingboxUpdateAvailable() bool {
 	if remote == "" {
 		return false
 	}
-	return semver.Compare(remote, local) > 0
+	return update.ShouldUpdateSingbox(local, remote)
 }
 
 // InstallSingbox downloads sing-box from the update server, reporting download
