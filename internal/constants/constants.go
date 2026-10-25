@@ -47,15 +47,16 @@ const (
 // scripts/build-windows.sh (-X jorbiquevpn/internal/constants.ServerHost=...).
 var ServerHost = "jorbique.one"
 
-// channelPath is the server's stable update channel: the directory holding
-// version.json, singbox_client.json and the sing-box builds (channels.yml on
-// the server).
-const channelPath = "/chI6dwCVntNE/"
+// ExtendedUpdatePath holds this client's sing-box-extended profile and builds.
+// Installed older apps retain /chI6dwCVntNE/ and its SagerNet 1.15 alpha builds;
+// switching engine distributions requires upgrading the app, not changing that
+// legacy channel underneath an installed client.
+const ExtendedUpdatePath = "/chI6dwCVntNE-extended/"
 
 // The sing-box binary manifest and the client profile. The profile carries no
 // user UUID — the client fills in its own — so the link is the same for
 // everyone; the server answers it with one of its Reality short_id variants.
 var (
-	SingboxManifestURL = "https://" + ServerHost + channelPath + "version.json"
-	SingboxClientURL   = "https://" + ServerHost + channelPath + "singbox_client.json"
+	SingboxManifestURL = "https://" + ServerHost + ExtendedUpdatePath + "version.json"
+	SingboxClientURL   = "https://" + ServerHost + ExtendedUpdatePath + "singbox_client.json"
 )

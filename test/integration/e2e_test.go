@@ -83,6 +83,16 @@ func TestDashboardReadsRealStartedService(t *testing.T) {
 	if bin == "" {
 		t.Skip("SINGBOX_BIN not set")
 	}
+	versionCtx, cancelVersion := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelVersion()
+	versionOutput, err := exec.CommandContext(versionCtx, bin, "version", "--name").CombinedOutput()
+	if err != nil {
+		t.Fatalf("read sing-box version: %v\n%s", err, versionOutput)
+	}
+	wantVersion := strings.TrimSpace(string(versionOutput))
+	if wantVersion == "" || wantVersion == "unknown" {
+		t.Fatalf("sing-box has no release version: %q", wantVersion)
+	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -113,8 +123,8 @@ func TestDashboardReadsRealStartedService(t *testing.T) {
 	for {
 		snapshot, err := client.Snapshot(context.Background())
 		if err == nil {
-			if snapshot.Version != "1.14.0" {
-				t.Fatalf("API version = %q", snapshot.Version)
+			if snapshot.Version != wantVersion {
+				t.Fatalf("API version = %q, binary version = %q", snapshot.Version, wantVersion)
 			}
 			return
 		}

@@ -99,7 +99,7 @@ test-macos: setup-test-tools
 test: test-unit $(if $(filter darwin,$(shell $(GO) env GOHOSTOS)),test-macos)
 
 # End-to-end integration tests (build-tagged; excluded from default unit/CI coverage).
-# setup-test-tools pulls in frontend-stub + gotestsum; junit report shows up in the GitLab Tests tab.
+# setup-test-tools pulls in frontend-stub + gotestsum; the JUnit report is uploaded by GitHub Actions.
 # Set SINGBOX_BIN=/path/to/sing-box to also validate generated configs with the real binary.
 test-integration: setup-test-tools
 	$(info Running integration tests...)

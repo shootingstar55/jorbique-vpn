@@ -3,6 +3,9 @@
 package app
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +13,7 @@ import (
 
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/server"
+	"jorbiquevpn/internal/update"
 )
 
 func TestApp_GetSingboxLocalVersion_Integration(t *testing.T) {
@@ -42,6 +46,51 @@ func TestApp_GetSingboxLocalVersion_Integration(t *testing.T) {
 	}
 	if v := a.GetSingboxLocalVersion(); v != "1.14.0-alpha.2+custom.1" {
 		t.Errorf("updated version = %q", v)
+	}
+}
+
+func TestApp_OffersExtendedMigrationFromUpstreamAlpha(t *testing.T) {
+	manifest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{
+		  "version":"v1.14.3-extended-2.7.3",
+		  "url":"https://example.invalid/sing-box",
+		  "assets":{
+		    "darwin-amd64":{"url":"https://example.invalid/sing-box-amd64.tar.gz","format":"tar.gz"},
+		    "darwin-arm64":{"url":"https://example.invalid/sing-box-arm64.tar.gz","format":"tar.gz"}
+		  }
+		}`)
+	}))
+	defer manifest.Close()
+	originalURL := constants.SingboxManifestURL
+	constants.SingboxManifestURL = manifest.URL
+	update.InvalidateManifestCache()
+	t.Cleanup(func() {
+		constants.SingboxManifestURL = originalURL
+		update.InvalidateManifestCache()
+	})
+	for _, test := range []struct {
+		installed string
+		want      bool
+	}{
+		{"1.15.0-alpha.12", true},
+		{"1.14.3-extended-2.7.3", false},
+		{"1.14.3-extended-2.7.4", false},
+	} {
+		t.Run(test.installed, func(t *testing.T) {
+			a := &App{dataDir: t.TempDir()}
+			path := filepath.Join(a.dataDir, constants.ProcessExeName)
+			script := "#!/bin/sh\necho 'sing-box version " + test.installed + "'\n"
+			if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if got := a.GetSingboxLocalVersion(); got != test.installed {
+				t.Fatalf("local version = %q, want %q", got, test.installed)
+			}
+			if got := a.IsSingboxUpdateAvailable(); got != test.want {
+				t.Fatalf("update available = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 

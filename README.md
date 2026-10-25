@@ -12,8 +12,8 @@ route rule that pointed at them.
 
 | What | URL |
 |------|-----|
-| Client profile | `https://jorbique.one/chI6dwCVntNE/singbox_client.json` |
-| sing-box manifest | `https://jorbique.one/chI6dwCVntNE/version.json` |
+| Client profile | `https://jorbique.one/chI6dwCVntNE-extended/singbox_client.json` |
+| sing-box manifest | `https://jorbique.one/chI6dwCVntNE-extended/version.json` |
 | UUID check and metrics (OTLP) | `https://jorbique.one/otlp/v1/metrics` |
 
 The profile is shared by every user: it carries no user UUID. The UUID entered
@@ -24,6 +24,18 @@ its own Reality `short_id`.
 
 The host is a build-time variable: `-X jorbiquevpn/internal/constants.ServerHost=<host>`
 (`SERVER_HOST=<host>` for `scripts/build-windows.sh`).
+
+New app builds use the separate `chI6dwCVntNE-extended` channel for
+[sing-box-extended](https://github.com/shtorm-7/sing-box-extended). Installed
+older apps keep their original `chI6dwCVntNE` URLs, profile, and SagerNet
+`1.15.0-alpha.12` engine; deploying the extended server does not switch their
+engine channel. Publish the new channel before releasing the new app.
+
+Upgrading the app opts that installation into the extended channel. The new
+app can migrate its installed SagerNet engine even when the fork's upstream
+version is lower, such as `1.15.0-alpha.12` to `1.14.3-extended-2.7.3`. After
+migration, automatic updates accept newer extended builds and keep the full
+fork version.
 
 ---
 
@@ -104,9 +116,27 @@ version; `APP_VERSION=x.y.z` overrides it for one build.
 
 ## CI
 
-`.gitlab-ci.yml` runs on a Linux runner (Docker executor, x86_64): frontend
-checks, Go tests, and `Jorbique-VPN-windows.zip` and `Jorbique-VPN-macOS.pkg`
-as job artifacts. The macOS package is cross-built there, with no Mac involved.
+GitHub Actions runs [the build workflow](.github/workflows/ci.yml) for pull
+requests, pushes to `main`, version tags, and manual dispatches. It checks and
+builds the frontend, runs Go vet/unit/integration checks on Linux, and produces
+`Jorbique-VPN-windows.zip` and `Jorbique-VPN-macOS.pkg` as downloadable workflow
+artifacts. Windows is cross-built on Linux; the universal macOS installer
+(Apple Silicon and Intel) is built on a macOS runner, which also runs the
+macOS-only CLI tests. Linux integration checks use a pinned, checksum-verified
+sing-box-extended binary to validate generated configs and the dashboard API.
+For the same checks locally, set `SINGBOX_BIN` to a compatible sing-box executable;
+without it, real-engine checks remain skipped.
+
+To release, commit the new `VERSION` and push the matching `vX.Y.Z` tag. After
+all checks and packages succeed, the workflow publishes a GitHub Release with
+both packages and `SHA256SUMS`. Tags that do not match `VERSION` fail validation.
+A rerun can finish an unpublished draft, but cannot replace a published release.
+Build jobs have read-only repository access; only the release job can publish.
+Version resource files are generated in the CI checkout and are not committed.
+
+The macOS executable is ad-hoc signed, and the installer is not notarized or
+Developer ID signed. Signing credentials are not required for these builds;
+Gatekeeper distribution signing remains a separate configuration step.
 
 ## Tests
 

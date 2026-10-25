@@ -79,6 +79,10 @@ func TestLocalSingboxVersion(t *testing.T) {
 	if v := (&Manager{singboxExe: exe}).localSingboxVersion(); v != "1.13.7" {
 		t.Errorf("version = %q, want 1.13.7", v)
 	}
+	extended := writeFakeSingbox(t, "sing-box version 1.14.3-extended-2.7.3", 0)
+	if v := (&Manager{singboxExe: extended}).localSingboxVersion(); v != "1.14.3-extended-2.7.3" {
+		t.Errorf("extended version = %q", v)
+	}
 
 	// Binary that exits non-zero -> empty.
 	bad := writeFakeSingbox(t, "boom", 1)

@@ -1,0 +1,258 @@
+name: Build, test, and release
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CGO_ENABLED: '0'
+  GOFLAGS: -mod=readonly
+  GO_VERSION: '1.25.14'
+
+jobs:
+  frontend:
+    name: Frontend and version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Validate build and release version
+        id: version
+        run: |
+          version="$(bash scripts/app-version.sh)"
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+              echo 'Release tags must have the form vX.Y.Z.' >&2
+              exit 1
+            }
+            [[ "$GITHUB_REF_NAME" == "v$version" ]] || {
+              echo 'The release tag must match VERSION.' >&2
+              exit 1
+            }
+          fi
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install, test, and build frontend
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  test:
+    name: Go tests and vet
+    needs: frontend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      - name: Prepare pinned sing-box-extended for integration tests
+        run: |
+          version=1.14.3-extended-2.7.3
+          archive="sing-box-$version-linux-amd64.tar.gz"
+          work="$RUNNER_TEMP/sing-box-extended"
+          mkdir -p "$work"
+          curl --fail --show-error --silent --location \
+            "https://github.com/shtorm-7/sing-box-extended/releases/download/v$version/$archive" \
+            --output "$work/$archive"
+          printf '%s  %s\n' \
+            c9fd27564d55b6abc7b21c9fdd1e29dee4834e034aeb6b7b8255055bff46a3f5 \
+            "$work/$archive" | sha256sum --check -
+          tar --extract --gzip --file "$work/$archive" --directory "$work" --no-same-owner
+          binary="$work/sing-box-$version-linux-amd64/sing-box"
+          test "$("$binary" version --name)" = "$version"
+          printf 'SINGBOX_BIN=%s\n' "$binary" >> "$GITHUB_ENV"
+      - name: Verify modules and run Linux checks
+        run: |
+          go mod download
+          go mod verify
+          make vet test-unit test-integration
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: go-test-reports
+          path: |
+            junit-report.xml
+            junit-integration.xml
+            coverage.out
+            coverage.xml
+          retention-days: 14
+
+  windows:
+    name: Windows package
+    needs: [frontend, test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      APP_VERSION: ${{ needs.frontend.outputs.version }}
+      SKIP_FRONTEND: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      # Resource version stamps are generated in this disposable checkout only.
+      - name: Build and validate Windows archive
+        run: |
+          bash scripts/build-windows.sh
+          unzip -t release/binaries/Jorbique-VPN-windows.zip
+          test "$(unzip -Z1 release/binaries/Jorbique-VPN-windows.zip)" = Jorbique-VPN.exe
+          file release/binaries/Jorbique-VPN.exe | grep -F 'PE32+'
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-package
+          path: release/binaries/Jorbique-VPN-windows.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 28
+
+  macos:
+    name: macOS universal package and native tests
+    needs: [frontend, test]
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      APP_VERSION: ${{ needs.frontend.outputs.version }}
+      SKIP_FRONTEND: '1'
+      MACOS_ARCH: arm64 amd64
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      - name: Run macOS-only tests and vet
+        run: |
+          make test-macos
+          go vet ./internal/macos/... ./cmd/jorbiquevpn-macos/...
+      - name: Build and validate universal installer
+        run: |
+          report_failure() {
+            build_status=$?
+            if [[ "$build_status" != 0 ]]; then
+              python3 - "$RUNNER_TEMP/macos-package.log" <<'PY'
+          import pathlib, sys
+          log = pathlib.Path(sys.argv[1])
+          message = '\n'.join(log.read_text(errors='replace').splitlines()[-50:]) if log.exists() else 'macOS packaging failed before writing its log'
+          print('::error title=macOS package diagnostics::' + message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+          PY
+            fi
+            exit "$build_status"
+          }
+          trap report_failure EXIT
+          exec > >(tee "$RUNNER_TEMP/macos-package.log") 2>&1
+          bash build-macos.sh package
+          lipo internal/macos/JorbiqueVPN -verify_arch arm64 x86_64
+          codesign --verify --strict internal/macos/JorbiqueVPN
+          pkg=release/binaries/Jorbique-VPN-macOS.pkg
+          test -s "$pkg"
+          xar -tf "$pkg" | sed 's|^\./||' > "$RUNNER_TEMP/pkg-contents.txt"
+          for entry in Payload Bom PackageInfo Scripts; do
+            grep -qx "$entry" "$RUNNER_TEMP/pkg-contents.txt"
+          done
+          pkgutil --payload-files "$pkg" > "$RUNNER_TEMP/pkg-payload.txt"
+          grep -F 'usr/local/libexec/jorbique-vpn/JorbiqueVPN' "$RUNNER_TEMP/pkg-payload.txt"
+          grep -F 'Applications/Jorbique VPN.app/Contents/Resources/AppIcon.icns' "$RUNNER_TEMP/pkg-payload.txt"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: macos-package
+          path: release/binaries/Jorbique-VPN-macOS.pkg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 28
+
+  release:
+    name: Publish version tag
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [frontend, test, windows, macos]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          pattern: '*-package'
+          merge-multiple: true
+          path: release
+      - name: Generate release checksums
+        working-directory: release
+        run: |
+          test -s Jorbique-VPN-windows.zip
+          test -s Jorbique-VPN-macOS.pkg
+          sha256sum Jorbique-VPN-windows.zip Jorbique-VPN-macOS.pkg > SHA256SUMS
+          sha256sum --check SHA256SUMS
+      - name: Publish complete release
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            [[ "$draft" == true ]] || {
+              echo 'This release is already published; refusing to replace its assets.' >&2
+              exit 1
+            }
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft \
+              --title "Jorbique VPN $RELEASE_TAG" --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" --clobber \
+            Jorbique-VPN-windows.zip Jorbique-VPN-macOS.pkg SHA256SUMS
+          gh release edit "$RELEASE_TAG" --draft=false
