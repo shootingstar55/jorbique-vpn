@@ -6,6 +6,9 @@ package constants
 const (
 	// User-visible product name (window title, tray, installers, macOS menu).
 	AppDisplayName = "Jorbique VPN Extended"
+	// Keep the existing Windows task/registry identity so upgrades refresh the
+	// registered command rather than leaving an old executable running at login.
+	AutostartRegistrationName = "Jorbique VPN"
 
 	// Optional icon beside the executable (generated from assets/app-icon.png via scripts/branding/render-icons.sh).
 	AppIconICO = "icon.ico"

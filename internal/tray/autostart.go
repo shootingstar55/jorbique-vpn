@@ -108,7 +108,7 @@ func createLogonAutostartTask(exe string) error {
 	xml := logonTaskXML(exe)
 	return withTaskFolder(func(folder *ole.IDispatch) error {
 		registered, err := oleutil.CallMethod(folder, "RegisterTask",
-			constants.AppDisplayName, xml, taskCreateOrUpdate, runAs, nil, taskLogonInteractiveToken, nil)
+			constants.AutostartRegistrationName, xml, taskCreateOrUpdate, runAs, nil, taskLogonInteractiveToken, nil)
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func logonTaskExists() bool {
 
 func deleteLogonAutostartTask() {
 	_ = withTaskFolder(func(folder *ole.IDispatch) error {
-		_, err := oleutil.CallMethod(folder, "DeleteTask", constants.AppDisplayName, 0)
+		_, err := oleutil.CallMethod(folder, "DeleteTask", constants.AutostartRegistrationName, 0)
 		return err
 	})
 }
@@ -206,7 +206,7 @@ func deleteLogonAutostartTask() {
 func queryLogonTaskXML() (string, error) {
 	xml := ""
 	err := withTaskFolder(func(folder *ole.IDispatch) error {
-		found, err := oleutil.CallMethod(folder, "GetTask", constants.AppDisplayName)
+		found, err := oleutil.CallMethod(folder, "GetTask", constants.AutostartRegistrationName)
 		if err != nil {
 			return err
 		}
@@ -294,7 +294,7 @@ func registryAutostartPath() (string, bool) {
 		return "", false
 	}
 	defer k.Close()
-	val, _, err := k.GetStringValue(constants.AppDisplayName)
+	val, _, err := k.GetStringValue(constants.AutostartRegistrationName)
 	if err != nil {
 		return "", false
 	}
@@ -311,7 +311,7 @@ func removeRegistryRunKey() {
 		return
 	}
 	defer k.Close()
-	_ = k.DeleteValue(constants.AppDisplayName)
+	_ = k.DeleteValue(constants.AutostartRegistrationName)
 }
 
 func interactiveTaskUser() (string, error) {
