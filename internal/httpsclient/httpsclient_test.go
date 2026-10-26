@@ -15,7 +15,7 @@ func TestForHost(t *testing.T) {
 	}
 
 	// A host -> TLS 1.2+ against the system roots, nothing pinned.
-	c = ForHost("jorbique.one", time.Second)
+	c = ForHost("vpn.example.com", time.Second)
 	tr, ok := c.Transport.(*http.Transport)
 	if !ok || tr.TLSClientConfig == nil || tr.TLSClientConfig.MinVersion != tls.VersionTLS12 {
 		t.Fatalf("transport = %+v", c.Transport)

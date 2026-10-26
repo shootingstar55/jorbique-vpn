@@ -21,8 +21,11 @@ route rule that pointed at them.
 | sing-box manifest | `https://vpn.example.com/<channel>/version.json` |
 | UUID check and metrics (OTLP) | `https://vpn.example.com/otlp/v1/metrics` |
 
-The host and the channel path are set in `internal/constants` (`ServerHost`,
-`ExtendedUpdatePath`).
+The host and the channel are not in the repository. Every build links them in
+from `SERVER_HOST` and `SERVER_CHANNEL` (see `scripts/server-ldflags.sh`):
+set them in the environment or copy `build.env.example` to `build.env`
+(gitignored). CI takes them from the repository's Actions secrets with the
+same names; a build without them fails.
 
 The profile is shared by every user: it carries no user UUID. The UUID entered
 on first launch is checked against the server. The server marks the exact UUID
@@ -32,9 +35,6 @@ its marker is the HTTPMask path authorized by nginx. Legacy profiles still
 support empty top-level credential fields. NaiveProxy is tested first on every Connect and used alone when it works. Otherwise the fastest working protocol is selected. See [automatic connection checks](automatic-connections.md). nginx serves one of eight
 profile variants per request (`singbox_client.r0.json` … `r7.json`), each with
 its own Reality `short_id`.
-
-The host is a build-time variable: `-X jorbiquevpn/internal/constants.ServerHost=<host>`
-(`SERVER_HOST=<host>` for `scripts/build-windows.sh`).
 
 New app builds use the separate `<channel>-extended-v2` channel for
 [sing-box-extended](https://github.com/shtorm-7/sing-box-extended). Installed

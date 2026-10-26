@@ -7,6 +7,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cmd="${1:-install}"
+server_ldflags="$(bash "${root}/scripts/server-ldflags.sh")"
 
 if [ "${SKIP_FRONTEND:-0}" != "1" ]; then
   command -v npm >/dev/null 2>&1 || { echo "ERROR: npm is required to build the UI." >&2; exit 1; }
@@ -99,11 +100,11 @@ build_jorbique_app_icon_icns_to() {
   [ -f "${icns_dest}" ]
 }
 
-# go_ldflags is what every macOS build links with: the version, and the server
-# host when a build targets another one (SERVER_HOST).
+# go_ldflags is what every macOS build links with: the version, and the update
+# server (scripts/server-ldflags.sh).
 go_ldflags() {
   local version="$1"
-  printf '%s' "-s -w -X jorbiquevpn/internal/constants.AppVersion=${version}${SERVER_HOST:+ -X jorbiquevpn/internal/constants.ServerHost=${SERVER_HOST}}"
+  printf '%s' "-s -w -X jorbiquevpn/internal/constants.AppVersion=${version} ${server_ldflags}"
 }
 
 package_bundle() {

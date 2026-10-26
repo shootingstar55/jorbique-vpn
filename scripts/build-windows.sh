@@ -6,6 +6,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${root}"
 
 app_version="$(bash "${root}/scripts/app-version.sh")"
+server_ldflags="$(bash "${root}/scripts/server-ldflags.sh")"
 echo "==> Jorbique VPN Extended Windows build (version: ${app_version})"
 
 if [ "${SKIP_FRONTEND:-0}" != "1" ]; then
@@ -55,7 +56,7 @@ echo "==> go build"
 # embeds sing-box (that file was removed) — the client downloads it on first launch.
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
   go build -tags desktop,production \
-  -ldflags "-w -s -H windowsgui -X jorbiquevpn/internal/constants.AppVersion=${app_version}${SERVER_HOST:+ -X jorbiquevpn/internal/constants.ServerHost=${SERVER_HOST}}" \
+  -ldflags "-w -s -H windowsgui -X jorbiquevpn/internal/constants.AppVersion=${app_version} ${server_ldflags}" \
   -o "${out_dir}/${win_exe_name}" ./cmd/jorbiquevpn
 
 cp -f "${out_dir}/${win_exe_name}" "${tmp_bundle}/${win_exe_name}"

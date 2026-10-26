@@ -34,6 +34,27 @@ function Resolve-AppVersion {
 }
 
 $appVersion = Resolve-AppVersion -Current $AppVersion
+
+# The update server is not in the repository: SERVER_HOST and SERVER_CHANNEL
+# come from the environment or from build.env at the repo root (gitignored,
+# see build.env.example), the same as scripts/server-ldflags.sh.
+function Resolve-ServerLdflags {
+    $values = @{ SERVER_HOST = $env:SERVER_HOST; SERVER_CHANNEL = $env:SERVER_CHANNEL }
+    $envFile = Join-Path $root 'build.env'
+    if (Test-Path $envFile) {
+        foreach ($line in Get-Content $envFile) {
+            if ($line -match '^\s*(SERVER_HOST|SERVER_CHANNEL)\s*=\s*(.*?)\s*$' -and [string]::IsNullOrWhiteSpace($values[$Matches[1]])) {
+                $values[$Matches[1]] = $Matches[2].Trim('"', "'")
+            }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($values.SERVER_HOST) -or [string]::IsNullOrWhiteSpace($values.SERVER_CHANNEL)) {
+        throw 'SERVER_HOST and SERVER_CHANNEL must be set (environment or build.env, see build.env.example)'
+    }
+    $channel = $values.SERVER_CHANNEL.Trim('/')
+    return "-X jorbiquevpn/internal/constants.ServerHost=$($values.SERVER_HOST) -X jorbiquevpn/internal/constants.ExtendedUpdatePath=/$channel/"
+}
+$serverLdflags = Resolve-ServerLdflags
 Write-Host "==> Jorbique VPN Extended Windows build (version: $appVersion)"
 
 Write-Host '==> frontend'
@@ -65,7 +86,7 @@ Write-Host '==> go build'
 # 'production' is required by Wails itself (dev vs production runtime); it no
 # longer embeds sing-box (that file was removed) — the client downloads it.
 go build -tags desktop,production `
-    -ldflags "-w -s -H windowsgui -X jorbiquevpn/internal/constants.AppVersion=$appVersion" `
+    -ldflags "-w -s -H windowsgui -X jorbiquevpn/internal/constants.AppVersion=$appVersion $serverLdflags" `
     -o $outExe ./cmd/jorbiquevpn
 if (Test-Path $outZip) { Remove-Item $outZip -Force }
 Compress-Archive -Path $outExe -DestinationPath $outZip -Force
