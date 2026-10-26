@@ -443,7 +443,10 @@ func (m *Manager) startOne(v core.VPNItem) error {
 	cacheFile := singbox.NewOrderedMap()
 	cacheFile.Set("enabled", true)
 	cacheFile.Set("path", filepath.Join(cacheDir, "cache.db"))
-	cacheFile.Set("cache_id", cacheID)
+	// "-v2": sing-box restores a selector choice stored in the cache over the
+	// config's "default", and older builds stored one through the local API.
+	// Nothing writes one now, so a fresh namespace leaves "default" in charge.
+	cacheFile.Set("cache_id", cacheID+"-v2")
 	cacheFile.Set("store_fakeip", false)
 	cacheFile.Set("store_dns", true)
 	experimental := singbox.NewOrderedMap()
@@ -479,10 +482,6 @@ func (m *Manager) startOne(v core.VPNItem) error {
 		return core.StartFailed("sing-box did not stay running for " + v.Name)
 	}
 	procutil.WritePID(spawnPid, pidPath)
-	if err := selection.Activate(context.Background(), sbPath); err != nil {
-		m.stopOne(v)
-		return core.StartFailed("Could not activate the checked connection. Try again.")
-	}
 	m.Logger.Debug(fmt.Sprintf("Started %s (pid=%d)", v.Name, spawnPid))
 	fmt.Println(ansiutil.Green("✓ singbox started"))
 	return nil

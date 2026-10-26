@@ -18,19 +18,11 @@
       "udp_timeout": "5m"
     }
   ],
-  "services": [
-    {
-      "type": "api",
-      "tag": "local-api",
-      "listen": "127.0.0.1",
-      "listen_port": 39217
-    }
-  ],
   "experimental": {
     "cache_file": {
       "enabled": true,
       "path": "cache/tun/cache.db",
-      "cache_id": "tun",
+      "cache_id": "tun-v2",
       "store_fakeip": false,
       "store_dns": true
     }

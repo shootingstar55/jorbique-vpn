@@ -32,11 +32,6 @@ type mainState struct {
 	ConnectionProgress autoconnect.Progress `json:"connectionProgress"`
 	VPNAutostart       bool                 `json:"vpnAutostart"`
 	AppAutostart       bool                 `json:"appAutostart"`
-	// What the core has carried, straight from its own API. Zero with nothing
-	// running, which is when the window
-	// draws dashes instead.
-	UplinkTotal   int64 `json:"uplinkTotal"`
-	DownlinkTotal int64 `json:"downlinkTotal"`
 }
 
 // mainAction is one press in the window: the connect ring, a switch, or a button

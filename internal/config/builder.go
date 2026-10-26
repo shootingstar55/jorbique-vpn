@@ -10,7 +10,6 @@ import (
 
 	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/jsonorder"
-	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/paths"
 	"jorbiquevpn/internal/singboxcfg"
 )
@@ -41,9 +40,7 @@ func BuildRuntimeConfig(remoteJSON []byte, options RuntimeOptions) (string, erro
 	}
 
 	fixPathsInConfig(cfg)
-	if err := localapi.ConfigureAPI(cfg, ""); err != nil {
-		return "", err
-	}
+	singboxcfg.RemoveLocalAPI(cfg)
 
 	// Read before filtering: a transport kept only because a group nothing
 	// routes to still names it has, once its proxies are off, nothing detouring

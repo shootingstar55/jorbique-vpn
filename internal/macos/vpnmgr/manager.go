@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"jorbiquevpn/internal/autoconnect"
-	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/ansiutil"
 	"jorbiquevpn/internal/macos/control"
 	"jorbiquevpn/internal/macos/core"
@@ -1026,7 +1025,6 @@ func (m *Manager) rebuildSingboxConfigs(uuid string, enabled, disabled []string)
 		m.Logger.Log(ansiutil.Green("✓ Re-applied route rules / DNS to sing-box after remote template"))
 	}
 	m.normalizeSingboxConfigs()
-	m.switchSelectorNow()
 	return nil
 }
 
@@ -1229,35 +1227,6 @@ func (m *Manager) EnsureDaemonInstalled() error {
 		)
 	}
 	return launchd.Install(m.Paths.ExecutablePath(), m.Cfg.EffectivePaths().LaunchDaemonLabel, m.Logger)
-}
-
-// switchSelectorNow points a running tunnel at the stored node, so a choice made
-// in the panel takes effect without a reconnect. A selector is switchable only
-// through sing-box's API, and that API exists only while it is running — a
-// failure here means "not running", which the written config already covers.
-func (m *Manager) switchSelectorNow() {
-	node := m.selectedNode()
-	if node == "" {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	for _, path := range m.singboxConfigPathsToUpdate() {
-		client, err := localapi.NewClient(path)
-		if err != nil {
-			continue
-		}
-		group, err := client.Selector(ctx)
-		if err != nil {
-			continue
-		}
-		if err := client.SelectOutbound(ctx, group.Tag, node); err != nil {
-			m.Logger.Warn("Could not switch the running selector to " + node + ": " + err.Error())
-			return
-		}
-		m.Logger.Log(ansiutil.Green("✓ Switched the running selector to " + node))
-		return
-	}
 }
 
 // RefreshRemoteProfile downloads the sing-box profile into the cache beside the
