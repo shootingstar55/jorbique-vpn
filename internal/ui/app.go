@@ -80,6 +80,8 @@ func (a *App) GetUserUUID() string { return a.backend.GetUserUUID() }
 
 func (a *App) GetConnectionProgress() autoconnect.Progress { return a.backend.GetConnectionProgress() }
 
+func (a *App) GetConnectionReport() autoconnect.Report { return a.backend.GetConnectionReport() }
+
 func (a *App) SetUserUUID(uuid string) error { return wrapBackendError(a.backend.SetUserUUID(uuid)) }
 
 // SetNaiveMode switches between the NaiveProxy mode and the profile's other protocols.

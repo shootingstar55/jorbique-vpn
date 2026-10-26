@@ -24,7 +24,11 @@ type Measurement struct {
 
 type Result struct {
 	Working []Measurement
-	Naive   bool
+	// Failed lists the protocols whose check ran and did not pass. A protocol
+	// in neither list was never checked: Naive won first, or the scan ran out
+	// of time before reaching it.
+	Failed []string
+	Naive  bool
 }
 
 func (r Result) Winner() string {
@@ -79,6 +83,7 @@ func Select(ctx context.Context, profile *jsonorder.Map, probe Probe, logf func(
 		}
 	}
 	update()
+	var failed []string
 	test := func(tag string) (Measurement, error) {
 		if err := ctx.Err(); err != nil {
 			return Measurement{}, err
@@ -87,6 +92,9 @@ func Select(ctx context.Context, profile *jsonorder.Map, probe Probe, logf func(
 			logf("Checking connection: " + tag)
 		}
 		m, err := probe(ctx, tag)
+		if err != nil && ctx.Err() == nil {
+			failed = append(failed, tag)
+		}
 		progress.Completed++
 		update()
 		m.Tag = tag
@@ -104,7 +112,7 @@ func Select(ctx context.Context, profile *jsonorder.Map, probe Probe, logf func(
 			continue
 		}
 		if m, err := test(tag); err == nil {
-			return Result{Working: []Measurement{m}, Naive: true}, nil
+			return Result{Working: []Measurement{m}, Failed: failed, Naive: true}, nil
 		}
 	}
 	result := Result{}
@@ -126,6 +134,7 @@ func Select(ctx context.Context, profile *jsonorder.Map, probe Probe, logf func(
 	if len(result.Working) == 0 {
 		return Result{}, ErrUnavailable
 	}
+	result.Failed = failed
 	sort.SliceStable(result.Working, func(i, j int) bool { return result.Working[i].Elapsed < result.Working[j].Elapsed })
 	return result, nil
 }
