@@ -9,7 +9,7 @@
  * standalone panel, served by the menu bar's loopback origin). Closing it there
  * quits the app.
  */
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { NAlert, NButton, NInput } from 'naive-ui';
 import { binding } from '../lib/bindings.js';
 import { panelAPI } from '../lib/panel-api.js';
@@ -21,6 +21,8 @@ import ThemeSwitch from './ThemeSwitch.vue';
 const props = defineProps({
   /** The macOS panel: no Wails bindings, and a Quit button of its own. */
   standalone: { type: Boolean, default: false },
+  /** A UUID from a jorbique:// link: filled in and checked straight away. */
+  presetUuid: { type: String, default: '' },
 });
 const emit = defineEmits(['activated']);
 
@@ -59,6 +61,16 @@ async function activate() {
     checking.value = false;
   }
 }
+
+watch(
+  () => props.presetUuid,
+  (value) => {
+    if (!value) return;
+    uuid.value = value;
+    activate();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>

@@ -35,6 +35,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- jorbique://import?uuid=… from the /sub page's «Открыть в Jorbique VPN». -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="jorbique" android:host="import" />
+            </intent-filter>
         </activity>
 
         <service

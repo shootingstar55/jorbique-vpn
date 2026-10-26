@@ -72,6 +72,12 @@ ln -sf "$LIBEXEC/jorbique-vpn-admin" "$BIN/jorbique-vpn-admin"
 /usr/bin/xattr -cr "${PREFIX}/Applications/Jorbique VPN Extended.app" 2>/dev/null || true
 /usr/bin/codesign --force --sign - "$LIBEXEC/JorbiqueVPN" 2>/dev/null || true
 /usr/bin/codesign --force --sign - "${PREFIX}/Applications/Jorbique VPN Extended.app" 2>/dev/null || true
+# Re-signing changed the bundle after the installer registered it; tell Launch
+# Services again, so jorbique:// links from the /sub page open this app.
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+if [ -z "$PREFIX" ] && [ -x "$LSREGISTER" ]; then
+  "$LSREGISTER" -f "/Applications/Jorbique VPN Extended.app" 2>/dev/null || true
+fi
 
 # Remove the previous launcher only when its bundle identity is ours. The
 # persistent data and launchd service keep their existing identifiers.

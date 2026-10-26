@@ -8,3 +8,6 @@ func TryMutex() (release func(), ok bool) {
 		// No mutex was taken, so there is nothing to release.
 	}, true
 }
+
+// IsRunning is always false off Windows, where TryMutex takes nothing.
+func IsRunning() bool { return false }

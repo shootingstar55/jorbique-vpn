@@ -30,6 +30,11 @@ import java.util.concurrent.CompletableFuture
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
+
+    /** The UUID of a jorbique:// link the page has not taken yet. */
+    @Volatile
+    private var pendingImportUUID: String? = null
+
     private var vpnPermission: CompletableFuture<Boolean>? = null
 
     private val vpnPermissionLauncher =
@@ -83,6 +88,25 @@ class MainActivity : AppCompatActivity() {
         webView.setBackgroundColor(Color.TRANSPARENT)
         webView.addJavascriptInterface(Bridge(this, webView), "JorbiqueAndroid")
         webView.loadUrl("https://$APP_HOST/assets/web/index.html")
+        // The page takes the link when it loads (TakePendingImportUUID).
+        pendingImportUUID = importUUID(intent)
+    }
+
+    // singleTask: a link that finds the app open arrives here, and the page is
+    // told to take it now.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val uuid = importUUID(intent) ?: return
+        pendingImportUUID = uuid
+        webView.evaluateJavascript("window.dispatchEvent(new Event('jorbique-import'))", null)
+    }
+
+    /** Hands the page the waiting link's UUID once; "" when there is none. */
+    fun takePendingImportUUID(): String {
+        val uuid = pendingImportUUID ?: return ""
+        pendingImportUUID = null
+        return uuid
     }
 
     override fun onDestroy() {
@@ -126,6 +150,24 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val APP_HOST = "appassets.androidplatform.net"
+
+        private val UUID_PATTERN =
+            Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+        /**
+         * The UUID of a jorbique://import?uuid=… link, or null. Any page can
+         * open such a link, so nothing but a well-formed UUID is read from it
+         * (the same rule as internal/deeplink on the desktop).
+         */
+        fun importUUID(intent: Intent?): String? {
+            if (intent?.action != Intent.ACTION_VIEW) return null
+            val uri = intent.data ?: return null
+            if (!uri.scheme.equals("jorbique", ignoreCase = true)) return null
+            if (!uri.host.equals("import", ignoreCase = true)) return null
+            val uuid = runCatching { uri.getQueryParameter("uuid") }.getOrNull()
+                ?.trim()?.lowercase() ?: return null
+            return uuid.takeIf { UUID_PATTERN.matches(it) }
+        }
 
         private fun parseCssColor(value: String): Int? {
             val parts = Regex("""rgba?\(([^)]*)\)""").find(value)?.groupValues?.get(1)
