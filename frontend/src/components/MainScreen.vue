@@ -882,6 +882,12 @@ onBeforeUnmount(() => {
   font-size: 18px;
 }
 
+/* Three equal columns are narrower than "Изменить UUID" at phone width. */
+.screen--phone .actions {
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+}
+
 .screen--phone .brand__logo {
   width: 36px;
   height: 40px;

@@ -17,6 +17,8 @@ let nextId = 0;
 let app = null;
 
 if (isAndroid) {
+  // The stylesheet lets the page fill the phone's screen on this mark.
+  document.documentElement.dataset.platform = 'android';
   window.__jorbiqueSettle = (id, ok, payload) => {
     const call = pending.get(id);
     if (!call) return;

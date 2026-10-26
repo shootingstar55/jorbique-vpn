@@ -83,6 +83,15 @@ body {
   min-height: 0;
 }
 
+/* On a phone the page is the whole screen, so it is carried down through Naive's
+   provider wrapper to the shell; a desktop window is sized to the content instead. */
+:root[data-platform='android'] #app > .n-config-provider {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 input,
 textarea,
 pre,
