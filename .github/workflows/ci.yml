@@ -30,6 +30,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       version: ${{ steps.version.outputs.version }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -49,6 +50,20 @@ jobs:
             }
           fi
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          # What this run publishes: a pushed tag, or on main a VERSION newer than every
+          # released one. Merging the bump is the release; nobody has to push a tag.
+          release_tag=''
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
+            release_tag="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/main ]]; then
+            tags="$(git ls-remote --tags --refs "https://github.com/$GITHUB_REPOSITORY" 'v*' \
+              | sed -n 's|.*refs/tags/v\([0-9]*\.[0-9]*\.[0-9]*\)$|\1|p')"
+            newest="$(printf '%s\n' "$tags" "$version" | sed '/^$/d' | sort -V | tail -n1)"
+            if [[ "$newest" == "$version" ]] && ! grep -qx "$version" <<<"$tags"; then
+              release_tag="v$version"
+            fi
+          fi
+          printf 'release_tag=%s\n' "$release_tag" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
@@ -224,7 +239,7 @@ jobs:
 
   release:
     name: Publish version tag
-    if: github.event_name == 'push' && github.ref_type == 'tag'
+    if: needs.frontend.outputs.release_tag != ''
     needs: [frontend, test, windows, macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -257,15 +272,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ needs.frontend.outputs.release_tag }}
         run: |
+          # A tag push brings its own tag; a release from main creates it on this commit.
+          # Tags made with the workflow token start no workflow, so this run is the only one.
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            tag_source=(--verify-tag)
+          else
+            tag_source=(--target "$GITHUB_SHA")
+          fi
           if draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
             [[ "$draft" == true ]] || {
               echo 'This release is already published; refusing to replace its assets.' >&2
               exit 1
             }
           else
-            gh release create "$RELEASE_TAG" --verify-tag --draft \
+            gh release create "$RELEASE_TAG" "${tag_source[@]}" --draft \
               --title "Jorbique VPN Extended $RELEASE_TAG" --generate-notes
           fi
           gh release upload "$RELEASE_TAG" --clobber \
