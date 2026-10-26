@@ -9,30 +9,24 @@ import (
 	"jorbiquevpn/internal/dashboard"
 )
 
-// showSingboxConfigPanel presents the VPN configuration form: the UUID, the
-// mode, and a switch per protocol the profile offers.
-func showSingboxConfigPanel(initialUUID string, initialEnabled, available []string, initialNaive bool, onSubmit func(string, []string, string) error, onClosed func()) (*webPanel, error) {
+// showUUIDEditPanel contains only the saved account UUID.
+func showUUIDEditPanel(initialUUID string, onSubmit func(string) error, onClosed func()) (*webPanel, error) {
 	assets, err := frontendAssets()
 	if err != nil {
 		return nil, err
 	}
-	return showWebPanel("VPN configuration", 780, 620, 640, 480, func(closeWindow func()) (*dashboard.LocalServer, error) {
-		return dashboard.StartConfigServer(
-			panelQuery("vpn-config"),
-			singboxConfigState(initialUUID, initialEnabled, available, initialNaive),
-			assets,
+	return showWebPanel("Set UUID", 520, 300, 440, 260, func(closeWindow func()) (*dashboard.LocalServer, error) {
+		return dashboard.StartConfigServer(panelQuery("set-uuid"), dashboard.ConfigState{UUID: initialUUID}, assets,
 			func(update dashboard.ConfigUpdate) error {
-				uuid, enabled, err := singboxConfigSelection(update, available)
-				if err != nil {
-					return err
+				uuid := strings.TrimSpace(update.UUID)
+				if !validSingboxUUID(uuid) {
+					return fmt.Errorf("Enter a valid user UUID")
 				}
-				if onSubmit == nil {
-					return nil
+				if onSubmit != nil {
+					return onSubmit(uuid)
 				}
-				return onSubmit(uuid, enabled, singboxModeLine(update.NaiveMode))
-			},
-			closeWindow,
-		)
+				return nil
+			}, closeWindow)
 	}, onClosed)
 }
 

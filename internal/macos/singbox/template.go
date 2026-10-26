@@ -283,6 +283,20 @@ func localRootOrDefault(path string) *OrderedMap {
 // replaces uuid/password, prunes proxy outbounds based on enabled tags, and merges with base local inbounds.
 // warnf, when set, reports a fallback to the cached profile; it may be nil.
 func BuildConfigFromRemoteTemplate(settings core.SingboxSection, baseConfigPath string, timeout time.Duration, warnf func(string)) (*OrderedMap, error) {
+	body, err := FetchAutomaticTemplate(baseConfigPath, timeout, warnf)
+	if err != nil {
+		return nil, err
+	}
+	return BuildConfigFromTemplate(settings, baseConfigPath, body, warnf)
+}
+
+// FetchAutomaticTemplate takes one immutable snapshot for a whole connection
+// scan and the resulting tunnel, including the server's Sudoku key and fields.
+func FetchAutomaticTemplate(baseConfigPath string, timeout time.Duration, warnf func(string)) ([]byte, error) {
+	return fetchTemplateOrCache(remoteTemplateCachePath(baseConfigPath), timeout, warnf)
+}
+
+func BuildConfigFromTemplate(settings core.SingboxSection, baseConfigPath string, body []byte, warnf func(string)) (*OrderedMap, error) {
 	// The local half — the TUN inbound and where the log goes — is built here
 	// when there is no file to read it from, so a machine whose config was
 	// deleted (or that has never run) gets one from the downloaded profile
@@ -290,10 +304,6 @@ func BuildConfigFromRemoteTemplate(settings core.SingboxSection, baseConfigPath 
 	baseRoot := localRootOrDefault(baseConfigPath)
 	localAPISecret := dashboard.APISecret(baseRoot)
 
-	body, err := fetchTemplateOrCache(remoteTemplateCachePath(baseConfigPath), timeout, warnf)
-	if err != nil {
-		return nil, err
-	}
 	remoteRoot := NewOrderedMap()
 	if err := unmarshalToOrderedMap(body, remoteRoot); err != nil {
 		return nil, core.BadConfig("template parse: " + err.Error())
@@ -389,6 +399,9 @@ func templateOutbounds(remoteRoot *OrderedMap, settings core.SingboxSection, war
 		enabledSet[tag] = true
 	}
 	enabledSet = singboxcfg.ModeEnabled(outbounds, available, enabledSet, settings.NaiveMode)
+	if settings.AutomaticOutbounds != nil {
+		enabledSet = settings.AutomaticOutbounds
+	}
 	// The UUID is the credential the protocols authenticate with.
 	if u == "" && (settings.NaiveMode || len(enabled) > 0) {
 		return nil, core.BadConfig("sing-box uuid is empty")

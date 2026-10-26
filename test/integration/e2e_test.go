@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/config"
 	"jorbiquevpn/internal/dashboard"
 )
@@ -154,5 +155,88 @@ func validateWithSingbox(t *testing.T, configPath string) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("sing-box check failed: %v\n%s", err, out)
+	}
+}
+
+// A persistent DNS cache may also remember the old manual selector. A fresh
+// automatic connection must actually use its measured winner after startup.
+func TestAutomaticWinnerOverridesCachedManualSelection(t *testing.T) {
+	bin := strings.TrimSpace(os.Getenv("SINGBOX_BIN"))
+	if bin == "" {
+		t.Skip("SINGBOX_BIN not set")
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	_ = listener.Close()
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "automatic.json")
+	raw, _ := json.Marshal(map[string]any{
+		"log": map[string]any{"disabled": true},
+		"outbounds": []any{
+			map[string]any{"type": "socks", "tag": "fast", "server": "127.0.0.1", "server_port": 1},
+			map[string]any{"type": "socks", "tag": "slow", "server": "127.0.0.1", "server_port": 2},
+			map[string]any{"type": "selector", "tag": "auto", "outbounds": []string{"fast", "slow"}, "default": "fast"},
+		}, "route": map[string]any{"final": "auto"},
+		"services":     []any{map[string]any{"type": "api", "listen": "127.0.0.1", "listen_port": port, "secret": "test-secret"}},
+		"experimental": map[string]any{"cache_file": map[string]any{"enabled": true, "path": filepath.Join(dir, "cache.db"), "store_dns": true}},
+	})
+	if err := os.WriteFile(configPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	client, err := dashboard.NewClient(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := func() func() {
+		cmd := exec.Command(bin, "run", "-c", configPath)
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		stop := func() {
+			_ = cmd.Process.Signal(os.Interrupt)
+			done := make(chan struct{})
+			go func() { _ = cmd.Wait(); close(done) }()
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				_ = cmd.Process.Kill()
+				<-done
+			}
+		}
+		ready := time.Now().Add(5 * time.Second)
+		for {
+			if _, err := client.Groups(context.Background()); err == nil {
+				break
+			}
+			if time.Now().After(ready) {
+				stop()
+				t.Fatal("API not ready")
+			}
+			time.Sleep(30 * time.Millisecond)
+		}
+		return stop
+	}
+	stop := start()
+	if err := client.SelectOutbound(context.Background(), "auto", "slow"); err != nil {
+		stop()
+		t.Fatal(err)
+	}
+	stop()
+	stop = start()
+	defer stop()
+	groups, err := client.Groups(context.Background())
+	if err != nil || len(groups) != 1 || groups[0].Selected != "slow" {
+		t.Fatalf("cached choice was not restored: %+v %v", groups, err)
+	}
+	selection := autoconnect.Result{Working: []autoconnect.Measurement{{Tag: "fast"}, {Tag: "slow"}}}
+	if err := selection.Activate(context.Background(), configPath); err != nil {
+		t.Fatal(err)
+	}
+	groups, err = client.Groups(context.Background())
+	if err != nil || len(groups) != 1 || groups[0].Selected != "fast" {
+		t.Fatalf("winner not active: %+v %v", groups, err)
 	}
 }

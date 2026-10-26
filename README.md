@@ -21,7 +21,7 @@ on first launch is checked against the server. The server marks the exact UUID
 fields with `__JORBIQUE_USER_UUID__`; the client replaces only these markers in
 the new profile. Sudoku receives its server key and TLS settings unchanged;
 its marker is the HTTPMask path authorized by nginx. Legacy profiles still
-support empty top-level credential fields. NaiveProxy remains a separate mode. nginx serves one of eight
+support empty top-level credential fields. On every Connect, NaiveProxy is tested first and used alone when it works; otherwise the client tests the remaining protocols and selects the fastest working connection. nginx serves one of eight
 profile variants per request (`singbox_client.r0.json` … `r7.json`), each with
 its own Reality `short_id`.
 
@@ -42,14 +42,25 @@ fork version.
 
 ---
 
+## Automatic connections
+
+Each Connect starts a fresh check before creating the TUN interface:
+
+1. Test NaiveProxy first. If it completes two trusted HTTPS transfers, use it alone.
+2. Otherwise test each remaining server-provided protocol with the same two 64-KiB payloads, through an isolated loopback SOCKS proxy with remote DNS.
+3. Keep successful candidates and choose the lowest total transfer time as the primary connection. An open port, authentication refusal, truncated response or 16-KiB stall does not count as success.
+4. Apply that winner after engine startup too, overriding any selector restored from its persistent cache. If every check fails, leave the VPN disconnected.
+
+The animated connection card shows actual stages and finished-check counts. Tests are sequential, bounded to 10 seconds per candidate and 75 seconds for the scan, and download at most 128 KiB per successful candidate. The common measurement target is `https://speed.cloudflare.com/__down?bytes=65536`; this is a short comparison of current paths, not a sustained bandwidth benchmark. The UI offers no protocol switches. Historical manual selections and unsaved account drafts do not override a new scan; the existing saved UUID, app/site exceptions and autostart settings survive an upgrade.
+
 ## Windows
 
 Build (on Windows: `build-windows.bat`; elsewhere: `scripts/build-windows.sh`),
 then:
 
 1. Extract **Jorbique-VPN-Extended-windows.zip**.
-2. Run **Jorbique-VPN.exe** with administrator privileges.
-3. Enter your user UUID, then use **Connect** / **Disconnect**, protocol settings, VPN Config and Logs in the main window.
+2. Run **Jorbique-VPN-Extended.exe** with administrator privileges.
+3. Enter your user UUID once, then use **Connect** / **Disconnect**. **Set UUID** changes the saved account; protocol selection is automatic. App/site exceptions, autostart and Logs remain available.
 
 The tray icon exposes the same actions as the main window. sing-box is
 downloaded from the server on first launch.
@@ -66,7 +77,7 @@ downloaded from the server on first launch.
 ```
 
 1. Open **Jorbique-VPN-Extended-macOS.pkg** and install it.
-2. **Jorbique VPN.app** appears in **Applications**.
+2. **Jorbique VPN Extended.app** appears in **Applications**.
 3. Launch the app and enter your user UUID. The package installs the privileged daemon; an administrator prompt appears only if that service needs to be restored.
 
 The menu bar runs as the logged-in user and never as root. Operations that need

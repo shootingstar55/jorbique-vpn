@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/config"
 	"jorbiquevpn/internal/server"
 )
@@ -76,8 +77,8 @@ func TestApp_NaiveModeIgnoresTheProtocolToggles(t *testing.T) {
 	if _, err := a.SetVpnUserConfig(appTestUUID, map[string]bool{"vless-reality": false, "tuic": false}); err != nil {
 		t.Fatal(err)
 	}
-	if a.HasVpnUserConfig() {
-		t.Fatal("every protocol off has nothing to route through")
+	if !a.HasVpnUserConfig() {
+		t.Fatal("old protocol toggles must not block automatic connection")
 	}
 	if _, err := a.SetNaiveMode(true); err != nil {
 		t.Fatal(err)
@@ -97,7 +98,7 @@ func TestApp_NaiveModeBuildsFromNaiveAloneWithTheUUIDAsUsername(t *testing.T) {
 	if _, err := a.SetNaiveMode(true); err != nil {
 		t.Fatal(err)
 	}
-	path, err := a.buildRuntimeConfig([]byte(naiveModeProfile))
+	path, err := a.buildRuntimeConfig([]byte(naiveModeProfile), autoconnect.Result{Naive: true, Working: []autoconnect.Measurement{{Tag: "naive"}}})
 	if err != nil {
 		t.Fatalf("buildRuntimeConfig: %v", err)
 	}
@@ -122,7 +123,7 @@ func TestApp_ProtocolsModeLeavesNaiveOut(t *testing.T) {
 	if _, err := a.SetVpnUserConfig(appTestUUID, map[string]bool{"vless-reality": true, "naive": true}); err != nil {
 		t.Fatal(err)
 	}
-	path, err := a.buildRuntimeConfig([]byte(naiveModeProfile))
+	path, err := a.buildRuntimeConfig([]byte(naiveModeProfile), autoconnect.Result{Working: []autoconnect.Measurement{{Tag: "vless-reality"}}})
 	if err != nil {
 		t.Fatalf("buildRuntimeConfig: %v", err)
 	}

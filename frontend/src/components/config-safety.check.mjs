@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { getErrMsg } from '../lib/errors.js';
+import { looksLikeUUID } from '../lib/activation.js';
 
 // Exercise the component handlers with a failed native read, then a successful retry.
 // A missing response must never become a new empty/default config on disk.
@@ -14,7 +15,7 @@ function loadHandlers(file, bindings, names) {
     watch: () => {}, onMounted: () => {}, onBeforeUnmount: () => {}, nextTick: async () => {},
     defineProps: () => ({ standalone: false }), defineEmits: () => (...args) => events.push(args),
     useMessage: () => ({}), clearTimeout, setTimeout,
-    binding: (name) => bindings[name], getErrMsg, loadAvailableOutbounds: async () => [],
+    binding: (name) => bindings[name], getErrMsg, looksLikeUUID, loadAvailableOutbounds: async () => [],
   };
   runInNewContext(`${source}\nglobalThis.handlers = { ${names} };`, context);
   return { ...context.handlers, events };
@@ -61,20 +62,21 @@ assert.ok(ignore.events.some(([event]) => event === 'error'), 'a failed pre-clos
 assert.ok(ignore.events.some(([event]) => event === 'update:visible'));
 
 const configBindings = {
-  GetVpnUserConfig: fail,
-  SetVpnUserConfig: async (...args) => writes.push(args),
+  GetUserUUID: fail,
+  SetUserUUID: async (...args) => writes.push(args),
 };
-const config = loadHandlers('./VpnConfigModal.vue', configBindings, 'load, save, hydrated');
+const config = loadHandlers('./UuidModal.vue', configBindings, 'load, save, hydrated');
 const before = writes.length;
 await config.load();
 await config.save();
 assert.equal(config.hydrated.value, false);
 assert.equal(writes.length, before, 'an unreadable config must not be overwritten');
-configBindings.GetVpnUserConfig = async () => ({ uuid: 'saved-uuid' });
+const savedUUID = '11111111-1111-4111-8111-111111111111';
+configBindings.GetUserUUID = async () => savedUUID;
 await config.load();
 assert.equal(config.hydrated.value, true);
 await config.save();
-assert.equal(writes.at(-1)[0], 'saved-uuid', 'the saved UUID survives retry');
+assert.equal(writes.at(-1)[0], savedUUID, 'the saved UUID survives retry');
 
 assert.equal(getErrMsg({ toString() { throw new Error('not printable'); } }, 'Fallback'), 'Fallback');
 console.log('Config reads fail closed; saved ignore rules and the account survive retry');

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/jsonorder"
 	"jorbiquevpn/internal/macos/ansiutil"
@@ -310,6 +311,9 @@ func (m *Manager) startOne(v core.VPNItem) error {
 	if m.IsRunning(v) {
 		return nil
 	}
+	report := func(p autoconnect.Progress) { autoconnect.WriteProgress(m.Paths.RunDir, p) }
+	report(autoconnect.Progress{Phase: "preparing"})
+	defer os.Remove(filepath.Join(m.Paths.RunDir, autoconnect.ProgressFile))
 	pidPath := m.Paths.PIDFile(v.Name)
 	logPath := m.Paths.LogFile(v.Name)
 
@@ -324,20 +328,66 @@ func (m *Manager) startOne(v core.VPNItem) error {
 		return core.StartFailed("cannot create the config directory for " + v.Name + ": " + err.Error())
 	}
 	m.Logger.Debug("Using sing-box config: " + sbPath)
-	if m.Cfg.Singbox.NaiveMode {
-		if err := m.ensureNaiveSingbox(); err != nil {
-			return err
-		}
-	}
-
 	uuid := strings.TrimSpace(m.Cfg.Singbox.UUID)
-	enabled := m.effectiveEnabledSingboxOutbounds()
-	disabled := m.disabledSingboxOutbounds()
 	baseConfigPath := filepath.Join(filepath.Dir(sbPath), "singbox.json")
-	root, err := singbox.BuildConfigFromRemoteTemplate(core.SingboxSection{UUID: uuid, EnabledOutbounds: enabled, DisabledOutbounds: disabled, SelectedNode: m.selectedNode(), NaiveMode: m.Cfg.Singbox.NaiveMode}, baseConfigPath, 12*time.Second, m.Logger.Warn)
+	body, err := singbox.FetchAutomaticTemplate(baseConfigPath, 12*time.Second, m.Logger.Warn)
 	if err != nil {
 		return err
 	}
+	profile := jsonorder.New()
+	if err := jsonorder.Unmarshal(body, profile); err != nil {
+		return err
+	}
+	probe := m.connectionProbe
+	if probe == nil {
+		// Missing optional engine features must not disable working transports.
+		raw, _ := profile.Get("outbounds")
+		outbounds, _ := raw.([]any)
+		for _, raw := range outbounds {
+			ob, ok := raw.(*jsonorder.Map)
+			if !ok {
+				continue
+			}
+			switch ob.GetString("type") {
+			case "naive":
+				if err := m.ensureNaiveSingbox(); err != nil {
+					m.Logger.Warn(err.Error())
+				}
+			case "sudoku":
+				if err := m.ensureSingboxBuildTag("with_sudoku", "Sudoku outbound"); err != nil {
+					m.Logger.Warn(err.Error())
+				}
+			}
+		}
+		engine := m.singboxCommand(v, sbPath)[0]
+		runner, err := autoconnect.NewRunner(engine, filepath.Dir(engine), body, uuid)
+		if err != nil {
+			return err
+		}
+		defer runner.Close()
+		probe = runner.Probe
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), autoconnect.ScanTimeout)
+	defer cancel()
+	selection, err := autoconnect.Select(ctx, profile, probe, m.Logger.Log, report)
+	if err != nil {
+		return core.StartFailed(autoconnect.ErrUnavailable.Error())
+	}
+	enabled, disabled := []string{}, []string{}
+	for tag, on := range selection.Enabled(profile) {
+		if on {
+			enabled = append(enabled, tag)
+		} else {
+			disabled = append(disabled, tag)
+		}
+	}
+	root, err := singbox.BuildConfigFromTemplate(core.SingboxSection{UUID: uuid, EnabledOutbounds: enabled, DisabledOutbounds: disabled, NaiveMode: selection.Naive, AutomaticOutbounds: selection.Enabled(profile)}, baseConfigPath, body, m.Logger.Warn)
+	if err != nil {
+		return err
+	}
+	selection.ConfigureGroups(root)
+	report(autoconnect.Progress{Phase: "starting"})
+	m.Logger.Log("Automatically selected connection: " + selection.Winner())
 	if raw, ok := root.Get("outbounds"); ok {
 		if outbounds, ok := raw.([]any); ok {
 			for _, rawOutbound := range outbounds {
@@ -399,6 +449,10 @@ func (m *Manager) startOne(v core.VPNItem) error {
 		return core.StartFailed("sing-box did not stay running for " + v.Name)
 	}
 	procutil.WritePID(spawnPid, pidPath)
+	if err := selection.Activate(context.Background(), sbPath); err != nil {
+		m.stopOne(v)
+		return core.StartFailed("Could not activate the checked connection. Try again.")
+	}
 	m.Logger.Debug(fmt.Sprintf("Started %s (pid=%d)", v.Name, spawnPid))
 	fmt.Println(ansiutil.Green("✓ singbox started"))
 	return nil

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/macos/ansiutil"
 	"jorbiquevpn/internal/macos/control"
@@ -44,7 +45,8 @@ type Manager struct {
 	NetworkSetup *netsetup.NetworkSetup
 
 	// singboxExe is a resolved path to sing-box (bundled next to the binary or from PATH).
-	singboxExe string
+	singboxExe      string
+	connectionProbe autoconnect.Probe
 
 	// Modification time of the settings the daemon last read.
 	cfgModTime time.Time
@@ -944,6 +946,9 @@ func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 	}
 	m.Cfg = cfg
 	// Nothing said about the account here means the stored one still applies.
+	if len(cleaned) == 1 {
+		return nil
+	}
 	if uuid == "" {
 		uuid = strings.TrimSpace(m.Cfg.Singbox.UUID)
 	}

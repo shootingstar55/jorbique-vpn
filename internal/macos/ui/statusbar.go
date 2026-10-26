@@ -172,9 +172,7 @@ func (c *statusBarController) showUUIDGate() error {
 			if !validSingboxUUID(uuid) {
 				return fmt.Errorf("Invalid user UUID format")
 			}
-			cfg, _ := c.loadConfig()
-			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand},
-				singboxStdin(uuid, singboxEnabledOutbounds(cfg, singboxAvailableOutbounds(cfg)), ""))
+			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand}, uuid)
 			if res.status != 0 {
 				return fmt.Errorf("%s", uuidGateError(res.stderr))
 			}
@@ -741,18 +739,11 @@ func (c *statusBarController) openSingboxThenStart(retry func()) {
 		return
 	}
 	cfg, _ := c.loadConfig()
-	available := singboxAvailableOutbounds(cfg)
-	initEnabled := singboxEnabledOutbounds(cfg, available)
-	panel, err := showSingboxConfigPanel(singboxUUID(cfg), initEnabled, available, singboxNaiveMode(cfg),
-		func(uuid string, enabled []string, mode string) error {
-			// The ticks were made against available; set-singbox-config checks
-			// them against the profile as it is now.
-			cfg, _ := c.loadConfig()
-			current := singboxAvailableOutbounds(cfg)
-			enabled = reconcileSingboxChoice(available, enabled, current, singboxEnabledOutbounds(cfg, current))
-			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand}, singboxStdin(uuid, enabled, mode))
+	panel, err := showUUIDEditPanel(singboxUUID(cfg),
+		func(uuid string) error {
+			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand}, uuid)
 			if res.status != 0 {
-				return fmt.Errorf("VPN Config failed (exit %d): %s", res.status, strings.TrimSpace(res.stderr))
+				return fmt.Errorf("Could not save UUID (exit %d): %s", res.status, strings.TrimSpace(res.stderr))
 			}
 			applekit.RunOnMain(retry)
 			return nil
@@ -760,7 +751,7 @@ func (c *statusBarController) openSingboxThenStart(retry func()) {
 		func() { c.singboxP = nil },
 	)
 	if err != nil {
-		c.alertFail("VPN Config", err.Error(), 0)
+		c.alertFail("Set UUID", err.Error(), 0)
 		return
 	}
 	c.singboxP = panel
@@ -871,7 +862,17 @@ func (c *statusBarController) quit() {
 
 // cmdSetSingboxConfig opens the sing-box config panel and applies it via the
 // set-singbox-config subcommand. Ports cmdSetSingboxConfig.
-func (c *statusBarController) cmdSetSingboxConfig() { c.openSingboxThenStart(c.refresh) }
+func (c *statusBarController) cmdSetSingboxConfig() {
+	c.openSingboxThenStart(func() {
+		cfg, paths := c.loadConfig()
+		running := startedVPNs(cfg, paths)
+		if len(running) > 0 {
+			c.runRestart(running, append([]string{"restart"}, running...))
+		} else {
+			c.refresh()
+		}
+	})
+}
 
 // cmdRouteRules opens the route-rules panel and applies it via the
 // set-route-rules subcommand. Ports cmdRouteRules.
@@ -1146,7 +1147,7 @@ func (c *statusBarController) mainWindowAction(action mainAction) error {
 		// Every one of these opens a window of its own, which has to happen on
 		// the main thread — this call is on an HTTP handler's goroutine.
 		switch stringValue(action.Value) {
-		case "vpn-config":
+		case "set-uuid":
 			applekit.RunOnMain(c.cmdSetSingboxConfig)
 		case "route-rules":
 			applekit.RunOnMain(c.cmdRouteRules)

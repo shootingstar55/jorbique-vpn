@@ -3,11 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
   NButton,
   NCard,
-  NEmpty,
   NIcon,
   NSpin,
-  NTabPane,
-  NTabs,
 } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
 import { dashboardAPI } from '../lib/dashboard-api.js';
@@ -21,12 +18,9 @@ const emit = defineEmits(['close']);
 const snapshot = ref(null);
 const error = ref('');
 const loading = ref(true);
-const action = ref('');
-const activeTab = ref('overview');
 const rates = ref({ uplink: 0, downlink: 0 });
 let previousTotals = null;
 let pollTimer;
-let actionRefreshTimer;
 let refreshing = false;
 let disposed = false;
 
@@ -68,28 +62,6 @@ async function refresh() {
   }
 }
 
-async function run(key, operation) {
-  if (action.value) return;
-  action.value = key;
-  try {
-    await operation();
-    if (!disposed) actionRefreshTimer = setTimeout(refresh, 250);
-  } catch (e) {
-    error.value = getErrMsg(e, 'Action failed');
-  } finally {
-    action.value = '';
-  }
-}
-
-function choose(group, item) {
-  if (!group.selectable || group.selected === item.tag) return;
-  run(`select:${group.tag}:${item.tag}`, () => dashboardAPI.select(group.tag, item.tag));
-}
-
-function testGroup(group) {
-  run(`test:${group.tag}`, () => dashboardAPI.urlTest(group.tag));
-}
-
 onMounted(() => {
   refresh();
   pollTimer = setInterval(refresh, 1000);
@@ -97,7 +69,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true;
   clearInterval(pollTimer);
-  clearTimeout(actionRefreshTimer);
 });
 </script>
 
@@ -105,7 +76,7 @@ onBeforeUnmount(() => {
   <div class="dashboard" :class="{ 'dashboard--standalone': standalone }">
     <header class="dashboard__header">
       <div>
-        <div class="eyebrow"><span class="live-dot" /> LIVE CONTROL</div>
+        <div class="eyebrow"><span class="live-dot" /> CONNECTION INFO</div>
         <h1>Jorbique VPN Extended Dashboard</h1>
         <p>sing-box {{ snapshot?.version || '1.14' }}</p>
       </div>
@@ -120,81 +91,32 @@ onBeforeUnmount(() => {
     </div>
 
     <NSpin :show="loading">
-      <NTabs v-model:value="activeTab" type="segment" animated class="dashboard__tabs">
-        <NTabPane name="overview" tab="Overview">
-          <div class="metrics">
-            <NCard class="metric metric--upload" :bordered="false">
-              <span class="metric__label">{{ labels.upload }}</span>
-              <strong>{{ uploadRate }}</strong>
-              <small>{{ formatBytes(status.uplinkTotal) }} total</small>
-            </NCard>
-            <NCard class="metric metric--download" :bordered="false">
-              <span class="metric__label">{{ labels.download }}</span>
-              <strong>{{ downloadRate }}</strong>
-              <small>{{ formatBytes(status.downlinkTotal) }} total</small>
-            </NCard>
-            <NCard class="metric" :bordered="false">
-              <span class="metric__label">{{ labels.runtime }}</span>
-              <div class="metric__rows">
-                <span>{{ labels.memory }} <b>{{ formatBytes(status.memory) }}</b></span>
-                <span>{{ labels.goroutines }} <b>{{ status.goroutines ?? '—' }}</b></span>
-              </div>
-            </NCard>
-            <NCard class="metric" :bordered="false">
-              <span class="metric__label">{{ labels.connections }}</span>
-              <div class="metric__rows">
-                <span>{{ labels.inbound }} <b>{{ status.connectionsIn ?? '—' }}</b></span>
-                <span>{{ labels.outbound }} <b>{{ status.connectionsOut ?? '—' }}</b></span>
-              </div>
-            </NCard>
+      <div class="metrics">
+        <NCard class="metric metric--upload" :bordered="false">
+          <span class="metric__label">{{ labels.upload }}</span>
+          <strong>{{ uploadRate }}</strong>
+          <small>{{ formatBytes(status.uplinkTotal) }} total</small>
+        </NCard>
+        <NCard class="metric metric--download" :bordered="false">
+          <span class="metric__label">{{ labels.download }}</span>
+          <strong>{{ downloadRate }}</strong>
+          <small>{{ formatBytes(status.downlinkTotal) }} total</small>
+        </NCard>
+        <NCard class="metric" :bordered="false">
+          <span class="metric__label">{{ labels.runtime }}</span>
+          <div class="metric__rows">
+            <span>{{ labels.memory }} <b>{{ formatBytes(status.memory) }}</b></span>
+            <span>{{ labels.goroutines }} <b>{{ status.goroutines ?? '—' }}</b></span>
           </div>
-        </NTabPane>
-
-        <NTabPane name="groups" tab="Groups">
-          <div v-if="snapshot?.groups?.length" class="groups">
-            <section v-for="group in snapshot.groups" :key="group.tag" class="group">
-              <div class="group__head">
-                <div>
-                  <strong>{{ group.tag }}</strong>
-                  <span>{{ group.type }}</span>
-                </div>
-                <NButton
-                  v-if="String(group.type).toLowerCase() === 'urltest'"
-                  size="small"
-                  tertiary
-                  :loading="action === `test:${group.tag}`"
-                  @click="testGroup(group)"
-                >
-                  <template #icon><NIcon><AppIcon name="refresh" /></NIcon></template>
-                  Retest
-                </NButton>
-              </div>
-              <div class="group__items">
-                <button
-                  v-for="item in group.items"
-                  :key="item.tag"
-                  type="button"
-                  class="outbound"
-                  :class="{
-                    'outbound--selected': group.selected === item.tag,
-                    'outbound--clickable': group.selectable,
-                  }"
-                  :disabled="!group.selectable || !!action"
-                  @click="choose(group, item)"
-                >
-                  <strong>{{ item.tag }}</strong>
-                  <span>{{ item.type || 'Outbound' }}</span>
-                  <b :class="{ 'latency--bad': item.urlTestDelay <= 0 }">
-                    {{ item.urlTestDelay > 0 ? `${item.urlTestDelay} ms` : 'Unavailable' }}
-                  </b>
-                </button>
-              </div>
-            </section>
+        </NCard>
+        <NCard class="metric" :bordered="false">
+          <span class="metric__label">{{ labels.connections }}</span>
+          <div class="metric__rows">
+            <span>{{ labels.inbound }} <b>{{ status.connectionsIn ?? '—' }}</b></span>
+            <span>{{ labels.outbound }} <b>{{ status.connectionsOut ?? '—' }}</b></span>
           </div>
-          <NEmpty v-else description="No selector or URLTest groups" />
-        </NTabPane>
-
-      </NTabs>
+        </NCard>
+      </div>
     </NSpin>
   </div>
 </template>
@@ -228,7 +150,6 @@ onBeforeUnmount(() => {
   color: #f43f5e;
   font-size: 12px;
 }
-.dashboard__tabs :deep(.n-tabs-rail) { max-width: 430px; }
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 14px; }
 .metric {
   min-height: 154px;
@@ -268,30 +189,5 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 .metric__rows b { color: var(--text); font-weight: 650; text-align: right; }
-.groups { display: grid; gap: 12px; padding-top: 14px; }
-.group { padding: 16px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
-.group__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 13px; }
-.group__head strong { color: var(--text); }
-.group__head span { margin-left: 8px; color: var(--text-dim); font-size: 12px; }
-.group__items { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 9px; }
-.outbound {
-  min-width: 0;
-  padding: 12px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 3px 8px;
-  text-align: left;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  color: var(--text);
-  background: var(--surface-sunken);
-}
-.outbound--clickable { cursor: pointer; }
-.outbound--clickable:hover { border-color: rgba(52,211,153,.38); background: rgba(6,78,59,.2); }
-.outbound--selected { border-color: #10b981; box-shadow: inset 0 0 0 1px rgba(16,185,129,.25); }
-.outbound strong { overflow: hidden; text-overflow: ellipsis; }
-.outbound span { grid-column: 1; color: var(--text-dim); font-size: 11px; }
-.outbound b { grid-column: 2; grid-row: 2; color: #34d399; font-size: 11px; }
-.outbound .latency--bad { color: #fb7185; }
 @media (max-width: 760px) { .dashboard { min-height: 500px; } .dashboard--standalone { padding: 18px; } }
 </style>

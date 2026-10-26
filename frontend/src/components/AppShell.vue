@@ -7,7 +7,7 @@ import MainScreen from './MainScreen.vue';
 import DashboardModal from './DashboardModal.vue';
 import IgnoreAppsModal from './IgnoreAppsModal.vue';
 import LogsModal from './LogsModal.vue';
-import VpnConfigModal from './VpnConfigModal.vue';
+import UuidModal from './UuidModal.vue';
 
 /**
  * Wires the screens together.
@@ -53,6 +53,7 @@ function openVpnConfig(options = {}) {
 
 function onVpnConfigSaved({ resumeConnect }) {
   if (resumeConnect) mainScreen.value?.resumeConnect();
+  else mainScreen.value?.reconnectIfConnected();
 }
 
 function onIgnoreListSaved() {
@@ -96,7 +97,7 @@ function setDashboardOpen(visible) {
         @open-dashboard="openDashboard"
       />
 
-      <VpnConfigModal
+      <UuidModal
         v-model:visible="vpnConfigOpen"
         :resume-connect="vpnConfigResumesConnect"
         @error="message.error($event)"
