@@ -22,8 +22,8 @@ const saving = ref(false);
 const picking = ref(false);
 
 const FIELDS = [
-  { key: 'direct', label: 'Direct domains', hint: 'Never go through the VPN.' },
-  { key: 'processes', label: 'Direct processes', hint: 'Matched by process name, comma separated.' },
+  { key: 'direct', label: 'Websites outside VPN', hint: 'Website names, separated by commas.' },
+  { key: 'processes', label: 'Apps outside VPN (by name)', hint: 'Application names, separated by commas.' },
 ];
 const models = { direct, processes };
 
@@ -76,8 +76,8 @@ async function save() {
 <template>
   <div class="panel">
     <header class="panel__head">
-      <h1>Route rules</h1>
-      <p>Comma-separated domains. Everything not listed follows the profile's own rules.</p>
+      <h1>Exclude apps &amp; sites</h1>
+      <p>Choose which apps and websites should use your regular internet connection.</p>
     </header>
 
     <NAlert v-if="error" type="error" :bordered="false">{{ error }}</NAlert>

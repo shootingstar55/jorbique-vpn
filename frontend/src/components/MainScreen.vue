@@ -5,11 +5,11 @@ import AppIcon from './AppIcon.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
 import HeroTraffic from './HeroTraffic.vue';
+import ConnectionCheck from './ConnectionCheck.vue';
 import { dashboardAPI } from '../lib/dashboard-api.js';
 import { binding } from '../lib/bindings.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
-import { loadAvailableOutbounds, outboundLabel } from '../lib/outbounds.js';
 
 const emit = defineEmits([
   'error', 'toast', 'openVpnConfig', 'openIgnoreApps', 'openLogs', 'openDashboard',
@@ -62,7 +62,7 @@ async function refreshTraffic() {
  * a connect — never from the status poll, because reading them re-downloads the profile.
  * @type {import('vue').Ref<string[]>}
  */
-const availableOutbounds = ref([]);
+
 
 /**
  * null while settled; otherwise the in-flight phase and the label to show for it. It replaces
@@ -72,6 +72,13 @@ const availableOutbounds = ref([]);
  * @type {import('vue').Ref<{ phase: 'connecting'|'disconnecting', text: string }|null>}
  */
 const transition = ref(null);
+const connectionProgress = ref({});
+let progressTimer = null;
+async function refreshConnectionProgress() {
+  const get = binding('GetConnectionProgress');
+  if (!get) return;
+  try { const progress = await get(); if (progress?.phase) connectionProgress.value = progress; } catch { /* next poll retries */ }
+}
 
 /**
  * Re-entrancy guard for every connect/disconnect entry point. Deliberately a plain variable,
@@ -104,7 +111,7 @@ const ringState = computed(() => {
   return connected.value ? 'is-on' : 'is-off';
 });
 
-const protocols = computed(() => availableOutbounds.value.map(outboundLabel).join(' · '));
+
 
 const primaryLabel = computed(() => {
   if (transition.value) return transition.value.phase === 'disconnecting' ? 'Disconnecting…' : 'Connecting…';
@@ -131,18 +138,6 @@ async function refreshStatus(force = false) {
   // Rides the status poll rather than a timer of its own: the columns read the
   // same cadence as everything else in the hero.
   await refreshTraffic();
-}
-
-async function refreshOutbounds() {
-  // The NaiveProxy mode connects through naive alone, whatever else the profile offers.
-  const get = binding('GetVpnUserConfig');
-  let naive = false;
-  try {
-    naive = Boolean(get && (await get())?.naiveMode);
-  } catch {
-    // Without the saved config the protocol list is the better guess.
-  }
-  availableOutbounds.value = naive ? ['naive'] : await loadAvailableOutbounds();
 }
 
 // --- Autostart ---------------------------------------------------------------------
@@ -299,7 +294,7 @@ async function ensureSingboxReadyForConnect() {
 // --- Connect / disconnect ----------------------------------------------------------
 
 async function ensureVpnConfigForConnect() {
-  const hasConfig = binding('HasVpnUserConfig');
+  const hasConfig = binding('HasUserUUID');
   try {
     if (!(hasConfig && (await hasConfig()))) {
       emit('openVpnConfig', { resumeConnect: true });
@@ -334,29 +329,33 @@ async function runConnect() {
 
   transition.value = {
     phase: 'connecting',
-    text: wasConnected ? 'Reconnecting' : 'Connecting',
+    text: 'Finding the best connection',
   };
 
   try {
+    connectionProgress.value = { phase: 'preparing' };
+    progressTimer = setInterval(refreshConnectionProgress, 250);
     await connect();
+    connectionProgress.value = { phase: 'starting' };
+    clearInterval(progressTimer);
     transition.value = { phase: 'connecting', text: 'Establishing tunnel' };
     await new Promise((r) => setTimeout(r, TUNNEL_SETTLE_MS));
     transition.value = null;
     refreshStatus(true);
-    void refreshOutbounds();
   } catch (e) {
+    clearInterval(progressTimer);
     transition.value = null;
     refreshStatus(true);
     const msg = getErrMsg(e, 'Connect failed');
     let hasConfig = true;
     try {
-      const has = binding('HasVpnUserConfig');
+      const has = binding('HasUserUUID');
       hasConfig = !!(has && (await has()));
     } catch {
       // Open the repair form when the failed connect also left its config unreadable.
       hasConfig = false;
     }
-    if (!hasConfig || /required|configure|VLESS|config/i.test(msg)) {
+    if (!hasConfig) {
       emit('openVpnConfig', { resumeConnect: true });
     } else {
       emit('error', msg);
@@ -484,7 +483,6 @@ onMounted(() => {
   autostartRecheckTimer = setTimeout(() => void loadAutostart(), AUTOSTART_RECHECK_MS);
 
   void refreshStatus();
-  void refreshOutbounds();
   pollTimer = setInterval(() => void refreshStatus(), STATUS_POLL_MS);
 
   // The IP card fills in later and the protocol line wraps or does not, so the
@@ -499,6 +497,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearInterval(pollTimer);
+  clearInterval(progressTimer);
   clearTimeout(autostartRecheckTimer);
   clearTimeout(fitTimer);
   if (shellObserver) shellObserver.disconnect();
@@ -516,8 +515,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="brand__text">
           <h1>Jorbique VPN Extended</h1>
-          <p v-if="protocols" :title="protocols">{{ protocols }}</p>
-          <p v-else class="brand__pending">Protocol list loads with the profile</p>
+          <p>Best connection, chosen automatically</p>
         </div>
         <ThemeSwitch class="brand__theme" />
         <NTag class="brand__chip" type="success" round size="small">sing-box client</NTag>
@@ -543,7 +541,8 @@ onBeforeUnmount(() => {
           <HeroTraffic direction="up" :total="traffic.uplinkTotal" :active="connected" />
         </div>
 
-        <div class="hero__text" aria-live="polite" aria-atomic="true">
+        <ConnectionCheck v-if="transition?.phase === 'connecting'" :progress="connectionProgress" />
+        <div v-else class="hero__text" aria-live="polite" aria-atomic="true">
           <p class="hero__headline">{{ headline }}</p>
           <p class="hero__subline">{{ subline }}</p>
         </div>
@@ -571,9 +570,9 @@ onBeforeUnmount(() => {
           <template #icon><NIcon><AppIcon name="monitor" /></NIcon></template>
           {{ labels.dashboard }}
         </NButton>
-        <NButton quaternary @click="emit('openVpnConfig')">
+        <NButton quaternary :disabled="busy" @click="emit('openVpnConfig')">
           <template #icon><NIcon><AppIcon name="settings" /></NIcon></template>
-          VPN Config
+          Set UUID
         </NButton>
         <NButton quaternary @click="emit('openIgnoreApps')">
           <template #icon><NIcon><AppIcon name="apps" /></NIcon></template>

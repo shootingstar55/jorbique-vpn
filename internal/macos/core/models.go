@@ -12,6 +12,8 @@ const VPNSingbox VPNType = "singbox"
 
 type SingboxSection struct {
 	UUID string `json:"uuid"`
+	// AutomaticOutbounds exists only for one measured connection, never in saved settings.
+	AutomaticOutbounds map[string]bool `json:"-"`
 	// EnabledOutbounds is the older way of recording the choice: the tags that
 	// are on. It cannot tell "the user turned this off" from "this did not
 	// exist when they chose", so an outbound added on the server afterwards

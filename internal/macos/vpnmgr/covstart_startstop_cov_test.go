@@ -1,12 +1,14 @@
 package vpnmgr
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/macos/core"
 	"jorbiquevpn/internal/macos/logger"
@@ -56,6 +58,9 @@ func covStartManager(t *testing.T) (*Manager, core.VPNItem) {
 		},
 		Cfg:    &core.AppConfig{Singbox: core.SingboxSection{UUID: testUserUUID}, VPNs: []core.VPNItem{v}},
 		Logger: logger.New(filepath.Join(dir, "app.log")),
+		connectionProbe: func(context.Context, string) (autoconnect.Measurement, error) {
+			return autoconnect.Measurement{Elapsed: 1}, nil
+		},
 	}
 	return m, v
 }

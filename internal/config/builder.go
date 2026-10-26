@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/jsonorder"
 	"jorbiquevpn/internal/paths"
@@ -24,6 +25,7 @@ type RuntimeOptions struct {
 	IgnoredProcessNames, IgnoredProcessPaths []string
 	SelectedNode                             string
 	UserDirectDomains                        []string
+	Automatic                                *autoconnect.Result
 }
 
 // ErrNoNaiveOutbound is the NaiveProxy mode against a profile that offers no
@@ -74,6 +76,9 @@ func BuildRuntimeConfig(remoteJSON []byte, options RuntimeOptions) (string, erro
 	// After pruning, so a node the user picked and then switched off cannot be
 	// written into a selector that no longer offers it.
 	singboxcfg.SetSelectorDefault(cfg, options.SelectedNode)
+	if options.Automatic != nil {
+		options.Automatic.ConfigureGroups(cfg)
+	}
 
 	applyIgnoredProcesses(cfg, options.IgnoredProcessNames)
 	applyIgnoredProcessPaths(cfg, options.IgnoredProcessPaths)
@@ -96,6 +101,9 @@ func modeOutboundEnabled(cfg *jsonorder.Map, proxyTags []string, options Runtime
 	obs, _ := obsRaw.([]any)
 	if options.NaiveMode && len(singboxcfg.NaiveTags(obs)) == 0 {
 		return nil, ErrNoNaiveOutbound
+	}
+	if options.Automatic != nil {
+		return options.Automatic.Enabled(cfg), nil
 	}
 	return singboxcfg.ModeEnabled(obs, proxyTags, options.OutboundEnabled, options.NaiveMode), nil
 }

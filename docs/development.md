@@ -24,7 +24,7 @@ on first launch is checked against the server. The server marks the exact UUID
 fields with `__JORBIQUE_USER_UUID__`; the client replaces only these markers in
 the new profile. Sudoku receives its server key and TLS settings unchanged;
 its marker is the HTTPMask path authorized by nginx. Legacy profiles still
-support empty top-level credential fields. NaiveProxy remains a separate mode. nginx serves one of eight
+support empty top-level credential fields. NaiveProxy is tested first on every Connect and used alone when it works. Otherwise the fastest working protocol is selected. See [automatic connection checks](automatic-connections.md). nginx serves one of eight
 profile variants per request (`singbox_client.r0.json` … `r7.json`), each with
 its own Reality `short_id`.
 
@@ -51,8 +51,8 @@ Build (on Windows: `build-windows.bat`; elsewhere: `scripts/build-windows.sh`),
 then:
 
 1. Extract **Jorbique-VPN-Extended-windows.zip**.
-2. Run **Jorbique-VPN.exe** with administrator privileges.
-3. Enter your user UUID, then use **Connect** / **Disconnect**, protocol settings, VPN Config and Logs in the main window.
+2. Run **Jorbique-VPN-Extended.exe** with administrator privileges.
+3. Enter your user UUID once, then use **Connect** / **Disconnect**. **Set UUID** changes the saved account; protocol selection is automatic.
 
 The tray icon exposes the same actions as the main window. sing-box is
 downloaded from the server on first launch.
@@ -69,7 +69,7 @@ downloaded from the server on first launch.
 ```
 
 1. Open **Jorbique-VPN-Extended-macOS.pkg** and install it.
-2. **Jorbique VPN.app** appears in **Applications**.
+2. **Jorbique VPN Extended.app** appears in **Applications**.
 3. Launch the app and enter your user UUID. The package installs the privileged daemon; an administrator prompt appears only if that service needs to be restored.
 
 The menu bar runs as the logged-in user and never as root. Operations that need

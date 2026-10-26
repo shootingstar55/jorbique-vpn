@@ -5,32 +5,13 @@ implement it: the Windows build loads it at runtime from `libcronet.dll`, which
 the sing-box download does not carry. The update server publishes that library
 beside the sing-box archive, and the client installs it next to sing-box.exe.
 
-The macOS build has naiveproxy in it natively and loads nothing. The channel
-serves the official SagerNet macOS binaries for that reason: they are built on
-macOS with `with_naive_outbound`, which a cross-build from Linux cannot do.
+The macOS build has naiveproxy in it natively and loads nothing. The Extended channel builds macOS engines natively with `with_naive_outbound`; a Linux cross-build cannot provide the Chromium integration.
 
-## A mode of its own
+## Automatic priority
 
-naive is not one more toggle. It is the heaviest protocol, and in the automatic
-selector it would run beside every other protocol. The server publishes it in
-the one profile, `singbox_client.json`, beside the others but outside `auto`,
-and the client picks a mode in VPN Config:
+On every Connect, both clients identify NaiveProxy by its outbound type and test it before any other protocol. A successful pair of 64-KiB HTTPS transfers keeps only that outbound. If Naive cannot start or carry the payload, the client scans the other protocols and chooses the fastest successful one. There is no manual protocol or mode control in the UI. The old `naive_mode` store field and four-line `set-singbox-config` CLI format remain readable for older integrations; neither overrides automatic connections.
 
-- **Protocols** builds with the user's toggles and never starts naive, whatever
-  its toggle would say; the settings window does not offer one.
-- **NaiveProxy** builds from the profile's naive outbound alone; the toggles are
-  not consulted, and `auto` is left naming naive only.
-
-naive is found by its outbound type, not its tag. Both clients apply the mode in
-one place, `singboxcfg.ModeEnabled`, before `FilterOutbounds`. The mode is
-`naive_mode` in `vpn_cfg.json` on macOS (`set-singbox-config`'s fourth stdin
-line: `naive`, `standard`, or blank to keep it) and in the Windows store.
-
-On macOS the NaiveProxy mode checks the installed sing-box's `Tags:` line for
-`with_naive_outbound` before it starts. A machine can hold a channel build from
-before the switch to the official binaries, and an update only runs when the
-version changes; the mode downloads the channel's build once, and refuses to
-start with a reason if that one cannot run naive either.
+Windows installs the matching Cronet DLL before testing. The private probe executable has a different name from `sing-box.exe`, so tunnel recovery cannot mistake it for a running VPN; the DLL is linked or copied beside it too. macOS checks the installed build's feature tags and can refresh the channel binary. An unavailable optional transport is excluded instead of blocking all other protocols.
 
 ## Where the library goes, and under what name
 

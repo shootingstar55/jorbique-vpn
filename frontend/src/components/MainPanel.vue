@@ -10,9 +10,9 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { NAlert, NButton, NCard, NIcon, NSpin, NSwitch, useMessage } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
 import HeroTraffic from './HeroTraffic.vue';
+import ConnectionCheck from './ConnectionCheck.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
-import { outboundLabel } from '../lib/outbounds.js';
 import { panelAPI } from '../lib/panel-api.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
@@ -43,13 +43,14 @@ const loading = ref(true);
 const error = ref('');
 const acting = ref('');
 let timer = null;
+let refreshing = false;
 
 /** Always arrays, whatever the bridge sent: reading .length off null blanked the card. */
 const running = computed(() => state.value.running || []);
 const vpns = computed(() => state.value.vpns || []);
 
 /** The line under the app name: what the profile offers, as the Windows header shows it. */
-const protocols = computed(() => (state.value.outbounds || []).map(outboundLabel).join(' · '));
+
 
 const connected = computed(() => running.value.length > 0);
 
@@ -59,10 +60,10 @@ const connected = computed(() => running.value.length > 0);
  * the state survives a reload and shows a start begun from the menu bar too.
  */
 const pending = computed(() => {
-  if (acting.value === 'connect') return 'Connecting';
+  if (acting.value === 'connect') return 'Finding the best connection';
   if (acting.value === 'disconnect') return 'Disconnecting';
   const reported = state.value.action || '';
-  return /^(Connecting|Disconnecting|Restarting|Quitting)$/.test(reported) ? reported : '';
+  return /^(Connecting|Restarting)$/.test(reported) ? 'Finding the best connection' : (/^(Disconnecting|Quitting)$/.test(reported) ? reported : '');
 });
 
 const ringState = computed(() => {
@@ -87,11 +88,13 @@ const subline = computed(() => {
  */
 const ACTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: 'monitor', needsTunnel: true },
-  { id: 'vpn-config', label: 'VPN Config', icon: 'settings' },
-  { id: 'route-rules', label: 'Route rules', icon: 'apps' },
+  { id: 'set-uuid', label: 'Set UUID', icon: 'settings' },
+  { id: 'route-rules', label: 'Exclude apps & sites', icon: 'apps' },
 ];
 
 async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
   try {
     const next = await panelAPI.load('main');
     if (next) state.value = next;
@@ -100,6 +103,7 @@ async function refresh() {
     error.value = getErrMsg(e, 'Could not read the VPN status');
   } finally {
     loading.value = false;
+    refreshing = false;
   }
 }
 
@@ -144,7 +148,7 @@ onBeforeUnmount(() => clearInterval(timer));
         </div>
         <div class="head__text">
           <h1>Jorbique VPN Extended</h1>
-          <p class="head__note" :title="protocols">{{ protocols || 'Protocol list loads with the profile' }}</p>
+          <p class="head__note">Best connection, chosen automatically</p>
         </div>
         <ThemeSwitch @change="(mode) => act('theme', mode)" />
       </div>
@@ -168,8 +172,11 @@ onBeforeUnmount(() => clearInterval(timer));
           </button>
           <HeroTraffic direction="up" :total="state.uplinkTotal || 0" :active="connected" />
         </div>
-        <h2 class="hero__headline">{{ headline }}</h2>
-        <p class="hero__sub">{{ subline }}</p>
+        <ConnectionCheck v-if="pending && !/Disconnecting|Quitting/.test(pending)" :progress="state.connectionProgress" />
+        <template v-else>
+          <h2 class="hero__headline">{{ headline }}</h2>
+          <p class="hero__sub">{{ subline }}</p>
+        </template>
       </NSpin>
     </NCard>
 
@@ -208,7 +215,7 @@ onBeforeUnmount(() => clearInterval(timer));
           v-for="action in ACTIONS"
           :key="action.id"
           tertiary
-          :disabled="!!acting || (action.needsTunnel && !connected)"
+          :disabled="!!acting || !!pending || (action.needsTunnel && !connected)"
           @click="act('open', action.id)"
         >
           <template #icon><NIcon><AppIcon :name="action.icon" /></NIcon></template>

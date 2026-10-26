@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"jorbiquevpn/internal/autoconnect"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -90,16 +91,24 @@ func TestControllerLogWarnsWhenDataDirsFail(t *testing.T) {
 	}
 }
 
-// An outbound the user had on that the profile no longer offers is named in the log.
-func TestApp_BuildRuntimeConfigLogsVanishedOutbounds(t *testing.T) {
+// Automatic choices ignore retired/manual toggles and unverified old drafts.
+func TestApp_AutomaticBuildUsesSavedUUIDAndMeasuredChoices(t *testing.T) {
 	a := newTestApp(t)
 	t.Setenv("APPDATA", t.TempDir())
-	readLog := logToTestDir(t, a)
-	a.store.SetUserUUIDAndOutbounds(appTestUUID, map[string]bool{"retired": true, "proxy": true})
-	profile := []byte(`{"outbounds":[{"type":"direct","tag":"direct"},{"type":"vless","tag":"proxy","uuid":""}],"route":{"rules":[],"final":"direct"}}`)
-	_, _ = a.buildRuntimeConfig(profile)
-	if !strings.Contains(readLog(), "the server no longer offers retired") {
-		t.Errorf("vanished outbound not logged:\n%s", readLog())
+	a.store.SetUserUUIDAndOutbounds(appTestUUID, map[string]bool{"retired": true, "proxy": false})
+	a.store.SetNaiveMode(true)
+	a.store.SelectedNode = "retired"
+	if err := a.SaveVpnFormDraft("22222222-2222-4222-8222-222222222222", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	profile := []byte(`{"outbounds":[{"type":"direct","tag":"direct"},{"type":"vless","tag":"proxy","uuid":""},{"type":"urltest","tag":"auto","outbounds":["proxy"]}],"route":{"rules":[],"final":"auto"}}`)
+	path, err := a.buildRuntimeConfig(profile, autoconnect.Result{Working: []autoconnect.Measurement{{Tag: "proxy"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	obs := builtOutbounds(t, path)
+	if obs["proxy"]["uuid"] != appTestUUID || obs["auto"]["default"] != "proxy" || obs["auto"]["type"] != "selector" {
+		t.Fatal(obs)
 	}
 }
 

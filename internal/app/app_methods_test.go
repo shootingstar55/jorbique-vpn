@@ -150,8 +150,8 @@ func TestApp_VpnFormDraftRoundTrip(t *testing.T) {
 	if form.UUID != appTestUUID || form.DirectDomains != "draft.example" {
 		t.Errorf("draft did not override store: %+v", form)
 	}
-	if !a.HasVpnUserConfig() {
-		t.Error("HasVpnUserConfig should honor a newer draft with a valid UUID")
+	if a.HasVpnUserConfig() {
+		t.Error("an unverified old draft must not replace the saved account")
 	}
 
 	removeVpnFormDraft(a.dataDir)

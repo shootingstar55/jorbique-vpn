@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"jorbiquevpn/internal/app"
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/utils"
@@ -72,6 +73,12 @@ func (a *App) ActivateUserUUID(userUUID string) error {
 func (a *App) SetVpnUserConfig(userUUID string, outboundEnabled map[string]bool) error {
 	return wrapBackendError(a.backend.SetVpnUserConfig(userUUID, outboundEnabled))
 }
+
+func (a *App) GetUserUUID() string { return a.backend.GetUserUUID() }
+
+func (a *App) GetConnectionProgress() autoconnect.Progress { return a.backend.GetConnectionProgress() }
+
+func (a *App) SetUserUUID(uuid string) error { return wrapBackendError(a.backend.SetUserUUID(uuid)) }
 
 // SetNaiveMode switches between the NaiveProxy mode and the profile's other protocols.
 func (a *App) SetNaiveMode(on bool) error {

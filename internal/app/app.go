@@ -17,11 +17,13 @@ import (
 	"sync"
 	"time"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/config"
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/core"
 	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/ipinfo"
+	"jorbiquevpn/internal/jsonorder"
 	"jorbiquevpn/internal/logging"
 	"jorbiquevpn/internal/network"
 	"jorbiquevpn/internal/paths"
@@ -49,9 +51,11 @@ var (
 )
 
 type App struct {
-	dataDir   string
-	store     *server.Store
-	cleanupMu sync.Mutex // Connect/Disconnect full cleanup; Recover uses TryLock to avoid races
+	dataDir    string
+	store      *server.Store
+	cleanupMu  sync.Mutex // Connect/Disconnect full cleanup; Recover uses TryLock to avoid races
+	progressMu sync.Mutex
+	progress   autoconnect.Progress
 }
 
 func New() *App {
@@ -179,6 +183,8 @@ func (a *App) Connect() (msg string, err error) {
 	}
 	a.cleanupMu.Lock()
 	defer a.cleanupMu.Unlock()
+	a.setConnectionProgress(autoconnect.Progress{Phase: "preparing"})
+	defer a.setConnectionProgress(autoconnect.Progress{})
 	// The exit address is about to be a different one.
 	ipInfoCache.Invalidate()
 
@@ -215,10 +221,28 @@ func (a *App) Connect() (msg string, err error) {
 		return "Failed to load VPN profile from server: " + err.Error(), ErrConfigUpdate
 	}
 
-	configPath, err := a.buildRuntimeConfig(remoteJSON)
+	logFn("Finding the best connection (Naive first)", "INFO")
+	profile := jsonorder.New()
+	if err := jsonorder.Unmarshal(remoteJSON, profile); err != nil {
+		return "Could not read the VPN profile", ErrConfigUpdate
+	}
+	runner, err := autoconnect.NewRunner(singboxExe, dataDir, remoteJSON, a.store.GetUserUUID())
+	if err != nil {
+		return "Could not prepare connection checks", ErrConfigUpdate
+	}
+	defer runner.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), autoconnect.ScanTimeout)
+	defer cancel()
+	selection, err := autoconnect.Select(ctx, profile, runner.Probe, func(message string) { logFn(message, "INFO") }, a.setConnectionProgress)
+	if err != nil {
+		return autoconnect.ErrUnavailable.Error(), ErrStartupFailed
+	}
+	logFn("Automatically selected connection: "+selection.Winner(), "INFO")
+	a.setConnectionProgress(autoconnect.Progress{Phase: "starting"})
+	configPath, err := a.buildRuntimeConfig(remoteJSON, selection)
 	if err != nil {
 		if errors.Is(err, ErrVlessRequired) {
-			return "A valid user UUID is required. Open VPN Configuration and enter your UUID.", err
+			return "A valid user UUID is required. Open Set UUID and enter your UUID.", err
 		}
 		return "Config build failed: " + err.Error(), ErrConfigUpdate
 	}
@@ -241,31 +265,33 @@ func (a *App) Connect() (msg string, err error) {
 		}
 		return "Startup failed. Check logs for details.", ErrStartupFailed
 	}
+	if err := selection.Activate(context.Background(), configPath); err != nil {
+		core.Stop(logFn)
+		a.cleanupTunnelArtifacts(dataDir, logFn)
+		return "Could not activate the checked connection. Try again.", ErrStartupFailed
+	}
 	return "", nil
 }
 
-func (a *App) buildRuntimeConfig(remoteJSON []byte) (string, error) {
-	userUUID, enabled, directDomains := a.effectiveVpnUserForConnect()
-	// The NaiveProxy mode builds from naive alone, so the protocol toggles have
-	// nothing to say there.
-	naiveMode := a.store.GetNaiveMode()
-	if !naiveMode {
-		if gone := a.vanishedOutbounds(enabled, config.ProtocolTagsFromJSON(remoteJSON)); len(gone) > 0 {
-			logging.Write("sing-box profile: the server no longer offers "+strings.Join(gone, ", "), logging.LevelWarn)
-		}
-	}
-	if !security.ValidUUID(strings.TrimSpace(userUUID), false) {
+// buildRuntimeConfig applies only this connection's measured choices and the
+// verified saved account. Historical protocol toggles, drafts, Naive mode, and
+// selected nodes never override a fresh scan.
+func (a *App) buildRuntimeConfig(remoteJSON []byte, selection autoconnect.Result) (string, error) {
+	uuid := strings.TrimSpace(a.store.GetUserUUID())
+	if !security.ValidUUID(uuid, false) {
 		return "", ErrVlessRequired
 	}
-	// The builder checks for a usable tunnel after applying the saved choices.
+	profile := jsonorder.New()
+	if err := jsonorder.Unmarshal(remoteJSON, profile); err != nil {
+		return "", err
+	}
+	if selection.Winner() == "" {
+		return "", autoconnect.ErrUnavailable
+	}
 	return config.BuildRuntimeConfig(remoteJSON, config.RuntimeOptions{
-		UserUUID:            strings.TrimSpace(userUUID),
-		OutboundEnabled:     enabled,
-		NaiveMode:           naiveMode,
-		IgnoredProcessNames: a.store.GetIgnoredProcessNames(),
-		IgnoredProcessPaths: a.store.GetIgnoredProcessPaths(),
-		SelectedNode:        a.store.GetSelectedNode(),
-		UserDirectDomains:   directDomains,
+		UserUUID: uuid, OutboundEnabled: selection.Enabled(profile), NaiveMode: selection.Naive,
+		IgnoredProcessNames: a.store.GetIgnoredProcessNames(), IgnoredProcessPaths: a.store.GetIgnoredProcessPaths(),
+		UserDirectDomains: a.store.GetDirectDomains(), Automatic: &selection,
 	})
 }
 
@@ -631,32 +657,29 @@ func (a *App) GetVpnUserConfig() VpnUserConfigForm {
 // HasVpnUserConfig returns true when the client has enough to connect with: the
 // account the protocols authenticate with, and a protocol to route through.
 func (a *App) HasVpnUserConfig() bool {
-	stored := a.store.GetOutboundEnabled()
-	// The NaiveProxy mode routes through naive whatever the toggles say.
-	routable := a.store.GetNaiveMode() || hasSomethingToRouteThrough(stored, config.AvailableProxyTags())
-	if configuredEnough(a.store.GetUserUUID()) && routable {
-		return true
-	}
-	draft, err := readVpnFormDraft(a.GetDataDir())
-	if err != nil || draft == nil || draft.UpdatedAt <= a.store.GetConfigSavedAt() {
-		return false
-	}
-	storedOutbound := a.store.GetOutboundEnabled()
-	en := storedOutbound
-	if len(draft.OutboundEnabled) > 0 {
-		en = make(map[string]bool, len(storedOutbound))
-		for t, v := range storedOutbound {
-			en[t] = v
-		}
-		for t, v := range draft.OutboundEnabled {
-			en[t] = v
-		}
-	}
-	uuid := strings.TrimSpace(a.store.GetUserUUID())
-	if strings.TrimSpace(draft.UUID) != "" {
-		uuid = strings.TrimSpace(draft.UUID)
-	}
-	return configuredEnough(uuid) && (a.store.GetNaiveMode() || hasSomethingToRouteThrough(en, config.AvailableProxyTags()))
+	return a.HasUserUUID()
+}
+
+// GetUserUUID reads only the verified, saved account; an old form draft cannot
+// silently change the identity used by automatic probes and the actual tunnel.
+func (a *App) GetUserUUID() string { return a.store.GetUserUUID() }
+
+func (a *App) GetConnectionProgress() autoconnect.Progress {
+	a.progressMu.Lock()
+	defer a.progressMu.Unlock()
+	return a.progress
+}
+
+func (a *App) setConnectionProgress(progress autoconnect.Progress) {
+	a.progressMu.Lock()
+	defer a.progressMu.Unlock()
+	a.progress = progress
+}
+
+func (a *App) SetUserUUID(value string) (string, error) {
+	a.cleanupMu.Lock()
+	defer a.cleanupMu.Unlock()
+	return a.SetVpnUserConfig(value, nil)
 }
 
 // configuredEnough reports whether the account side of the configuration is

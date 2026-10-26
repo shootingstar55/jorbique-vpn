@@ -5,7 +5,10 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/macos/core"
@@ -25,9 +28,10 @@ type mainState struct {
 	// Action is what the bar is doing right now — "Connecting", "Disconnecting",
 	// "Restarting" — so the window shows the same in-flight state the status
 	// glyph animates through, instead of jumping from idle straight to connected.
-	Action       string `json:"action"`
-	VPNAutostart bool   `json:"vpnAutostart"`
-	AppAutostart bool   `json:"appAutostart"`
+	Action             string               `json:"action"`
+	ConnectionProgress autoconnect.Progress `json:"connectionProgress"`
+	VPNAutostart       bool                 `json:"vpnAutostart"`
+	AppAutostart       bool                 `json:"appAutostart"`
 	// What the core has carried, straight from its own API — the same counters
 	// the dashboard shows. Zero with nothing running, which is when the window
 	// draws dashes instead.
@@ -106,6 +110,11 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 		Running:   []string{},
 		ExitIP:    exitIP,
 		Daemon:    ms.SudoersLine,
+	}
+	if paths != nil {
+		if data, err := os.ReadFile(filepath.Join(paths.RunDir, autoconnect.ProgressFile)); err == nil {
+			_ = json.Unmarshal(data, &state.ConnectionProgress)
+		}
 	}
 	// The window and the menu control the same sing-box connection.
 	singbox := map[string]bool{}

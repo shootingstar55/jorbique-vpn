@@ -4,14 +4,14 @@ import AppShell from './components/AppShell.vue';
 import DashboardView from './components/DashboardView.vue';
 import RouteRulesPanel from './components/RouteRulesPanel.vue';
 import MainPanel from './components/MainPanel.vue';
-import VpnConfigModal from './components/VpnConfigModal.vue';
+import UuidModal from './components/UuidModal.vue';
 import ActivationScreen from './components/ActivationScreen.vue';
 import { watchEffect } from 'vue';
 import { isDark, naiveTheme, naiveThemeOverrides } from './lib/theme.js';
 
 const search = new URLSearchParams(window.location.search);
 const standaloneDashboard = search.has('dashboard');
-const standaloneVpnConfig = search.has('vpn-config');
+const standaloneVpnConfig = search.has('set-uuid');
 const standaloneRouteRules = search.has('route-rules');
 const standaloneMain = search.has('main');
 const standaloneActivate = search.has('activate');
@@ -31,7 +31,7 @@ watchEffect(() => {
     <NMessageProvider :max="3" placement="bottom">
       <NDialogProvider>
         <ActivationScreen v-if="standaloneActivate" standalone />
-        <VpnConfigModal v-else-if="standaloneVpnConfig" :visible="true" standalone />
+        <UuidModal v-else-if="standaloneVpnConfig" :visible="true" standalone />
         <DashboardView v-else-if="standaloneDashboard" standalone />
         <RouteRulesPanel v-else-if="standaloneRouteRules" />
         <MainPanel v-else-if="standaloneMain" />
