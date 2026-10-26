@@ -1,7 +1,7 @@
 <script setup>
 /**
  * The macOS main window: the same shape the Windows client has — a connect ring
- * with the status under it, a row of actions, and the autostart switches — drawn
+ * with the status under it, a row of actions, and the VPN autostart switch — drawn
  * from the daemon's own status output rather than from Wails bindings.
  *
  * The menu bar stays; this is the window it opens.
@@ -36,7 +36,6 @@ const state = ref({
   exitIP: '',
   daemon: '',
   vpnAutostart: false,
-  appAutostart: false,
   busy: false,
 });
 const loading = ref(true);
@@ -191,18 +190,6 @@ onBeforeUnmount(() => clearInterval(timer));
             aria-labelledby="vpn-autostart-label"
             :loading="acting === 'vpn-autostart'"
             @update:value="(on) => act('vpn-autostart', on)"
-          />
-        </div>
-        <div class="switches__row">
-          <span>
-            <b id="app-autostart-label">Открывать приложение при входе</b>
-            <small>Значок в строке меню вернётся после перезагрузки.</small>
-          </span>
-          <NSwitch
-            :value="state.appAutostart"
-            aria-labelledby="app-autostart-label"
-            :loading="acting === 'app-autostart'"
-            @update:value="(on) => act('app-autostart', on)"
           />
         </div>
       </div>

@@ -779,7 +779,9 @@ func (c *statusBarController) openSingboxThenStart(retry func()) {
 		func(uuid string) error {
 			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand}, uuid)
 			if res.status != 0 {
-				return fmt.Errorf("Could not save UUID (exit %d): %s", res.status, strings.TrimSpace(res.stderr))
+				// The window words it (activation.js); the raw stderr carried
+				// ANSI colours and a hint about vpn_cfg.json.
+				return fmt.Errorf("%s", uuidGateError(res.stderr))
 			}
 			applekit.RunOnMain(retry)
 			return nil
@@ -814,26 +816,6 @@ func (c *statusBarController) alertFail(title, out string, rc int) {
 	applekit.RunOnMain(func() { applekit.PresentAlert(title, body, applekit.AlertWarning) })
 }
 
-// appAutostart runs the (un)install as the login user when the bar is root with
-// a SUDO_USER, else directly. Ports cmdInstall/UninstallAppAutostart. The
-// install path bootstraps a fresh LaunchAgent instance which, via the
-// single-instance guard, makes this process exit; refresh is best-effort and
-// must never crash the bar, hence safeGo.
-func (c *statusBarController) appAutostart(subcmd string) {
-	safeGo(func() {
-		var status int
-		su := c.run.getenv("SUDO_USER")
-		if c.run.isRoot() && su != "" {
-			status = c.run.runAsUserAndWait(su, c.exePath, []string{subcmd})
-		} else {
-			status = c.run.runNoSudoAndWait(c.exePath, []string{subcmd})
-		}
-		if status == 0 {
-			c.refresh()
-		}
-	})
-}
-
 func (c *statusBarController) quit() {
 	// Quit is not instant — it stops every tunnel, drops the sing-box cache and
 	// unloads the LaunchAgent first, which is seconds of work the user used to
@@ -862,15 +844,17 @@ func (c *statusBarController) quit() {
 		// dropped — ordinary stops keep it so reconnects start with a warm cache.
 		c.run.runAndCaptureOut(c.exePath, []string{"clear-singbox-cache"})
 
-		// Always unload the menu-bar LaunchAgent so Quit really quits — its
-		// KeepAlive must not respawn the bar this session. The plist is left in
-		// place, so the "enabled" state is remembered and re-applied (re-loaded)
-		// on the next app launch. Ports the bootout-app-launchagent step of quit.
+		// Quit is the one way the bar ends for good. Every launch hands the bar
+		// to the LaunchAgent (RunStatusBarApp); remove its plist so the bar
+		// does not come back at the next login, then unload it so KeepAlive does
+		// not respawn it now. The bootout ends this process too.
 		su := c.run.getenv("SUDO_USER")
-		if c.run.isRoot() && su != "" {
-			c.run.runAsUserAndWait(su, c.exePath, []string{"bootout-app-launchagent"})
-		} else {
-			c.run.runNoSudoAndWait(c.exePath, []string{"bootout-app-launchagent"})
+		for _, subcmd := range []string{"uninstall-app-autostart", "bootout-app-launchagent"} {
+			if c.run.isRoot() && su != "" {
+				c.run.runAsUserAndWait(su, c.exePath, []string{subcmd})
+			} else {
+				c.run.runNoSudoAndWait(c.exePath, []string{subcmd})
+			}
 		}
 		applekit.RunOnMain(func() { c.app.Terminate() })
 	})
@@ -1128,12 +1112,6 @@ func (c *statusBarController) mainWindowAction(action mainAction) error {
 			subcmd = "install-autostart"
 		}
 		c.vpnAutostart(subcmd)
-	case "app-autostart":
-		subcmd := "uninstall-app-autostart"
-		if boolValue(action.Value) {
-			subcmd = "install-app-autostart"
-		}
-		c.appAutostart(subcmd)
 	case "open":
 		// Every one of these opens a window of its own, which has to happen on
 		// the main thread — this call is on an HTTP handler's goroutine.

@@ -199,15 +199,7 @@ func InstallAppAutostart(executablePath, label string) error {
 		return err
 	}
 	plistPath := barAgentPlistPath(home, label)
-	if err := os.MkdirAll(filepath.Dir(plistPath), 0o755); err != nil {
-		return err
-	}
-	executablePath = bundledExecutable(executablePath)
-	logDir := filepath.Join(home, "Library/Logs/JorbiqueVPN")
-	_ = os.MkdirAll(logDir, 0o755)
-	// Same atomic write as the daemon plist next door: launchd bootstraps this
-	// file right after, and a partial read is a login agent that does not load.
-	if err := fsatomic.WriteFile(plistPath, []byte(barPlistContent(executablePath, home, label)), 0o644); err != nil {
+	if err := writeBarPlist(executablePath, home, label); err != nil {
 		return err
 	}
 	uid := os.Getuid()
@@ -323,23 +315,20 @@ func appAgentLoaded(uid int, label string) bool {
 	return status == 0
 }
 
-// BootstrapAppLaunchAgentIfDormant re-loads the menu-bar LaunchAgent when autostart
-// is "enabled" (plist present) but the agent is not currently loaded — the exact
-// state Quit leaves behind (it boots the agent out so it cannot respawn, but keeps
-// the plist). It reports whether it bootstrapped the agent.
+// HandOffToAppLaunchAgent puts a menu bar the user opened by hand under the
+// LaunchAgent, so it lives until the user quits it: macOS ends the bar's
+// process around sleep, a closed lid or a fast user switch, and only the
+// agent's KeepAlive brings it back. The bar used to stay up that way only when
+// the "open at login" switch was on; now every launch arms the agent, and Quit
+// removes it again (see UninstallAppAutostart), so a bar the user closed does
+// not come back at the next login either.
 //
-// When it returns true, the caller — a manually relaunched instance — should exit
-// and let the agent own the bar, instead of running a competing instance: the agent
-// plist's unconditional KeepAlive would otherwise fight the single-instance guard in
-// a throttled respawn loop. Bootstrapping also re-registers the agent so it
-// relaunches at the next login, honoring the remembered autostart and making the
-// status read "installed & loaded" again.
-//
-// It returns false (caller continues to run normally) when invoked as root, when the
-// plist is absent (autostart disabled), when the agent is already loaded (e.g. it
-// launched us), or when the bootstrap itself fails (graceful fallback to running as
-// a manual instance).
-func BootstrapAppLaunchAgentIfDormant(label string) bool {
+// It writes the plist when it is missing or out of date and then loads the
+// agent, or starts it when launchd already has the job. It reports whether the
+// agent now owns the bar; the caller then exits instead of running a second,
+// competing instance. False (as root, or when launchd refuses) means the caller
+// runs the bar itself, as before.
+func HandOffToAppLaunchAgent(executablePath, label string) bool {
 	if os.Geteuid() == 0 {
 		return false
 	}
@@ -351,17 +340,34 @@ func BootstrapAppLaunchAgentIfDormant(label string) bool {
 		return false
 	}
 	plistPath := barAgentPlistPath(home, label)
-	if _, err := os.Stat(plistPath); err != nil {
-		return false // autostart disabled — nothing to load
+	data, err := os.ReadFile(plistPath)
+	if err != nil || barPlistNeedsMigration(string(data)) || barPlistStartsAMissingBinary(string(data)) ||
+		barPlistStartsOutsideTheBundle(string(data), executablePath) {
+		if err := writeBarPlist(executablePath, home, label); err != nil {
+			return false
+		}
+		// A job loaded from the old file keeps the old program: reload it.
+		bootoutAppLaunchAgent(os.Getuid(), label, plistPath)
 	}
-	uid := os.Getuid()
-	if st, _ := procutil.RunAndCapture(launchctlExecutable, "print", "gui/"+strconv.Itoa(uid)+"/"+label); st == 0 {
-		return false // already loaded — let the single-instance guard sort it out
+	domain := "gui/" + strconv.Itoa(os.Getuid())
+	if st, _ := procutil.RunAndCapture(launchctlExecutable, "print", domain+"/"+label); st == 0 {
+		// Loaded, and the caller found no bar running: KeepAlive has given up
+		// for now (throttled) or the job was never started. Start it.
+		return sysexec.Command(launchctlExecutable, "kickstart", domain+"/"+label).Run() == nil
 	}
-	if err := sysexec.Command(launchctlExecutable, "bootstrap", "gui/"+strconv.Itoa(uid), plistPath).Run(); err != nil {
-		return false // bootstrap failed — fall back to running as a manual instance
+	return sysexec.Command(launchctlExecutable, "bootstrap", domain, plistPath).Run() == nil
+}
+
+// writeBarPlist writes the agent's plist without loading it.
+func writeBarPlist(executablePath, home, label string) error {
+	plistPath := barAgentPlistPath(home, label)
+	if err := os.MkdirAll(filepath.Dir(plistPath), 0o755); err != nil {
+		return err
 	}
-	return true
+	_ = os.MkdirAll(filepath.Join(home, "Library/Logs/JorbiqueVPN"), 0o755)
+	// Same atomic write as the daemon plist next door: launchd bootstraps this
+	// file right after, and a partial read is a login agent that does not load.
+	return fsatomic.WriteFile(plistPath, []byte(barPlistContent(bundledExecutable(executablePath), home, label)), 0o644)
 }
 
 func UninstallAppAutostart(label string) error {
@@ -374,8 +380,8 @@ func UninstallAppAutostart(label string) error {
 	}
 	plistPath := barAgentPlistPath(home, label)
 	// Do not launchctl bootout here: that terminates the menu-bar process the user is using.
-	// Deleting the plist stops login autostart. Unconditional KeepAlive (legacy) is still cleared
-	// on Quit (bootout-app-launchagent); current plists use KeepAlive/SuccessfulExit=false only.
+	// Quit runs this first, so the bar does not return at the next login, and then
+	// bootout-app-launchagent, so KeepAlive does not respawn it now.
 	if err := os.Remove(plistPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}

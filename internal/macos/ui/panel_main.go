@@ -34,7 +34,6 @@ type mainState struct {
 	// protocol it saw, and which one the tunnel runs on. Null when off.
 	Report       *autoconnect.Report `json:"report"`
 	VPNAutostart bool                `json:"vpnAutostart"`
-	AppAutostart bool                `json:"appAutostart"`
 }
 
 // mainAction is one press in the window: the connect ring, a switch, or a button
@@ -138,7 +137,6 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 	// red, rather than matching the phrasing a second time.
 	autostart := computeAutostartState(ms)
 	state.VPNAutostart = autostart.vpnOK
-	state.AppAutostart = autostart.barOK
 	return state
 }
 

@@ -123,3 +123,27 @@ func TestTheAgentStartsTheBarThroughTheAppBundle(t *testing.T) {
 		t.Error("a bar the bundle cannot start was called stale")
 	}
 }
+
+// Every manual launch arms the agent, so the bar survives sleep without any
+// switch. Without a launchd (this test's machine) the plist is still written
+// and the caller is told to run the bar itself.
+func TestHandOffWritesTheAgentAndFallsBackWithoutLaunchd(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("the hand-off is refused as root")
+	}
+	if _, err := os.Stat(launchctlExecutable); err == nil {
+		t.Skip("a real launchd would load the agent")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if HandOffToAppLaunchAgent("/opt/test/JorbiqueVPN", "com.example.handoff") {
+		t.Fatal("hand-off reported success with no launchctl")
+	}
+	body, err := os.ReadFile(barAgentPlistPath(home, "com.example.handoff"))
+	if err != nil {
+		t.Fatalf("plist not written: %v", err)
+	}
+	if barPlistNeedsMigration(string(body)) || !strings.Contains(string(body), "/opt/test/JorbiqueVPN") {
+		t.Fatalf("unexpected plist:\n%s", body)
+	}
+}
