@@ -141,6 +141,9 @@ func (a *App) GetAvailableOutbounds() []string {
 	return a.backend.GetAvailableOutbounds()
 }
 
+// GetProfileProtocols lists every protocol of the profile, Naive included.
+func (a *App) GetProfileProtocols() []string { return a.backend.GetProfileProtocols() }
+
 func (a *App) IsSingboxInstalled() bool {
 	return a.backend.IsSingboxInstalled()
 }

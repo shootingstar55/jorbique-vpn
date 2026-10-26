@@ -7,7 +7,7 @@ import ThemeSwitch from './ThemeSwitch.vue';
 import ConnectionCheck from './ConnectionCheck.vue';
 import ProtocolList from './ProtocolList.vue';
 import { binding } from '../lib/bindings.js';
-import { loadAvailableOutbounds } from '../lib/outbounds.js';
+import { loadProfileProtocols } from '../lib/outbounds.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
 
@@ -44,7 +44,7 @@ const protocols = ref([]);
 const report = ref(null);
 
 async function refreshProtocols() {
-  protocols.value = await loadAvailableOutbounds();
+  protocols.value = await loadProfileProtocols();
 }
 
 async function refreshReport() {

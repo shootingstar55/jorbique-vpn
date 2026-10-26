@@ -96,12 +96,9 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 	// Empty slices, never nil: a nil slice encodes as JSON null, and the page
 	// reads .length off both of these. One status call that exited non-zero was
 	// enough to send null and blank the whole hero card, ring included.
-	outbounds := append([]string{}, singboxAvailableOutbounds(cfg)...)
-	if singboxNaiveMode(cfg) {
-		// The NaiveProxy mode connects through naive alone, whatever else the
-		// profile offers.
-		outbounds = []string{"naive"}
-	}
+	// Every protocol, Naive included: each connect checks Naive first, so it
+	// belongs in the list whether or not the tunnel ends up on it.
+	outbounds := append([]string{}, singboxProfileProtocols(cfg)...)
 	state := mainState{
 		VPNs:      []string{},
 		Outbounds: outbounds,
@@ -109,8 +106,11 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 		ExitIP:    exitIP,
 		Daemon:    daemonLabel(ms.SudoersLine),
 	}
+	// The connection check runs in the root daemon and leaves its files in the
+	// daemon's run directory, not in this user's own one (paths.RunDir).
+	daemonRunDir := core.DaemonRunDir()
 	if paths != nil {
-		if data, err := os.ReadFile(filepath.Join(paths.RunDir, autoconnect.ProgressFile)); err == nil {
+		if data, err := os.ReadFile(filepath.Join(daemonRunDir, autoconnect.ProgressFile)); err == nil {
 			_ = json.Unmarshal(data, &state.ConnectionProgress)
 		}
 	}
@@ -126,8 +126,8 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 			state.Running = append(state.Running, name)
 		}
 	}
-	if paths != nil && len(state.Running) > 0 {
-		if report, ok := autoconnect.ReadReport(paths.RunDir); ok {
+	if len(state.Running) > 0 {
+		if report, ok := autoconnect.ReadReport(daemonRunDir); ok {
 			state.Report = &report
 		}
 	}

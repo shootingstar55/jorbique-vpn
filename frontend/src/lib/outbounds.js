@@ -49,7 +49,21 @@ export function outboundChecked(stored, previous, tag) {
  * @returns {Promise<string[]>} empty when the profile has not been downloaded yet
  */
 export async function loadAvailableOutbounds() {
-  const get = binding('GetAvailableOutbounds');
+  return loadTags('GetAvailableOutbounds');
+}
+
+/**
+ * Every protocol the profile offers, NaiveProxy included, for the protocol list: each connect
+ * checks Naive first, so the list shows it whether or not the tunnel ends up on it.
+ *
+ * @returns {Promise<string[]>} empty when the profile has not been downloaded yet
+ */
+export async function loadProfileProtocols() {
+  return loadTags('GetProfileProtocols');
+}
+
+async function loadTags(name) {
+  const get = binding(name);
   if (!get) return [];
   try {
     const tags = await get();
