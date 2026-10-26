@@ -301,7 +301,8 @@ jobs:
           apk=app/build/outputs/apk/release/app-release.apk
           unzip -l "$apk" | grep -F lib/arm64-v8a/libgojni.so
           unzip -l "$apk" | grep -F assets/web/index.html
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$apk" | head -n 3
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n1)apksigner"
+          "$apksigner" verify --print-certs "$apk" | head -n 3
           mkdir -p ../release/binaries
           cp "$apk" ../release/binaries/Jorbique-VPN-Extended-android.apk
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
