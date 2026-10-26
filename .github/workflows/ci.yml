@@ -142,6 +142,9 @@ jobs:
           path: frontend/dist
       # Resource version stamps are generated in this disposable checkout only.
       - name: Build and validate Windows archive
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_CHANNEL: ${{ secrets.SERVER_CHANNEL }}
         run: |
           bash scripts/build-windows.sh
           unzip -t release/binaries/Jorbique-VPN-Extended-windows.zip
@@ -181,6 +184,9 @@ jobs:
           make test-macos
           go vet ./internal/macos/... ./cmd/jorbiquevpn-macos/...
       - name: Build and validate universal installer
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_CHANNEL: ${{ secrets.SERVER_CHANNEL }}
         run: |
           report_failure() {
             build_status=$?

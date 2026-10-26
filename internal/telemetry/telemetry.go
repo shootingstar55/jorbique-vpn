@@ -112,6 +112,10 @@ func Verify(ctx context.Context, stateDir, userUUID string, tunnels func() map[s
 func newExporter(tr *authTransport, singboxVersion func() string) (sdkmetric.Exporter, error) {
 	client := httpsclient.ForHost(constants.ServerHost, 30*time.Second)
 	tr.next = client.Transport
+	if tr.next == nil {
+		// No host linked in (tests, an unconfigured build): plain default transport.
+		tr.next = http.DefaultTransport
+	}
 	client.Transport = tr
 	exp, err := otlpmetrichttp.New(context.Background(),
 		otlpmetrichttp.WithEndpointURL(endpoint),

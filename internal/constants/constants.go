@@ -46,15 +46,13 @@ const (
 )
 
 // ServerHost serves the sing-box manifest, the client profile and telemetry.
-// A build for another server sets SERVER_HOST in build-macos.sh or
-// scripts/build-windows.sh (-X jorbiquevpn/internal/constants.ServerHost=...).
-var ServerHost = "jorbique.one"
-
-// ExtendedUpdatePath holds this client's sing-box-extended profile and builds.
-// Installed older apps retain /chI6dwCVntNE/ and its SagerNet 1.15 alpha builds;
-// switching engine distributions requires upgrading the app, not changing that
-// legacy channel underneath an installed client.
-const ExtendedUpdatePath = "/chI6dwCVntNE-extended-v2/"
+// ExtendedUpdatePath (/<channel>/) holds this client's sing-box-extended
+// profile and builds. Neither is in the repository: the build scripts link
+// them in from SERVER_HOST and SERVER_CHANNEL (scripts/server-ldflags.sh).
+var (
+	ServerHost         = ""
+	ExtendedUpdatePath = ""
+)
 
 // The sing-box binary manifest and the client profile. The profile carries no
 // user UUID — the client fills in its own — so the link is the same for
