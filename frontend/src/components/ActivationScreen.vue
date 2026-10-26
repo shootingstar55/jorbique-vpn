@@ -144,13 +144,6 @@ async function activate() {
 }
 
 .activation__theme {
-  width: 186px;
   margin-right: auto;
-}
-
-/* No card under it here, and the dark rail is the window's own colour: the
-   outline the input has keeps it visible. */
-.activation__theme :deep(.n-tabs-rail) {
-  box-shadow: inset 0 0 0 1px var(--border);
 }
 </style>

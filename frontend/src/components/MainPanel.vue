@@ -243,7 +243,7 @@ onBeforeUnmount(() => clearInterval(timer));
 }
 
 /* Naive's default card padding is sized for a page, not for a 560pt window. */
-.pane :deep(.n-card__content) {
+.pane :deep(.n-card-content) {
   padding: 10px 12px;
 }
 

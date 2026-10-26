@@ -241,7 +241,7 @@ onBeforeUnmount(() => {
   border-radius: 14px;
 }
 
-.ipinfo :deep(.n-card__content) {
+.ipinfo :deep(.n-card-content) {
   padding: 10px 12px;
 }
 
