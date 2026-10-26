@@ -5,10 +5,11 @@ Jorbique: нужен личный UUID, который выдаёт владел
 
 ## Скачать
 
-Последняя версия на странице [релизов](https://github.com/shootingstar55/jorbique-vpn/releases/latest):
+Последняя версия на странице [релизов](https://github.com/shootingstar55/jorbique-vpn/releases/latest),
+в разделе Assets. В имени файла указана версия:
 
-- **Windows:** [Jorbique-VPN-Extended-windows.zip](https://github.com/shootingstar55/jorbique-vpn/releases/latest/download/Jorbique-VPN-Extended-windows.zip)
-- **macOS** (Apple Silicon и Intel): [Jorbique-VPN-Extended-macOS.pkg](https://github.com/shootingstar55/jorbique-vpn/releases/latest/download/Jorbique-VPN-Extended-macOS.pkg)
+- **Windows:** `Jorbique-VPN-Extended-windows-<версия>.zip`
+- **macOS** (Apple Silicon и Intel): `Jorbique-VPN-Extended-macOS-<версия>.pkg`
 
 ## Как подключиться
 
