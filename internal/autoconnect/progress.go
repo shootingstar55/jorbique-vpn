@@ -24,7 +24,12 @@ func WriteProgress(runDir string, progress Progress) {
 	if err != nil {
 		return
 	}
-	file, err := os.CreateTemp(runDir, ".connection-check-")
+	writePublic(runDir, ProgressFile, data)
+}
+
+// writePublic replaces runDir/name with data, readable by every user.
+func writePublic(runDir, name string, data []byte) {
+	file, err := os.CreateTemp(runDir, "."+name+"-")
 	if err != nil {
 		return
 	}
@@ -40,5 +45,5 @@ func WriteProgress(runDir string, progress Progress) {
 	if err := file.Close(); err != nil {
 		return
 	}
-	_ = os.Rename(file.Name(), filepath.Join(runDir, ProgressFile))
+	_ = os.Rename(file.Name(), filepath.Join(runDir, name))
 }

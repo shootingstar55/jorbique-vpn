@@ -55,7 +55,8 @@ type App struct {
 	cleanupMu  sync.Mutex // Connect/Disconnect full cleanup; Recover uses TryLock to avoid races
 	progressMu sync.Mutex
 	progress   autoconnect.Progress
-	cancelScan context.CancelFunc // set while a connection check runs; guarded by progressMu
+	cancelScan context.CancelFunc  // set while a connection check runs; guarded by progressMu
+	report     *autoconnect.Report // the running tunnel's connection check; guarded by progressMu
 }
 
 func New() *App {
@@ -185,6 +186,7 @@ func (a *App) Connect() (msg string, err error) {
 	defer a.cleanupMu.Unlock()
 	a.setConnectionProgress(autoconnect.Progress{Phase: "preparing"})
 	defer a.setConnectionProgress(autoconnect.Progress{})
+	a.setConnectionReport(nil)
 	// The exit address is about to be a different one.
 	ipInfoCache.Invalidate()
 
@@ -271,6 +273,8 @@ func (a *App) Connect() (msg string, err error) {
 		}
 		return "Startup failed. Check logs for details.", ErrStartupFailed
 	}
+	report := autoconnect.NewReport(profile, selection)
+	a.setConnectionReport(&report)
 	return "", nil
 }
 
@@ -329,6 +333,7 @@ func (a *App) Disconnect() (string, error) {
 	defer a.cleanupMu.Unlock()
 	// The exit address is about to be a different one.
 	ipInfoCache.Invalidate()
+	a.setConnectionReport(nil)
 
 	dataDir := a.GetDataDir()
 	logFn := controllerLog(dataDir, false)
@@ -660,6 +665,25 @@ func (a *App) setCancelScan(cancel context.CancelFunc) {
 	a.progressMu.Lock()
 	defer a.progressMu.Unlock()
 	a.cancelScan = cancel
+}
+
+// GetConnectionReport is the protocol list for the window: what the last
+// connection check found, and which protocol the tunnel started on. Empty
+// (no Active) while no tunnel this process started is up.
+func (a *App) GetConnectionReport() autoconnect.Report {
+	a.progressMu.Lock()
+	report := a.report
+	a.progressMu.Unlock()
+	if report == nil || !a.IsConnected() {
+		return autoconnect.Report{Protocols: []autoconnect.ProtocolStatus{}}
+	}
+	return *report
+}
+
+func (a *App) setConnectionReport(report *autoconnect.Report) {
+	a.progressMu.Lock()
+	defer a.progressMu.Unlock()
+	a.report = report
 }
 
 func (a *App) setConnectionProgress(progress autoconnect.Progress) {

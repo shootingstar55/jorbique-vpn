@@ -5,7 +5,9 @@ import AppIcon from './AppIcon.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
 import ConnectionCheck from './ConnectionCheck.vue';
+import ProtocolList from './ProtocolList.vue';
 import { binding } from '../lib/bindings.js';
+import { loadAvailableOutbounds } from '../lib/outbounds.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
 
@@ -33,11 +35,28 @@ const AUTOSTART_RECHECK_MS = 1500;
 const connected = ref(false);
 
 /**
- * Tags from the downloaded profile, shown under the app name. Refreshed on launch and after
+ * Tags from the downloaded profile, for the protocol list. Refreshed on launch and after
  * a connect — never from the status poll, because reading them re-downloads the profile.
  * @type {import('vue').Ref<string[]>}
  */
+const protocols = ref([]);
+/** The last connection check, while the tunnel it started is up; read with the status. */
+const report = ref(null);
 
+async function refreshProtocols() {
+  protocols.value = await loadAvailableOutbounds();
+}
+
+async function refreshReport() {
+  const get = binding('GetConnectionReport');
+  if (!get) return;
+  try {
+    const next = await get();
+    report.value = next?.active ? next : null;
+  } catch {
+    // The next status poll retries.
+  }
+}
 
 /**
  * null while settled; otherwise the in-flight phase and the label to show for it. It replaces
@@ -113,6 +132,8 @@ async function refreshStatus(force = false) {
   } catch {
     // A transient poll failure keeps the last known state until the next poll.
   }
+  if (connected.value) await refreshReport();
+  else report.value = null;
 }
 
 // --- Autostart ---------------------------------------------------------------------
@@ -311,6 +332,7 @@ async function runConnect() {
     await new Promise((r) => setTimeout(r, TUNNEL_SETTLE_MS));
     transition.value = null;
     refreshStatus(true);
+    void refreshProtocols();
   } catch (e) {
     clearInterval(progressTimer);
     transition.value = null;
@@ -458,6 +480,7 @@ onMounted(() => {
   autostartRecheckTimer = setTimeout(() => void loadAutostart(), AUTOSTART_RECHECK_MS);
 
   void refreshStatus();
+  void refreshProtocols();
   pollTimer = setInterval(() => void refreshStatus(), STATUS_POLL_MS);
 
   // The IP card fills in later and the protocol line wraps or does not, so the
@@ -520,6 +543,8 @@ onBeforeUnmount(() => {
     </NCard>
 
     <IpInfoCard class="pane" :connected="connected" />
+
+    <ProtocolList class="pane" :protocols="protocols" :report="report" :connected="connected && !transition" />
 
     <!-- Settings and actions -->
     <NCard class="pane" :bordered="false">

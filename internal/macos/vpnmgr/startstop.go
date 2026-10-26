@@ -326,6 +326,7 @@ func (m *Manager) startOne(v core.VPNItem) error {
 	defer os.Remove(cancelPath)
 	report := func(p autoconnect.Progress) { autoconnect.WriteProgress(m.Paths.RunDir, p) }
 	report(autoconnect.Progress{Phase: "preparing"})
+	autoconnect.RemoveReport(m.Paths.RunDir)
 	defer os.Remove(filepath.Join(m.Paths.RunDir, autoconnect.ProgressFile))
 	pidPath := m.Paths.PIDFile(v.Name)
 	logPath := m.Paths.LogFile(v.Name)
@@ -416,6 +417,7 @@ func (m *Manager) startOne(v core.VPNItem) error {
 		return err
 	}
 	selection.ConfigureGroups(root)
+	autoconnect.WriteReport(m.Paths.RunDir, autoconnect.NewReport(profile, selection))
 	report(autoconnect.Progress{Phase: "starting"})
 	m.Logger.Log("Automatically selected connection: " + selection.Winner())
 	if raw, ok := root.Get("outbounds"); ok {
@@ -531,6 +533,7 @@ func (m *Manager) stopOne(v core.VPNItem) {
 	for _, path := range m.pidFileCandidatesForVPN(v.Name) {
 		_ = os.Remove(path)
 	}
+	autoconnect.RemoveReport(m.Paths.RunDir)
 	if alive {
 		procutil.Terminate(pid, 3*time.Second)
 		fmt.Println(ansiutil.Yellow("Stopped " + v.Name))

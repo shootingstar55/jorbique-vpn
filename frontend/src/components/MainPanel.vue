@@ -11,6 +11,7 @@ import { NAlert, NButton, NCard, NIcon, NSpin, NSwitch, useMessage } from 'naive
 import AppIcon from './AppIcon.vue';
 import ConnectionCheck from './ConnectionCheck.vue';
 import IpInfoCard from './IpInfoCard.vue';
+import ProtocolList from './ProtocolList.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
 import { panelAPI } from '../lib/panel-api.js';
 import { getErrMsg } from '../lib/errors.js';
@@ -48,8 +49,8 @@ let refreshing = false;
 const running = computed(() => state.value.running || []);
 const vpns = computed(() => state.value.vpns || []);
 
-/** The line under the app name: what the profile offers, as the Windows header shows it. */
-
+/** What the profile offers, for the protocol list; the check's own list wins while connected. */
+const outbounds = computed(() => state.value.outbounds || []);
 
 const connected = computed(() => running.value.length > 0);
 
@@ -175,6 +176,8 @@ onBeforeUnmount(() => clearInterval(timer));
     </NCard>
 
     <IpInfoCard class="pane" :connected="connected" />
+
+    <ProtocolList class="pane" :protocols="outbounds" :report="state.report" :connected="connected && !pending" />
 
     <NCard class="pane" :bordered="false">
       <div class="switches">

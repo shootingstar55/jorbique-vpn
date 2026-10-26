@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/macos/applekit"
 	"jorbiquevpn/internal/macos/core"
@@ -330,12 +331,18 @@ func (c *statusBarController) refresh() {
 			ms = parseMenuStatus(out)
 		}
 		avail := availableVPNs(cfg, paths)
-		applekit.RunOnMain(func() { c.applyRefresh(running, ms, avail) })
+		active := ""
+		if report, ok := autoconnect.ReadReport(paths.RunDir); ok {
+			active = report.Active
+		}
+		applekit.RunOnMain(func() { c.applyRefresh(running, ms, avail, active) })
 	}()
 }
 
 // applyRefresh updates the menu from parsed status. Runs on the main thread.
-func (c *statusBarController) applyRefresh(running []string, ms MenuStatus, avail []AvailableVPN) {
+//
+// active is the protocol the last connection check started the tunnel on.
+func (c *statusBarController) applyRefresh(running []string, ms MenuStatus, avail []AvailableVPN, active string) {
 	// A VPN counts as no longer connecting when its process is up and its own
 	// check is not failing: a tunnel whose core is alive but whose probe still
 	// fails is mid-handshake, and that is the one the header should keep naming.
@@ -362,7 +369,11 @@ func (c *statusBarController) applyRefresh(running []string, ms MenuStatus, avai
 	}
 	exitIP := c.exitIPForDisplay(c.menuConnected)
 	confirmedFails := c.connFail.observe(connectivityFailures(ms), time.Now())
-	c.detailItem.SetSubtitle(connectionDetail(ms, c.menuConnected, exitIP, confirmedFails))
+	detail := connectionDetail(ms, c.menuConnected, exitIP, confirmedFails)
+	if c.menuConnected && len(confirmedFails) == 0 && active != "" {
+		detail += "  ·  " + protocolLabel(active)
+	}
+	c.detailItem.SetSubtitle(detail)
 
 	p := computeStatusPresentation(running, confirmedFails)
 	if len(running) == 0 && !c.recentlyStarted() && !c.recentlyStopped() {
