@@ -126,7 +126,9 @@ GitHub Actions runs [the build workflow](../.github/workflows/ci.yml) for pull
 requests, pushes to `main`, version tags, and manual dispatches. It checks and
 builds the frontend, runs Go vet/unit/integration checks on Linux, and produces
 `Jorbique-VPN-Extended-windows.zip` and `Jorbique-VPN-Extended-macOS.pkg` as downloadable workflow
-artifacts. Windows is cross-built on Linux; the universal macOS installer
+artifacts. A `vX.Y.Z` tag publishes them to the release with the version in the
+name (`Jorbique-VPN-Extended-windows-X.Y.Z.zip`, `Jorbique-VPN-Extended-macOS-X.Y.Z.pkg`)
+plus `SHA256SUMS`, so `releases/latest/download/...` links need the exact name. Windows is cross-built on Linux; the universal macOS installer
 (Apple Silicon and Intel) is built on a macOS runner, which also runs the
 macOS-only CLI tests. Linux integration checks use a pinned, checksum-verified
 sing-box-extended binary to validate generated configs and the dashboard API.
