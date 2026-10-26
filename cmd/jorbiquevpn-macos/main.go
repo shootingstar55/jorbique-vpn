@@ -14,6 +14,7 @@ func main() {
 	runtime.LockOSThread()
 
 	cli.SetMenuBarRunner(ui.RunStatusBarApp)
+	cli.SetLaunchLinkForwarder(ui.ForwardLaunchLink)
 	if err := cli.Run(); err != nil {
 		cli.ReportError(err)
 		os.Exit(core.ExitCodeFor(err))

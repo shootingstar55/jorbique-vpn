@@ -43,7 +43,9 @@ func RunStatusBarApp() {
 	// (JORBIQUE_VPN_LAUNCH_AGENT=1) or when autostart is disabled (no plist).
 	if os.Getenv("JORBIQUE_VPN_LAUNCH_AGENT") != "1" {
 		if launchd.BootstrapAppLaunchAgentIfDormant("") {
-			return // the agent now owns the bar
+			// The agent now owns the bar; a link this copy was opened with goes to it.
+			ForwardLaunchLink()
+			return
 		}
 	}
 
@@ -51,6 +53,7 @@ func RunStatusBarApp() {
 	pidFile := filepath.Join(paths.RunDir, "bar.pid")
 	if pid, ok := procutil.ReadPID(pidFile); ok && procutil.IsAlive(pid) {
 		if isBarCommandLine(procutil.CommandLine(pid), filepath.Base(exePath)) {
+			ForwardLaunchLink()
 			os.Exit(0)
 		}
 		_ = os.Remove(pidFile)

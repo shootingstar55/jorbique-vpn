@@ -102,6 +102,7 @@ func RunStatusBarAppPurego(exePath, displayName string) error {
 	app.OnReopen(c.reopen)
 	// jorbique:// links from the /sub page bring the user's UUID (importlink.go).
 	app.OnOpenURLs(c.openLinks)
+	c.watchPendingLinks()
 	app.InstallEditMenu()
 	// Use the installed app icon for alerts/Dock (staged next to the binary).
 	applekit.SetAppIcon(filepath.Join(filepath.Dir(exePath), "AppIcon.icns"))

@@ -58,6 +58,13 @@ var menuBarRunner func()
 // SetMenuBarRunner allows main to inject the UI runner without an import cycle.
 func SetMenuBarRunner(fn func()) { menuBarRunner = fn }
 
+// launchLinkForwarder takes a jorbique:// link from a menu-bar launch that
+// exits because another bar holds the lock (ui.ForwardLaunchLink).
+var launchLinkForwarder func()
+
+// SetLaunchLinkForwarder is wired by main.go, like SetMenuBarRunner.
+func SetLaunchLinkForwarder(fn func()) { launchLinkForwarder = fn }
+
 // stripFinderLaunchArgs removes LaunchServices noise (e.g. -psn_0_12345) that Finder passes to .app executables.
 // Without this, the first "command" is not empty and menu-bar / default GUI mode never runs.
 func stripFinderLaunchArgs(args []string) []string {
@@ -195,6 +202,9 @@ func runMenuBar() error {
 		os.Exit(0)
 	}
 	if !waitForMenuBarSingletonLock() {
+		if launchLinkForwarder != nil {
+			launchLinkForwarder()
+		}
 		os.Exit(0)
 	}
 
