@@ -23,7 +23,6 @@ import (
 	"jorbiquevpn/internal/core"
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/jsonorder"
-	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/logging"
 	"jorbiquevpn/internal/network"
 	"jorbiquevpn/internal/paths"
@@ -271,11 +270,6 @@ func (a *App) Connect() (msg string, err error) {
 			return errMsg, ErrStartupFailed
 		}
 		return "Startup failed. Check logs for details.", ErrStartupFailed
-	}
-	if err := selection.Activate(context.Background(), configPath); err != nil {
-		core.Stop(logFn)
-		a.cleanupTunnelArtifacts(dataDir, logFn)
-		return "Could not activate the checked connection. Try again.", ErrStartupFailed
 	}
 	return "", nil
 }
@@ -582,16 +576,6 @@ func (a *App) ListLogFiles() ([]string, error) {
 		}
 	}
 	return names, nil
-}
-
-// TrafficTotals asks the running core how much it has carried. It fails while
-// sing-box is not running, because its API only exists alongside it.
-func (a *App) TrafficTotals(ctx context.Context) (localapi.Traffic, error) {
-	client, err := localapi.NewClient(paths.RuntimeConfigPath())
-	if err != nil {
-		return localapi.Traffic{}, err
-	}
-	return client.Traffic(ctx)
 }
 
 // ClearLogs removes all log files

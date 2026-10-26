@@ -169,7 +169,7 @@ func TestBuildConfigFromRemoteTemplateTakesTheWholeProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	profile := `{"outbounds":[{"type":"vless","tag":"vless-reality","uuid":""},{"type":"urltest","tag":"auto","outbounds":["vless-reality"]},{"type":"direct","tag":"direct"}],` +
-		`"ntp":{"enabled":true},"services":[{"type":"api","tag":"local-api"}],"log":{"level":"debug"}}`
+		`"ntp":{"enabled":true},"services":[{"type":"ssm-api","tag":"ssm"}],"log":{"level":"debug"}}`
 	if err := os.WriteFile(filepath.Join(dir, "singbox_client.json"), []byte(profile), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -235,13 +235,16 @@ func TestNormalizeLogOutputLeavesASilentProfileAlone(t *testing.T) {
 	}
 }
 
-func TestBuildConfigFromRemoteTemplateAddsPrivateAPIService(t *testing.T) {
+// The client reads nothing from a running core, so whichever side brings sing-box's
+// local API — an old local config or the profile — it does not reach the tunnel.
+func TestBuildConfigFromRemoteTemplateRemovesLocalAPI(t *testing.T) {
 	dir := t.TempDir()
 	base := filepath.Join(dir, "singbox.json")
 	if err := os.WriteFile(base, []byte(`{"log":{"level":"warn"},"inbounds":[],"services":[{"type":"api","secret":"stable-secret"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	profile := `{"outbounds":[{"type":"vless","tag":"vless-reality","uuid":""},{"type":"urltest","tag":"auto","outbounds":["vless-reality"]},{"type":"direct","tag":"direct"}]}`
+	profile := `{"outbounds":[{"type":"vless","tag":"vless-reality","uuid":""},{"type":"urltest","tag":"auto","outbounds":["vless-reality"]},{"type":"direct","tag":"direct"}],` +
+		`"http_clients":[{"tag":"dashboard-http"}]}`
 	if err := os.WriteFile(filepath.Join(dir, "singbox_client.json"), []byte(profile), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -251,24 +254,8 @@ func TestBuildConfigFromRemoteTemplateAddsPrivateAPIService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	services, _ := root.Get("services")
-	list, ok := services.([]any)
-	if !ok || len(list) != 1 {
-		t.Fatalf("services = %v", services)
-	}
-	api := list[0].(*OrderedMap)
-	if port, _ := api.Get("listen_port"); port != 39217 {
-		t.Errorf("listen_port = %v, want 39217", port)
-	}
-	if listen, _ := api.Get("listen"); listen != "127.0.0.1" {
-		t.Errorf("the API listens on %v, not loopback", listen)
-	}
-	if secret, _ := api.Get("secret"); strings.TrimSpace(secret.(string)) != "stable-secret" {
-		t.Errorf("API secret = %v, want preserved local secret", secret)
-	}
-	if api.Has("dashboard") || root.Has("http_clients") {
-		t.Errorf("downloadable dashboard remains in config")
+	if root.Has("services") || root.Has("http_clients") {
+		t.Errorf("local API remains in config: services=%v http_clients=%v", root.Has("services"), root.Has("http_clients"))
 	}
 }
 

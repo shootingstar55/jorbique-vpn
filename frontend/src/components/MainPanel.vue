@@ -9,7 +9,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { NAlert, NButton, NCard, NIcon, NSpin, NSwitch, useMessage } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
-import HeroTraffic from './HeroTraffic.vue';
 import ConnectionCheck from './ConnectionCheck.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
@@ -157,20 +156,16 @@ onBeforeUnmount(() => clearInterval(timer));
 
     <NCard class="pane pane--hero" :bordered="false">
       <NSpin :show="loading && !vpns.length">
-        <div class="hero-row">
-          <HeroTraffic direction="down" :total="state.downlinkTotal || 0" :active="connected" />
-          <button
-            type="button"
-            class="ring"
-            :class="ringState"
-            :disabled="!!pending"
-            @click="toggleConnection"
-          >
-            <span class="ring__pulse" aria-hidden="true"></span>
-            <span class="ring__glyph">⏻</span>
-          </button>
-          <HeroTraffic direction="up" :total="state.uplinkTotal || 0" :active="connected" />
-        </div>
+        <button
+          type="button"
+          class="ring"
+          :class="ringState"
+          :disabled="!!pending"
+          @click="toggleConnection"
+        >
+          <span class="ring__pulse" aria-hidden="true"></span>
+          <span class="ring__glyph">⏻</span>
+        </button>
         <ConnectionCheck v-if="pending && !['Отключение', 'Выход'].includes(pending)" :progress="state.connectionProgress" />
         <template v-else>
           <h2 class="hero__headline">{{ headline }}</h2>
@@ -275,15 +270,6 @@ onBeforeUnmount(() => clearInterval(timer));
 .head__logo.is-protected img {
   filter: drop-shadow(0 0 10px rgba(255, 206, 0, 0.55)) drop-shadow(0 0 14px rgba(255, 28, 3, 0.4));
   transform: scale(1.04);
-}
-
-/* The ring sits between the two traffic columns, which is what used to be blank
-   space on either side of it. */
-.hero-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 10px;
 }
 
 .head h1 {

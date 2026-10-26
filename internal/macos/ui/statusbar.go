@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"jorbiquevpn/internal/ipinfo"
-	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/applekit"
 	"jorbiquevpn/internal/macos/core"
 	"jorbiquevpn/internal/update"
@@ -990,30 +989,6 @@ func (c *statusBarController) ipInfo(force bool) (ipinfo.Info, error) {
 	return cache.Get(context.Background(), force)
 }
 
-// trafficTotals asks the running core how much it has carried. Best-effort: the
-// API only exists while sing-box does, and a window that cannot read it shows
-// dashes rather than an error.
-func (c *statusBarController) trafficTotals(cfg *core.AppConfig, running []string) (int64, int64) {
-	if !hasSingboxRunning(cfg, running) {
-		return 0, 0
-	}
-	configPath := singboxRuntimeConfigPath(cfg)
-	if configPath == "" {
-		return 0, 0
-	}
-	client, err := localapi.NewClient(configPath)
-	if err != nil {
-		return 0, 0
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	traffic, err := client.Traffic(ctx)
-	if err != nil {
-		return 0, 0
-	}
-	return traffic.UplinkTotal, traffic.DownlinkTotal
-}
-
 // invalidateIPInfo drops the cached exit address, the window's and the menu's.
 func (c *statusBarController) invalidateIPInfo() {
 	c.mu.Lock()
@@ -1107,7 +1082,6 @@ func (c *statusBarController) mainWindowState() mainState {
 		ms = parseMenuStatus(out)
 	}
 	state := mainStateOf(cfg, paths, ms, running, c.exitIPForDisplay(hasSingboxRunning(cfg, running)))
-	state.UplinkTotal, state.DownlinkTotal = c.trafficTotals(cfg, running)
 	if action, busy := c.currentAction(); busy {
 		state.Action = action.verb
 	}

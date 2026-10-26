@@ -4,7 +4,6 @@ import { NButton, NCard, NIcon, NModal, NProgress, NSwitch } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
-import HeroTraffic from './HeroTraffic.vue';
 import ConnectionCheck from './ConnectionCheck.vue';
 import { binding } from '../lib/bindings.js';
 import { getErrMsg } from '../lib/errors.js';
@@ -32,31 +31,6 @@ const AUTOSTART_RECHECK_MS = 1500;
 
 
 const connected = ref(false);
-
-/**
- * What the core has carried, for the columns beside the ring. Read from sing-box's
- * own API, and only while a tunnel is up — with nothing running there is no API
- * to ask.
- */
-const traffic = ref({ uplinkTotal: 0, downlinkTotal: 0 });
-
-async function refreshTraffic() {
-  if (!connected.value) {
-    traffic.value = { uplinkTotal: 0, downlinkTotal: 0 };
-    return;
-  }
-  const trafficTotals = binding('TrafficTotals');
-  if (!trafficTotals) return;
-  try {
-    const totals = await trafficTotals();
-    traffic.value = {
-      uplinkTotal: Number(totals?.uplinkTotal) || 0,
-      downlinkTotal: Number(totals?.downlinkTotal) || 0,
-    };
-  } catch {
-    /* the API comes and goes with the tunnel; the columns just hold their last value */
-  }
-}
 
 /**
  * Tags from the downloaded profile, shown under the app name. Refreshed on launch and after
@@ -139,10 +113,6 @@ async function refreshStatus(force = false) {
   } catch {
     // A transient poll failure keeps the last known state until the next poll.
   }
-
-  // Rides the status poll rather than a timer of its own: the columns read the
-  // same cadence as everything else in the hero.
-  await refreshTraffic();
 }
 
 // --- Autostart ---------------------------------------------------------------------
@@ -529,21 +499,17 @@ onBeforeUnmount(() => {
     <!-- Connection -->
     <NCard class="pane pane--hero" :bordered="false">
       <div class="hero">
-        <div class="hero-row">
-          <HeroTraffic direction="down" :total="traffic.downlinkTotal" :active="connected" />
-          <button
-            type="button"
-            class="ring"
-            :class="ringState"
-            :disabled="busy && !cancellable"
-            :aria-label="primaryLabel"
-            @click="onPrimaryAction"
-          >
-            <span class="ring__pulse" aria-hidden="true"></span>
-            <NIcon :size="38" class="ring__icon"><AppIcon name="power" /></NIcon>
-          </button>
-          <HeroTraffic direction="up" :total="traffic.uplinkTotal" :active="connected" />
-        </div>
+        <button
+          type="button"
+          class="ring"
+          :class="ringState"
+          :disabled="busy && !cancellable"
+          :aria-label="primaryLabel"
+          @click="onPrimaryAction"
+        >
+          <span class="ring__pulse" aria-hidden="true"></span>
+          <NIcon :size="38" class="ring__icon"><AppIcon name="power" /></NIcon>
+        </button>
 
         <ConnectionCheck v-if="transition?.phase === 'connecting'" :progress="connectionProgress" />
         <div v-else class="hero__text" aria-live="polite" aria-atomic="true">
@@ -707,16 +673,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   padding: 0;
-}
-
-/* The ring between the two traffic columns, which is what used to be blank
-   space on either side of it. */
-.hero-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
 }
 
 /* Shape, motion and the connected glow are in styles.css; this window's

@@ -1,22 +1,12 @@
 package localapi
 
 import (
-	"context"
 	"encoding/json"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"testing/fstest"
-
-	"jorbiquevpn/internal/jsonorder"
-
-	"google.golang.org/protobuf/protoadapt"
 )
 
 // serve runs handler against one recorded request.
@@ -25,56 +15,6 @@ func serve(handler http.Handler, method, target, body string) *httptest.Response
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	return response
-}
-
-func writeAPIConfig(t *testing.T, address string) string {
-	t.Helper()
-	host, port, err := net.SplitHostPort(address)
-	if err != nil {
-		t.Fatal(err)
-	}
-	portNumber, _ := strconv.Atoi(port)
-	data, _ := json.Marshal(map[string]any{"services": []any{map[string]any{"type": "api", "listen": host, "listen_port": portNumber}}})
-	path := filepath.Join(t.TempDir(), "singbox.json")
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
-func TestTrafficFailsWithoutAReachableAPI(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	stoppedAddress := listener.Addr().String()
-	listener.Close()
-
-	_, runningPath := startFakeStartedService(t)
-	running, err := NewClient(runningPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, test := range []struct {
-		name       string
-		configPath string
-	}{
-		// A stopped tunnel is routine while the main window polls.
-		{"stopped tunnel", writeAPIConfig(t, stoppedAddress)},
-		// The config has no secret, so the running API rejects the call.
-		{"unauthenticated", writeAPIConfig(t, running.address)},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			client, err := NewClient(test.configPath)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err := client.Traffic(context.Background()); err == nil {
-				t.Fatal("Traffic succeeded, want an error")
-			}
-		})
-	}
 }
 
 func TestFormActionHandler(t *testing.T) {
@@ -155,61 +95,5 @@ func TestConfigServerRejectsMalformedUpdateAndSavesWithoutCallback(t *testing.T)
 	response = serve(server.server.Handler, http.MethodPost, configURL, `{"uuid":"7998568d-7ae4-4f65-a4cb-b20e78af6a87"}`)
 	if response.Code != http.StatusNoContent {
 		t.Fatalf("update without save callback = %d, want 204", response.Code)
-	}
-}
-
-func TestWireMessagesResetToZero(t *testing.T) {
-	for _, message := range []protoadapt.MessageV1{
-		&statusRequest{Interval: 1},
-		&statusMessage{UplinkTotal: 1, DownlinkTotal: 2},
-		&groupsMessage{Groups: []*groupMessage{{Tag: "proxy"}}},
-		&groupMessage{Tag: "proxy", Selected: "tuic"},
-		&groupItemMessage{Tag: "tuic", URLTestDelay: 75},
-		&selectOutboundMessage{GroupTag: "proxy", OutboundTag: "tuic"},
-	} {
-		message.ProtoMessage()
-		if got := message.String(); got != "" {
-			t.Errorf("%T.String() = %q, want empty", message, got)
-		}
-		message.Reset()
-		if !reflect.ValueOf(message).Elem().IsZero() {
-			t.Errorf("%T.Reset() left %#v", message, message)
-		}
-	}
-}
-
-func TestConfigureAPIKeepsOneAPIServiceAndForeignHTTPClients(t *testing.T) {
-	first := jsonorder.FromMap(map[string]any{"type": "api", "tag": "first"})
-	other := jsonorder.FromMap(map[string]any{"type": "ssm-api", "tag": "ssm"})
-	direct := jsonorder.FromMap(map[string]any{"tag": "direct-http"})
-	root := jsonorder.FromMap(map[string]any{
-		"services":     []any{"opaque", first, jsonorder.FromMap(map[string]any{"type": "api", "tag": "duplicate"}), other},
-		"http_clients": []any{jsonorder.FromMap(map[string]any{"tag": "dashboard-http"}), direct},
-	})
-	if err := ConfigureAPI(root, "  fixed-value  "); err != nil {
-		t.Fatal(err)
-	}
-	services, _ := root.Get("services")
-	if want := []any{"opaque", first, other}; !reflect.DeepEqual(services, want) {
-		t.Fatalf("services = %v, want the first API service and non-API entries", services)
-	}
-	if got := APISecret(root); got != "fixed-value" || first.GetString("listen") != "127.0.0.1" {
-		t.Fatalf("API service = %v, secret %q", first, got)
-	}
-	clients, _ := root.Get("http_clients")
-	if want := []any{direct}; !reflect.DeepEqual(clients, want) {
-		t.Fatalf("http_clients = %v, want only direct-http", clients)
-	}
-}
-
-func TestAPISecretWithoutAPIService(t *testing.T) {
-	for name, root := range map[string]*jsonorder.Map{
-		"nil root":    nil,
-		"no services": jsonorder.New(),
-		"no API":      jsonorder.FromMap(map[string]any{"services": []any{jsonorder.FromMap(map[string]any{"type": "dns"})}}),
-	} {
-		if got := APISecret(root); got != "" {
-			t.Errorf("%s: APISecret = %q, want empty", name, got)
-		}
 	}
 }

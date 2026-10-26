@@ -115,7 +115,7 @@ func TestCovStartStartOneWritesTheConfigBeforeSpawning(t *testing.T) {
 			experimental, _ := root["experimental"].(map[string]any)
 			cache, _ := experimental["cache_file"].(map[string]any)
 			wantCache := filepath.Join(m.Paths.BinDir, "cache", "zz_test_cov_start", "cache.db")
-			if cache["path"] != wantCache || cache["cache_id"] != "zz_test_cov_start" || cache["store_dns"] != true {
+			if cache["path"] != wantCache || cache["cache_id"] != "zz_test_cov_start-v2" || cache["store_dns"] != true {
 				t.Errorf("cache_file = %v, want path %s", cache, wantCache)
 			}
 			if _, err := os.Stat(filepath.Dir(wantCache)); err != nil {

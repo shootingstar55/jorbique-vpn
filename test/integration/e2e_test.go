@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -15,10 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"jorbiquevpn/internal/assets"
 	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/config"
 	"jorbiquevpn/internal/jsonorder"
-	"jorbiquevpn/internal/localapi"
 )
 
 // sampleRemoteProfile mirrors the shape of the profile the update server returns:
@@ -80,50 +79,6 @@ func TestEndToEndConfigBuild(t *testing.T) {
 	validateWithSingbox(t, outPath)
 }
 
-func TestLocalAPIReadsRealStartedService(t *testing.T) {
-	bin := strings.TrimSpace(os.Getenv("SINGBOX_BIN"))
-	if bin == "" {
-		t.Skip("SINGBOX_BIN not set")
-	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	_ = listener.Close()
-	configPath := filepath.Join(t.TempDir(), "local-api.json")
-	configData := []byte(fmt.Sprintf(`{"log":{"disabled":true},"services":[{"type":"api","tag":"local-api","listen":"127.0.0.1","listen_port":%d,"secret":"integration-secret"}]}`, port))
-	if err := os.WriteFile(configPath, configData, 0600); err != nil {
-		t.Fatal(err)
-	}
-	var output bytes.Buffer
-	cmd := exec.Command(bin, "run", "-c", configPath) //nolint:gosec // explicit test binary
-	cmd.Stdout, cmd.Stderr = &output, &output
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
-	}()
-
-	client, err := localapi.NewClient(configPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		_, err := client.Traffic(context.Background())
-		if err == nil {
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("StartedService did not become ready: %v\n%s", err, output.String())
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-}
-
 // validateWithSingbox runs `sing-box check` against the generated config when a
 // binary path is provided via SINGBOX_BIN; otherwise it is skipped.
 func validateWithSingbox(t *testing.T, configPath string) {
@@ -146,9 +101,11 @@ func validateWithSingbox(t *testing.T, configPath string) {
 	}
 }
 
-// A persistent DNS cache may also remember the old manual selector. A fresh
-// automatic connection must actually use its measured winner after startup.
-func TestAutomaticWinnerOverridesCachedManualSelection(t *testing.T) {
+// The persistent DNS cache also holds a selector choice once anything has
+// switched the selector, as the local API of older builds did, and sing-box
+// restores it over "default". The client's cache_id moved to a new namespace so
+// such a leftover cannot bring the tunnel up on a protocol the scan did not pick.
+func TestCachedSelectionFromAnOlderNamespaceIsIgnored(t *testing.T) {
 	bin := strings.TrimSpace(os.Getenv("SINGBOX_BIN"))
 	if bin == "" {
 		t.Skip("SINGBOX_BIN not set")
@@ -159,22 +116,47 @@ func TestAutomaticWinnerOverridesCachedManualSelection(t *testing.T) {
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
 	_ = listener.Close()
-	dir := t.TempDir()
-	configPath := filepath.Join(dir, "automatic.json")
-	raw, _ := json.Marshal(map[string]any{
-		"log": map[string]any{"disabled": true},
-		"outbounds": []any{
-			map[string]any{"type": "socks", "tag": "fast", "server": "127.0.0.1", "server_port": 1},
-			map[string]any{"type": "socks", "tag": "slow", "server": "127.0.0.1", "server_port": 2},
-			map[string]any{"type": "selector", "tag": "auto", "outbounds": []string{"fast", "slow"}, "default": "fast"},
-		}, "route": map[string]any{"final": "auto"},
-		"services":     []any{map[string]any{"type": "api", "listen": "127.0.0.1", "listen_port": port, "secret": "test-secret"}},
-		"experimental": map[string]any{"cache_file": map[string]any{"enabled": true, "path": filepath.Join(dir, "cache.db"), "store_dns": true}},
-	})
-	if err := os.WriteFile(configPath, raw, 0600); err != nil {
+	// The namespace the shipped template uses now.
+	template, err := assets.FS.ReadFile("tun.json")
+	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := localapi.NewClient(configPath)
+	var shipped struct {
+		Experimental struct {
+			CacheFile struct {
+				CacheID string `json:"cache_id"`
+			} `json:"cache_file"`
+		} `json:"experimental"`
+	}
+	if err := json.Unmarshal(template, &shipped); err != nil {
+		t.Fatal(err)
+	}
+	currentID := shipped.Experimental.CacheFile.CacheID
+	if currentID == "" || currentID == "tun" {
+		t.Fatalf("cache_id = %q, want a namespace other than the one older builds wrote choices into", currentID)
+	}
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "automatic.json")
+	writeConfig := func(cacheID string) {
+		raw, _ := json.Marshal(map[string]any{
+			"log": map[string]any{"disabled": true},
+			"outbounds": []any{
+				map[string]any{"type": "socks", "tag": "fast", "server": "127.0.0.1", "server_port": 1},
+				map[string]any{"type": "socks", "tag": "slow", "server": "127.0.0.1", "server_port": 2},
+				map[string]any{"type": "selector", "tag": "auto", "outbounds": []string{"fast", "slow"}, "default": "fast"},
+			}, "route": map[string]any{"final": "auto"},
+			"services": []any{map[string]any{"type": "api", "listen": "127.0.0.1", "listen_port": port, "secret": "test-secret"}},
+			"experimental": map[string]any{"cache_file": map[string]any{
+				"enabled": true, "path": filepath.Join(dir, "cache.db"), "cache_id": cacheID, "store_dns": true,
+			}},
+		})
+		if err := os.WriteFile(configPath, raw, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeConfig("tun")
+	client, err := newAPIClient(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,19 +195,20 @@ func TestAutomaticWinnerOverridesCachedManualSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 	stop()
+	// Under the old namespace the choice comes back over "default"...
 	stop = start()
-	defer stop()
 	groups, err := client.Groups(context.Background())
+	stop()
 	if err != nil || len(groups) != 1 || groups[0].Selected != "slow" {
 		t.Fatalf("cached choice was not restored: %+v %v", groups, err)
 	}
-	selection := autoconnect.Result{Working: []autoconnect.Measurement{{Tag: "fast"}, {Tag: "slow"}}}
-	if err := selection.Activate(context.Background(), configPath); err != nil {
-		t.Fatal(err)
-	}
+	// ...and under the current one, from the same cache file, it does not.
+	writeConfig(currentID)
+	stop = start()
+	defer stop()
 	groups, err = client.Groups(context.Background())
 	if err != nil || len(groups) != 1 || groups[0].Selected != "fast" {
-		t.Fatalf("winner not active: %+v %v", groups, err)
+		t.Fatalf("default not active: %+v %v", groups, err)
 	}
 }
 
@@ -299,16 +282,13 @@ func TestAutomaticGroupFailsOverOnlyWhenTheWinnerStops(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
-		if err := selection.Activate(context.Background(), configPath); err != nil {
-			t.Fatalf("%v\n%s", err, stderr.String())
-		}
-		client, err := localapi.NewClient(configPath)
+		client, err := newAPIClient(configPath)
 		if err != nil {
 			t.Fatal(err)
 		}
 		// The first check runs right after startup; give it time to finish.
 		deadline := time.Now().Add(8 * time.Second)
-		var last []localapi.Group
+		var last []apiGroup
 		for time.Now().Before(deadline) {
 			groups, err := client.Groups(context.Background())
 			if err == nil {

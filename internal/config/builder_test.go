@@ -13,7 +13,7 @@ func TestBuildRuntimeConfig_smoke(t *testing.T) {
 	t.Setenv("APPDATA", t.TempDir())
 
 	// A profile of its own: the template carries only what this machine
-	// decides — the tunnel, the log, the api, the cache — and the protocols,
+	// decides — the tunnel, the log, the cache — and the protocols,
 	// the routes and the resolvers all arrive from the server.
 	profile := []byte(`{
 	  "dns": {"servers":[{"tag":"dns-local","type":"local"}],"rules":[],"final":"dns-local"},
@@ -70,7 +70,7 @@ func TestMergeRemoteWithTunShell_smoke(t *testing.T) {
 			t.Errorf("%s did not survive the merge", fromProfile)
 		}
 	}
-	for _, fromTemplate := range []string{"log", "inbounds", "services", "experimental"} {
+	for _, fromTemplate := range []string{"log", "inbounds", "experimental"} {
 		if !cfg.Has(fromTemplate) {
 			t.Errorf("the template's %s was not filled in", fromTemplate)
 		}

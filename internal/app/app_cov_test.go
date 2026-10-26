@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"errors"
 	"jorbiquevpn/internal/autoconnect"
 	"os"
@@ -63,15 +62,6 @@ func TestApp_ActivateUserUUIDSaveFails(t *testing.T) {
 	msg, err := a.ActivateUserUUID(appTestUUID)
 	if !errors.Is(err, ErrConfigUpdate) || msg != "Failed to save config" {
 		t.Fatalf("ActivateUserUUID = %q, %v; want the save failure", msg, err)
-	}
-}
-
-// Without a runtime config there is no API to talk to.
-func TestApp_TrafficTotalsWithoutRuntimeConfig(t *testing.T) {
-	a := newTestApp(t)
-	t.Setenv("APPDATA", t.TempDir())
-	if _, err := a.TrafficTotals(context.Background()); err == nil || !strings.Contains(err.Error(), "read sing-box config") {
-		t.Errorf("TrafficTotals: %v, want the missing-config error", err)
 	}
 }
 

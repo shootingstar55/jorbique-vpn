@@ -25,7 +25,7 @@ func TestConfigIsBuiltWithNoLocalFileToReadFrom(t *testing.T) {
 	}
 
 	// Everything sing-box needs that the profile does not carry.
-	for _, section := range []string{"log", "inbounds", "services"} {
+	for _, section := range []string{"log", "inbounds"} {
 		if _, ok := root.Get(section); !ok {
 			t.Errorf("%q is missing from a config built without a local file", section)
 		}

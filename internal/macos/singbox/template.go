@@ -13,7 +13,6 @@ import (
 
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/httpsclient"
-	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/core"
 	"jorbiquevpn/internal/macos/fsatomic"
 	"jorbiquevpn/internal/singboxcfg"
@@ -302,7 +301,6 @@ func BuildConfigFromTemplate(settings core.SingboxSection, baseConfigPath string
 	// deleted (or that has never run) gets one from the downloaded profile
 	// alone.
 	baseRoot := localRootOrDefault(baseConfigPath)
-	localAPISecret := localapi.APISecret(baseRoot)
 
 	remoteRoot := NewOrderedMap()
 	if err := unmarshalToOrderedMap(body, remoteRoot); err != nil {
@@ -344,15 +342,11 @@ func BuildConfigFromTemplate(settings core.SingboxSection, baseConfigPath string
 	}
 
 	// The node the user picked becomes the selector's default, so a restart comes
-	// back on it. Switching a running tunnel goes through the API instead, and
-	// that choice dies with the process — this is the half that survives it.
-	// After the pruning, so a node that has since been switched off cannot be
+	// back on it. After the pruning, so a node that has since been switched off cannot be
 	// written into a group that no longer offers it.
 	singboxcfg.SetSelectorDefault(root, settings.SelectedNode)
 
-	if err := localapi.ConfigureAPI(root, localAPISecret); err != nil {
-		return nil, core.BadConfig(err.Error())
-	}
+	singboxcfg.RemoveLocalAPI(root)
 	return root, nil
 }
 
