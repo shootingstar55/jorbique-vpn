@@ -327,6 +327,7 @@ function onUpdateShow(value) {
     class="dialog dialog--wide"
     :bordered="false"
     title="Исключения"
+    :auto-focus="!isAndroid"
     @update:show="onUpdateShow"
   >
     <template #header-extra>
