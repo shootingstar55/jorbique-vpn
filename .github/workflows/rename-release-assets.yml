@@ -1,0 +1,66 @@
+name: Version release asset names
+
+# Releases published before assets carried the version (v1.5.0 and earlier) still have
+# Jorbique-VPN-Extended-windows.zip and Jorbique-VPN-Extended-macOS.pkg. This renames them
+# in place to the versioned names, rewrites SHA256SUMS and the file names in the notes.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (vX.Y.Z)
+        required: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  rename:
+    name: Rename assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Rename assets, checksums and notes
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]] || {
+            echo 'The tag must have the form vX.Y.Z.' >&2
+            exit 1
+          }
+          version="${BASH_REMATCH[1]}"
+          declare -A names=(
+            [Jorbique-VPN-Extended-windows.zip]="Jorbique-VPN-Extended-windows-$version.zip"
+            [Jorbique-VPN-Extended-macOS.pkg]="Jorbique-VPN-Extended-macOS-$version.pkg"
+          )
+          release="$(gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG")"
+          for old in "${!names[@]}"; do
+            id="$(jq -r --arg n "$old" '.assets[] | select(.name == $n) | .id' <<<"$release")"
+            if [[ -z "$id" ]]; then
+              echo "No asset named $old; skipping."
+              continue
+            fi
+            gh api -X PATCH "repos/$GH_REPO/releases/assets/$id" -f name="${names[$old]}" --jq .name
+          done
+
+          work="$(mktemp -d)"
+          if jq -e '.assets[] | select(.name == "SHA256SUMS")' <<<"$release" >/dev/null; then
+            gh release download "$RELEASE_TAG" --pattern SHA256SUMS --dir "$work"
+            for old in "${!names[@]}"; do
+              sed -i "s/  ${old//./\\.}\$/  ${names[$old]}/" "$work/SHA256SUMS"
+            done
+            cat "$work/SHA256SUMS"
+            gh release upload "$RELEASE_TAG" --clobber "$work/SHA256SUMS"
+          fi
+          notes="$(jq -r '.body // ""' <<<"$release")"
+          for old in "${!names[@]}"; do
+            notes="${notes//$old/${names[$old]}}"
+          done
+          printf '%s\n' "$notes" > "$work/notes.md"
+          gh release edit "$RELEASE_TAG" --notes-file "$work/notes.md"
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name'
