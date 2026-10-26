@@ -145,6 +145,19 @@ function close() {
   width: 190px;
 }
 
+@media (max-width: 560px) {
+  .tools {
+    width: 100%;
+    gap: 4px;
+  }
+
+  .tools__select {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+}
+
 .viewer {
   max-height: 56vh;
   border-radius: 12px;

@@ -5,6 +5,7 @@ import AppIcon from './AppIcon.vue';
 import { binding } from '../lib/bindings.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
+import { isAndroid } from '../lib/android.js';
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -78,8 +79,17 @@ function normalizeProcName(s) {
   return (s || '').trim().toLowerCase();
 }
 
+/**
+ * On Android a row is an installed app: the name to show is its label, and the package name
+ * (what is saved) goes underneath where Windows shows the window title.
+ */
 function displayName(process) {
+  if (isAndroid) return process.window_title || rawName(process);
   return rawName(process).replace(/\.exe$/i, '');
+}
+
+function subtitle(process) {
+  return isAndroid ? rawName(process) : process.window_title;
 }
 
 function isSelected(process) {
@@ -317,6 +327,7 @@ function onUpdateShow(value) {
     class="dialog dialog--wide"
     :bordered="false"
     title="Исключения"
+    :auto-focus="!isAndroid"
     @update:show="onUpdateShow"
   >
     <template #header-extra>
@@ -342,14 +353,17 @@ function onUpdateShow(value) {
         />
       </section>
 
-      <p class="lede">
+      <p v-if="isAndroid" class="lede">
+        Отмеченные приложения работают мимо VPN: система не пускает их трафик в туннель.
+      </p>
+      <p v-else class="lede">
         Приложения в обход VPN: <code>process_name</code> для запущенных приложений ниже или
         <code>process_path</code> для полного пути к .exe.
       </p>
 
       <div class="toolbar">
         <NInput v-model:value="filter" placeholder="Поиск по списку" clearable />
-        <NButton quaternary :disabled="loading || !hydrated" @click="addExecutable">
+        <NButton v-if="!isAndroid" quaternary :disabled="loading || !hydrated" @click="addExecutable">
           <template #icon><NIcon><AppIcon name="plus" /></NIcon></template>
           Добавить .exe
         </NButton>
@@ -359,7 +373,7 @@ function onUpdateShow(value) {
         </NButton>
       </div>
 
-      <section class="group">
+      <section v-if="!isAndroid" class="group">
         <p class="group__label">По пути</p>
         <NSpin :show="loading">
           <div class="paths">
@@ -393,11 +407,11 @@ function onUpdateShow(value) {
       </section>
 
       <section class="group group--grow">
-        <p class="group__label">Запущенные приложения</p>
+        <p class="group__label">{{ isAndroid ? 'Установленные приложения' : 'Запущенные приложения' }}</p>
         <NSpin :show="loading" class="group__spin">
           <NScrollbar class="apps">
             <NEmpty v-if="!loading && !filteredApps.length" size="small" description="Приложения не найдены." />
-            <div v-for="(process, i) in filteredApps" v-else :key="process.pid ?? i" class="app">
+            <div v-for="(process, i) in filteredApps" v-else :key="process.pid ?? process.process_name ?? i" class="app">
               <NCheckbox
                 :checked="isSelected(process)"
                 :disabled="!hydrated"
@@ -415,7 +429,7 @@ function onUpdateShow(value) {
               </span>
               <span class="app__text">
                 <span class="app__name">{{ displayName(process) }}</span>
-                <span v-if="process.window_title" class="app__title">{{ process.window_title }}</span>
+                <span v-if="subtitle(process)" class="app__title">{{ subtitle(process) }}</span>
               </span>
             </div>
           </NScrollbar>

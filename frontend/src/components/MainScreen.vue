@@ -10,6 +10,7 @@ import { binding } from '../lib/bindings.js';
 import { loadProfileProtocols } from '../lib/outbounds.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
+import { isAndroid } from '../lib/android.js';
 
 const emit = defineEmits([
   'error', 'toast', 'openVpnConfig', 'openIgnoreApps', 'openLogs',
@@ -504,7 +505,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="screen">
+  <div class="screen" :class="{ 'screen--phone': isAndroid }">
     <!-- Identity -->
     <NCard class="pane" :bordered="false">
       <div class="brand">
@@ -531,7 +532,7 @@ onBeforeUnmount(() => {
           @click="onPrimaryAction"
         >
           <span class="ring__pulse" aria-hidden="true"></span>
-          <NIcon :size="38" class="ring__icon"><AppIcon name="power" /></NIcon>
+          <NIcon :size="isAndroid ? 54 : 38" class="ring__icon"><AppIcon name="power" /></NIcon>
         </button>
 
         <ConnectionCheck v-if="transition?.phase === 'connecting'" :progress="connectionProgress" />
@@ -833,6 +834,61 @@ onBeforeUnmount(() => {
   min-width: 0;
   white-space: nowrap;
   line-height: 1.5;
+}
+
+/*
+ * A phone screen is a full column, taller than any desktop window, and the
+ * cards alone fill its top half. The connection card takes the rest: the ring
+ * grows to a thumb-sized button and sits in the middle of the space.
+ */
+.screen--phone {
+  flex: 1 0 auto;
+  gap: 10px;
+}
+
+.screen--phone .pane--hero {
+  flex: 1;
+}
+
+.screen--phone .pane--hero :deep(.n-card-content) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px 14px;
+}
+
+.screen--phone .hero {
+  gap: 16px;
+}
+
+.screen--phone .ring {
+  width: 120px;
+  height: 120px;
+}
+
+.screen--phone .hero__headline {
+  font-size: 22px;
+}
+
+.screen--phone .hero__subline {
+  display: block;
+  font-size: 14px;
+}
+
+.screen--phone .brand__text h1 {
+  font-size: 18px;
+}
+
+/* Three equal columns are narrower than "Изменить UUID" at phone width. */
+.screen--phone .actions {
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+}
+
+.screen--phone .brand__logo {
+  width: 36px;
+  height: 40px;
 }
 
 /* --- Bootstrap --- */

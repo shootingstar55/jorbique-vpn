@@ -161,6 +161,13 @@ func (r *Runner) Probe(ctx context.Context, tag string) (Measurement, error) {
 	return measure(ctx, address, token, target, PayloadBytes, r.tlsTransport)
 }
 
+// MeasureProxy runs the check Probe runs, through a SOCKS proxy the caller
+// started from ProbeConfig itself: the Android client keeps its engine in
+// process instead of running an executable.
+func MeasureProxy(ctx context.Context, address, token string) (Measurement, error) {
+	return measure(ctx, address, token, probeURL, PayloadBytes, nil)
+}
+
 // ProbeConfig contains no TUN, API listener, route rules, disk cache, or remote
 // rule-set downloads. The requested leaf is the final route, never direct.
 // Credential application uses the same exact-field contract as both clients.

@@ -1,5 +1,8 @@
+import { androidApp } from './android.js';
+
 /**
- * Resolves a Wails binding by name at call time.
+ * Resolves a Wails binding by name at call time. The Android app answers the same names
+ * through its own bridge (android.js).
  *
  * Wails fills window.go when its runtime boots, and only with the methods the current
  * platform binds — several ignore-list methods exist on Windows and not on macOS. Looking
@@ -11,6 +14,6 @@
  * @returns {Function|null}
  */
 export function binding(name) {
-  const app = window.go?.ui?.App || window.go?.main?.App || {};
+  const app = window.go?.ui?.App || window.go?.main?.App || androidApp() || {};
   return typeof app[name] === 'function' ? app[name] : null;
 }
