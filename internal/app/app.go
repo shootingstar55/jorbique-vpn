@@ -718,6 +718,14 @@ func (a *App) GetAvailableOutbounds() []string {
 	return config.AvailableProxyTags()
 }
 
+// GetProfileProtocols lists every protocol of the server's profile, Naive
+// included, for the main window's protocol list. Naive sits outside the
+// urltest, so GetAvailableOutbounds leaves it out, yet every connect checks it
+// first.
+func (a *App) GetProfileProtocols() []string {
+	return config.AllProxyTagsFresh()
+}
+
 // GetDirectDomains returns the extra domains that bypass the VPN, one per line.
 func (a *App) GetDirectDomains() string {
 	return strings.Join(a.store.GetDirectDomains(), "\n")

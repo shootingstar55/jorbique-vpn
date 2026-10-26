@@ -461,6 +461,17 @@ func missingFrom(want, available []string) []string {
 // wait on the network; the cache is refreshed by RefreshRemoteTemplate and on
 // every successful build, and survives everything short of an uninstall.
 func AvailableProxyTags(baseConfigPath string) []string {
+	return cachedProfileTags(baseConfigPath, singboxcfg.ProtocolTags)
+}
+
+// AllProxyTags is AvailableProxyTags with NaiveProxy: every protocol the
+// profile offers, for the window's protocol list. A connection checks Naive
+// first, so the list must show it whether or not it is in the urltest.
+func AllProxyTags(baseConfigPath string) []string {
+	return cachedProfileTags(baseConfigPath, singboxcfg.ProxyTags)
+}
+
+func cachedProfileTags(baseConfigPath string, tags func([]any, []string) []string) []string {
 	data, err := os.ReadFile(remoteTemplateCachePath(baseConfigPath))
 	if err != nil || len(data) == 0 {
 		return nil
@@ -477,7 +488,7 @@ func AvailableProxyTags(baseConfigPath string) []string {
 	if !ok {
 		return nil
 	}
-	return singboxcfg.ProtocolTags(outbounds, singboxcfg.RouteEntries(root))
+	return tags(outbounds, singboxcfg.RouteEntries(root))
 }
 
 // NormalizeLogOutput points the profile's log file at this machine's log

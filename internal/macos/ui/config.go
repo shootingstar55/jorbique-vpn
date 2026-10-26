@@ -56,11 +56,6 @@ func singboxUUID(cfg *core.AppConfig) string {
 	return strings.TrimSpace(cfg.Singbox.UUID)
 }
 
-// singboxNaiveMode reports whether the client connects in the NaiveProxy mode.
-func singboxNaiveMode(cfg *core.AppConfig) bool {
-	return cfg != nil && cfg.Singbox.NaiveMode
-}
-
 // singboxEnabledOutbounds returns the protocols that are actually on (never
 // nil): what the profile offers, minus what the user refused, resolved by the
 // same function the config builder uses.
@@ -150,6 +145,17 @@ func singboxRuntimeConfigPath(cfg *core.AppConfig) string {
 		}
 	}
 	return ""
+}
+
+// singboxProfileProtocols lists every protocol the downloaded profile offers,
+// NaiveProxy included, for the main window's protocol list.
+func singboxProfileProtocols(cfg *core.AppConfig) []string {
+	for _, v := range cfg.VPNs {
+		if v.Type == core.VPNSingbox && strings.TrimSpace(v.File) != "" {
+			return singbox.AllProxyTags(v.File)
+		}
+	}
+	return nil
 }
 
 // singboxAvailableOutbounds lists the protocols the downloaded profile offers.

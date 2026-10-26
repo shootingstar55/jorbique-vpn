@@ -83,6 +83,22 @@ func AvailableProxyTagsFresh() []string {
 	return ProtocolTagsFromJSON(body)
 }
 
+// AllProxyTagsFresh is every protocol the server's profile offers, NaiveProxy
+// included, for the main window's protocol list. Downloaded like
+// AvailableProxyTagsFresh, with the cache behind it when the server is
+// unreachable.
+func AllProxyTagsFresh() []string {
+	body, err := fetchSingboxClientJSON(uiProfileFetchTimeout, nil)
+	if err != nil {
+		return nil
+	}
+	cfg := jsonorder.New()
+	if jsonorder.Unmarshal(body, cfg) != nil {
+		return nil
+	}
+	return ProxyTagsFromConfig(cfg)
+}
+
 func fetchSingboxClientJSON(timeout time.Duration, warnf func(string)) ([]byte, error) {
 	remoteURL := constants.SingboxClientURL
 	u, err := url.Parse(remoteURL)

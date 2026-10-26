@@ -36,6 +36,19 @@ func TestNaiveIsAProxyButNotAToggle(t *testing.T) {
 	}
 }
 
+// The window's protocol list shows every protocol, Naive too, even where the
+// profile keeps Naive out of the urltest: each connect checks it first.
+func TestAllProxyTagsKeepNaiveOutsideTheUrltest(t *testing.T) {
+	profile := strings.Replace(naiveProfile, `"outbounds":["vless-reality","anytls","naive"]`, `"outbounds":["vless-reality","anytls"]`, 1)
+	base := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(profile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := AllProxyTags(base), []string{"vless-reality", "anytls", "naive"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("AllProxyTags = %v, want %v", got, want)
+	}
+}
+
 // The protocols mode never starts naive: in the failover group it would run
 // beside every other protocol, and it is the heaviest of them.
 func TestProtocolsModeLeavesNaiveOut(t *testing.T) {

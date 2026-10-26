@@ -332,7 +332,8 @@ func (c *statusBarController) refresh() {
 		}
 		avail := availableVPNs(cfg, paths)
 		active := ""
-		if report, ok := autoconnect.ReadReport(paths.RunDir); ok {
+		// Written by the root daemon, in its run directory rather than this user's.
+		if report, ok := autoconnect.ReadReport(core.DaemonRunDir()); ok {
 			active = report.Active
 		}
 		applekit.RunOnMain(func() { c.applyRefresh(running, ms, avail, active) })
