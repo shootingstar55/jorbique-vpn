@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"jorbiquevpn/internal/dashboard"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/ansiutil"
 )
 
@@ -17,8 +17,8 @@ func showUUIDGatePanel(onSubmit func(uuid string) error, onClosed func()) (*webP
 	if err != nil {
 		return nil, err
 	}
-	return showWebPanel("Jorbique VPN Extended", 520, 400, 440, 340, func(closeWindow func()) (*dashboard.LocalServer, error) {
-		return dashboard.StartFormServerWithActions(panelQuery("activate"), "uuid", assets, struct{}{},
+	return showWebPanel("Jorbique VPN Extended", 520, 400, 440, 340, func(closeWindow func()) (*localapi.LocalServer, error) {
+		return localapi.StartFormServerWithActions(panelQuery("activate"), "uuid", assets, struct{}{},
 			func(raw json.RawMessage) error {
 				var form struct {
 					UUID string `json:"uuid"`

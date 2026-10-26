@@ -1,4 +1,4 @@
-package dashboard
+package localapi
 
 import (
 	"bytes"
@@ -52,8 +52,8 @@ func TestConfigureAPIPreservesLocalSecret(t *testing.T) {
 }
 
 func TestLocalServerServesOnlyTokenScopedAssets(t *testing.T) {
-	assets := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("jorbique-dashboard")}}
-	server, err := StartLocalServer("dashboard=1", "unused.json", fs.FS(assets), nil)
+	assets := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("jorbique-panel")}}
+	server, err := StartFormServer("main=1", "main", fs.FS(assets), struct{}{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestLocalServerServesOnlyTokenScopedAssets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/", "/api/snapshot"} {
+	for _, path := range []string{"/", "/api/main"} {
 		response, err := http.Get(serverURL.Scheme + "://" + serverURL.Host + path)
 		if err != nil {
 			t.Fatal(err)
@@ -78,8 +78,8 @@ func TestLocalServerServesOnlyTokenScopedAssets(t *testing.T) {
 	}
 	defer response.Body.Close()
 	body, _ := io.ReadAll(response.Body)
-	if response.StatusCode != http.StatusOK || string(body) != "jorbique-dashboard" {
-		t.Fatalf("dashboard response = %s %q", response.Status, body)
+	if response.StatusCode != http.StatusOK || string(body) != "jorbique-panel" {
+		t.Fatalf("panel response = %s %q", response.Status, body)
 	}
 }
 

@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 
 	"jorbiquevpn/internal/autoconnect"
-	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/ipinfo"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/core"
 )
 
@@ -32,8 +32,8 @@ type mainState struct {
 	ConnectionProgress autoconnect.Progress `json:"connectionProgress"`
 	VPNAutostart       bool                 `json:"vpnAutostart"`
 	AppAutostart       bool                 `json:"appAutostart"`
-	// What the core has carried, straight from its own API — the same counters
-	// the dashboard shows. Zero with nothing running, which is when the window
+	// What the core has carried, straight from its own API. Zero with nothing
+	// running, which is when the window
 	// draws dashes instead.
 	UplinkTotal   int64 `json:"uplinkTotal"`
 	DownlinkTotal int64 `json:"downlinkTotal"`
@@ -53,8 +53,8 @@ func showMainPanel(state func() mainState, act func(mainAction) error, ipInfo fu
 		return nil, err
 	}
 	panel, err := showWebPanel("Jorbique VPN Extended", 560, 880, 440, 560,
-		func(closeWindow func()) (*dashboard.LocalServer, error) {
-			return dashboard.StartFormServerFunc(panelQuery("main"), "main", assets,
+		func(closeWindow func()) (*localapi.LocalServer, error) {
+			return localapi.StartFormServerFunc(panelQuery("main"), "main", assets,
 				func() any { return state() },
 				func(body json.RawMessage) error {
 					var action mainAction

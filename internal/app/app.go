@@ -21,9 +21,9 @@ import (
 	"jorbiquevpn/internal/config"
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/core"
-	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/jsonorder"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/logging"
 	"jorbiquevpn/internal/network"
 	"jorbiquevpn/internal/paths"
@@ -584,32 +584,14 @@ func (a *App) ListLogFiles() ([]string, error) {
 	return names, nil
 }
 
-func (a *App) dashboardClient() (*dashboard.Client, error) {
-	return dashboard.NewClient(paths.RuntimeConfigPath())
-}
-
-func (a *App) DashboardSnapshot(ctx context.Context) (dashboard.Snapshot, error) {
-	client, err := a.dashboardClient()
+// TrafficTotals asks the running core how much it has carried. It fails while
+// sing-box is not running, because its API only exists alongside it.
+func (a *App) TrafficTotals(ctx context.Context) (localapi.Traffic, error) {
+	client, err := localapi.NewClient(paths.RuntimeConfigPath())
 	if err != nil {
-		return dashboard.Snapshot{}, err
+		return localapi.Traffic{}, err
 	}
-	return client.Snapshot(ctx)
-}
-
-func (a *App) DashboardSelectOutbound(ctx context.Context, group, outbound string) (err error) {
-	client, err := a.dashboardClient()
-	if err != nil {
-		return err
-	}
-	return client.SelectOutbound(ctx, group, outbound)
-}
-
-func (a *App) DashboardURLTest(ctx context.Context, outbound string) (err error) {
-	client, err := a.dashboardClient()
-	if err != nil {
-		return err
-	}
-	return client.URLTest(ctx, outbound)
+	return client.Traffic(ctx)
 }
 
 // ClearLogs removes all log files

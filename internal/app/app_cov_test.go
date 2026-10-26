@@ -67,17 +67,11 @@ func TestApp_ActivateUserUUIDSaveFails(t *testing.T) {
 }
 
 // Without a runtime config there is no API to talk to.
-func TestApp_DashboardCallsWithoutRuntimeConfig(t *testing.T) {
+func TestApp_TrafficTotalsWithoutRuntimeConfig(t *testing.T) {
 	a := newTestApp(t)
 	t.Setenv("APPDATA", t.TempDir())
-	ctx := context.Background()
-	for name, err := range map[string]error{
-		"select":  a.DashboardSelectOutbound(ctx, "proxy", "tuic"),
-		"urltest": a.DashboardURLTest(ctx, "tuic"),
-	} {
-		if err == nil || !strings.Contains(err.Error(), "read sing-box config") {
-			t.Errorf("%s: %v, want the missing-config error", name, err)
-		}
+	if _, err := a.TrafficTotals(context.Background()); err == nil || !strings.Contains(err.Error(), "read sing-box config") {
+		t.Errorf("TrafficTotals: %v, want the missing-config error", err)
 	}
 }
 

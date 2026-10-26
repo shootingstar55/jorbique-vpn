@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"jorbiquevpn/internal/autoconnect"
-	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/jsonorder"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/paths"
 	"jorbiquevpn/internal/singboxcfg"
 )
@@ -41,7 +41,7 @@ func BuildRuntimeConfig(remoteJSON []byte, options RuntimeOptions) (string, erro
 	}
 
 	fixPathsInConfig(cfg)
-	if err := dashboard.ConfigureAPI(cfg, ""); err != nil {
+	if err := localapi.ConfigureAPI(cfg, ""); err != nil {
 		return "", err
 	}
 

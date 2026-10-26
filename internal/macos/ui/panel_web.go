@@ -7,7 +7,7 @@ import (
 	"io/fs"
 
 	"jorbiquevpn/frontend"
-	"jorbiquevpn/internal/dashboard"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/applekit"
 )
 
@@ -17,7 +17,7 @@ import (
 // change to a form lands on both platforms at once.
 type webPanel struct {
 	window applekit.Window
-	server *dashboard.LocalServer
+	server *localapi.LocalServer
 }
 
 // showWebPanel opens a window of the given size and fills it with the page the
@@ -26,7 +26,7 @@ type webPanel struct {
 // start receives the function that closes this window, because the page's Cancel
 // button reaches the window through the server: the two are built in one step to
 // keep either from existing without the other.
-func showWebPanel(title string, width, height, minWidth, minHeight applekit.CGFloat, start func(closeWindow func()) (*dashboard.LocalServer, error), onClosed func()) (*webPanel, error) {
+func showWebPanel(title string, width, height, minWidth, minHeight applekit.CGFloat, start func(closeWindow func()) (*localapi.LocalServer, error), onClosed func()) (*webPanel, error) {
 	window := applekit.NewPanel(width, height, title)
 	window.SetResizable()
 	window.SetContentMinSize(minWidth, minHeight)

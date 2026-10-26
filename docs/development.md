@@ -131,7 +131,7 @@ name (`Jorbique-VPN-Extended-windows-X.Y.Z.zip`, `Jorbique-VPN-Extended-macOS-X.
 plus `SHA256SUMS`, so `releases/latest/download/...` links need the exact name. Windows is cross-built on Linux; the universal macOS installer
 (Apple Silicon and Intel) is built on a macOS runner, which also runs the
 macOS-only CLI tests. Linux integration checks use a pinned, checksum-verified
-sing-box-extended binary to validate generated configs and the dashboard API.
+sing-box-extended binary to validate generated configs and the local API.
 For the same checks locally, set `SINGBOX_BIN` to a compatible sing-box executable;
 without it, real-engine checks remain skipped.
 

@@ -186,22 +186,6 @@ func ReadPID(path string) (int, bool) {
 	return pid, true
 }
 
-// ResidentMemory returns a process's current resident set in bytes.
-func ResidentMemory(pid int) uint64 {
-	if pid <= 0 {
-		return 0
-	}
-	out, err := sysexec.Command("/bin/ps", "-o", "rss=", "-p", strconv.Itoa(pid)).Output()
-	if err != nil {
-		return 0
-	}
-	kib, err := strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
-	if err != nil {
-		return 0
-	}
-	return kib * 1024
-}
-
 func WritePID(pid int, path string) {
 	_ = os.WriteFile(path, []byte(strconv.Itoa(pid)+"\n"), 0o644)
 }

@@ -176,7 +176,7 @@ func (c *statusBarController) busyForSingboxUpdate() bool {
 func (c *statusBarController) panelOpen() bool {
 	open := make(chan bool, 1)
 	applekit.RunOnMain(func() {
-		open <- c.singboxP != nil || c.routeP != nil || c.dashboardP != nil
+		open <- c.singboxP != nil || c.routeP != nil
 	})
 	select {
 	case v := <-open:

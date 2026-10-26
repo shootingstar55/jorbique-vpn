@@ -8,8 +8,8 @@ import (
 
 	"jorbiquevpn/internal/app"
 	"jorbiquevpn/internal/autoconnect"
-	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/ipinfo"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/utils"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -186,16 +186,8 @@ func (a *App) SetIgnoredProcessNamesAndPaths(names []string, paths []string) err
 	return a.backend.SetIgnoredProcessNamesAndPaths(names, paths)
 }
 
-func (a *App) DashboardSnapshot() (dashboard.Snapshot, error) {
-	return a.backend.DashboardSnapshot(context.Background())
-}
-
-func (a *App) DashboardSelectOutbound(group, outbound string) error {
-	return a.backend.DashboardSelectOutbound(context.Background(), group, outbound)
-}
-
-func (a *App) DashboardURLTest(outbound string) error {
-	return a.backend.DashboardURLTest(context.Background(), outbound)
+func (a *App) TrafficTotals() (localapi.Traffic, error) {
+	return a.backend.TrafficTotals(context.Background())
 }
 
 // PickExecutableForBypass opens a file dialog to choose an .exe; returns empty string if cancelled.

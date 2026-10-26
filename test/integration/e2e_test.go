@@ -17,8 +17,8 @@ import (
 
 	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/config"
-	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/jsonorder"
+	"jorbiquevpn/internal/localapi"
 )
 
 // sampleRemoteProfile mirrors the shape of the profile the update server returns:
@@ -80,20 +80,10 @@ func TestEndToEndConfigBuild(t *testing.T) {
 	validateWithSingbox(t, outPath)
 }
 
-func TestDashboardReadsRealStartedService(t *testing.T) {
+func TestLocalAPIReadsRealStartedService(t *testing.T) {
 	bin := strings.TrimSpace(os.Getenv("SINGBOX_BIN"))
 	if bin == "" {
 		t.Skip("SINGBOX_BIN not set")
-	}
-	versionCtx, cancelVersion := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelVersion()
-	versionOutput, err := exec.CommandContext(versionCtx, bin, "version", "--name").CombinedOutput()
-	if err != nil {
-		t.Fatalf("read sing-box version: %v\n%s", err, versionOutput)
-	}
-	wantVersion := strings.TrimSpace(string(versionOutput))
-	if wantVersion == "" || wantVersion == "unknown" {
-		t.Fatalf("sing-box has no release version: %q", wantVersion)
 	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -101,7 +91,7 @@ func TestDashboardReadsRealStartedService(t *testing.T) {
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
 	_ = listener.Close()
-	configPath := filepath.Join(t.TempDir(), "dashboard.json")
+	configPath := filepath.Join(t.TempDir(), "local-api.json")
 	configData := []byte(fmt.Sprintf(`{"log":{"disabled":true},"services":[{"type":"api","tag":"local-api","listen":"127.0.0.1","listen_port":%d,"secret":"integration-secret"}]}`, port))
 	if err := os.WriteFile(configPath, configData, 0600); err != nil {
 		t.Fatal(err)
@@ -117,17 +107,14 @@ func TestDashboardReadsRealStartedService(t *testing.T) {
 		_ = cmd.Wait()
 	}()
 
-	client, err := dashboard.NewClient(configPath)
+	client, err := localapi.NewClient(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		snapshot, err := client.Snapshot(context.Background())
+		_, err := client.Traffic(context.Background())
 		if err == nil {
-			if snapshot.Version != wantVersion {
-				t.Fatalf("API version = %q, binary version = %q", snapshot.Version, wantVersion)
-			}
 			return
 		}
 		if time.Now().After(deadline) {
@@ -187,7 +174,7 @@ func TestAutomaticWinnerOverridesCachedManualSelection(t *testing.T) {
 	if err := os.WriteFile(configPath, raw, 0600); err != nil {
 		t.Fatal(err)
 	}
-	client, err := dashboard.NewClient(configPath)
+	client, err := localapi.NewClient(configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,13 +302,13 @@ func TestAutomaticGroupFailsOverOnlyWhenTheWinnerStops(t *testing.T) {
 		if err := selection.Activate(context.Background(), configPath); err != nil {
 			t.Fatalf("%v\n%s", err, stderr.String())
 		}
-		client, err := dashboard.NewClient(configPath)
+		client, err := localapi.NewClient(configPath)
 		if err != nil {
 			t.Fatal(err)
 		}
 		// The first check runs right after startup; give it time to finish.
 		deadline := time.Now().Add(8 * time.Second)
-		var last []dashboard.Group
+		var last []localapi.Group
 		for time.Now().Before(deadline) {
 			groups, err := client.Groups(context.Background())
 			if err == nil {

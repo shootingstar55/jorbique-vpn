@@ -101,15 +101,6 @@ code,
   max-width: 780px;
 }
 
-.dialog--dashboard {
-  width: 94vw;
-  max-width: 1080px;
-}
-
-.dialog--dashboard.n-card > .n-card-content {
-  padding: 22px 24px 24px;
-}
-
 .dialog.n-card {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(148, 163, 184, 0.16);

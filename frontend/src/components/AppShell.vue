@@ -4,7 +4,6 @@ import { useMessage } from 'naive-ui';
 import { binding } from '../lib/bindings.js';
 import ActivationScreen from './ActivationScreen.vue';
 import MainScreen from './MainScreen.vue';
-import DashboardModal from './DashboardModal.vue';
 import IgnoreAppsModal from './IgnoreAppsModal.vue';
 import LogsModal from './LogsModal.vue';
 import UuidModal from './UuidModal.vue';
@@ -43,8 +42,6 @@ const vpnConfigOpen = ref(false);
 const vpnConfigResumesConnect = ref(false);
 const ignoreAppsOpen = ref(false);
 const logsOpen = ref(false);
-const dashboardOpen = ref(false);
-let mainWindowSize = null;
 
 function openVpnConfig(options = {}) {
   vpnConfigResumesConnect.value = !!options.resumeConnect;
@@ -60,27 +57,6 @@ function onIgnoreListSaved() {
   // sing-box only picks up a changed ignore list on reconnect.
   mainScreen.value?.reconnectIfConnected();
 }
-
-async function openDashboard() {
-  const runtime = window.runtime;
-  try {
-    mainWindowSize = await runtime?.WindowGetSize?.();
-    runtime?.WindowSetSize?.(1040, 720);
-    runtime?.WindowCenter?.();
-  } catch {
-    // Dashboard data still works when the host cannot resize this window.
-  }
-  dashboardOpen.value = true;
-}
-
-function setDashboardOpen(visible) {
-  dashboardOpen.value = visible;
-  if (!visible && mainWindowSize) {
-    window.runtime?.WindowSetSize?.(mainWindowSize.w, mainWindowSize.h);
-    window.runtime?.WindowCenter?.();
-    mainWindowSize = null;
-  }
-}
 </script>
 
 <template>
@@ -94,7 +70,6 @@ function setDashboardOpen(visible) {
         @open-vpn-config="openVpnConfig"
         @open-ignore-apps="ignoreAppsOpen = true"
         @open-logs="logsOpen = true"
-        @open-dashboard="openDashboard"
       />
 
       <UuidModal
@@ -113,7 +88,6 @@ function setDashboardOpen(visible) {
       />
 
       <LogsModal v-model:visible="logsOpen" @error="message.error($event)" @toast="message.success($event)" />
-      <DashboardModal :visible="dashboardOpen" @update:visible="setDashboardOpen" />
     </template>
   </div>
 </template>

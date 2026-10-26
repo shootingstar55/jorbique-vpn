@@ -77,7 +77,7 @@ func TestStore_ListSettersGetters(t *testing.T) {
 	}
 }
 
-// Nothing sets this any more — the dashboard switches the node — but a config
+// Nothing sets this any more — automatic selection picks the node — but a config
 // written before that still carries one, and the build must read it back.
 func TestStore_SelectedNodeSurvivesAnOlderConfig(t *testing.T) {
 	s := &Store{}
