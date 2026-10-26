@@ -93,7 +93,7 @@ async function load(force = false) {
     info.value = native ? await native(force) : await panelAPI.ask('ipinfo', { force });
     error.value = '';
   } catch (e) {
-    error.value = getErrMsg(e, 'Could not read the exit address');
+    error.value = getErrMsg(e, 'Не удалось узнать внешний адрес');
   } finally {
     loading.value = false;
     dueAt.value = Date.now() + AUTO_REFRESH_S * 1000;
@@ -154,8 +154,8 @@ onBeforeUnmount(() => {
           </svg>
         </NIcon>
       </span>
-      <h1>IP Information</h1>
-      <NButton quaternary circle size="small" :loading="loading" title="Check again" @click="load(true)">
+      <h1>Сведения об IP</h1>
+      <NButton quaternary circle size="small" :loading="loading" title="Проверить ещё раз" @click="load(true)">
         <NIcon :size="18">
           <svg viewBox="0 0 24 24">
             <path fill="currentColor"
@@ -198,7 +198,7 @@ onBeforeUnmount(() => {
                   </NIcon>
                 </button>
               </template>
-              {{ revealed ? 'Hide the address' : 'Show the address' }}
+              {{ revealed ? 'Скрыть адрес' : 'Показать адрес' }}
             </NTooltip>
           </p>
           <p class="ipinfo__row">
@@ -208,19 +208,19 @@ onBeforeUnmount(() => {
         </div>
         <div class="ipinfo__right">
           <p class="ipinfo__row">
-            <span class="ipinfo__key">ISP:</span>
+            <span class="ipinfo__key">Провайдер:</span>
             <span class="ipinfo__value">{{ info?.isp || '—' }}</span>
           </p>
           <p class="ipinfo__row">
-            <span class="ipinfo__key">ORG:</span>
+            <span class="ipinfo__key">Организация:</span>
             <span class="ipinfo__value">{{ info?.org || '—' }}</span>
           </p>
           <p class="ipinfo__row">
-            <span class="ipinfo__key">Location:</span>
+            <span class="ipinfo__key">Место:</span>
             <span class="ipinfo__value">{{ location }}</span>
           </p>
           <p class="ipinfo__row">
-            <span class="ipinfo__key">Timezone:</span>
+            <span class="ipinfo__key">Часовой пояс:</span>
             <span class="ipinfo__value">{{ info?.timezone || '—' }}</span>
           </p>
         </div>
@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
     </NSpin>
 
     <div class="ipinfo__foot">
-      <span>Auto refresh in {{ countdown }}</span>
+      <span>Обновление через {{ countdown }}</span>
       <span>{{ coordinates }}</span>
     </div>
   </NCard>

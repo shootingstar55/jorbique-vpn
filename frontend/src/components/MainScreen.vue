@@ -93,8 +93,8 @@ const autostartEnabled = ref(false);
 const autostartSwitching = ref(false);
 
 const bootstrapVisible = ref(false);
-const bootstrapTitle = ref('Setting up sing-box');
-const bootstrapLabel = ref('Downloading sing-box…');
+const bootstrapTitle = ref('Устанавливаем sing-box');
+const bootstrapLabel = ref('Скачиваем sing-box…');
 const bootstrapPercent = ref(0);
 let bootstrapInFlight = false;
 
@@ -105,10 +105,10 @@ const cancellable = computed(() => transition.value?.phase === 'connecting'
   && ['preparing', 'preferred', 'alternatives'].includes(connectionProgress.value?.phase)
   && Boolean(binding('CancelConnect')));
 
-const headline = computed(() => transition.value?.text ?? (connected.value ? 'Connected' : 'Disconnected'));
+const headline = computed(() => transition.value?.text ?? (connected.value ? 'Подключено' : 'Отключено'));
 const subline = computed(() => {
-  if (transition.value) return 'Hold on a moment';
-  return connected.value ? 'Your traffic is protected' : 'Connect VPN to stay protected';
+  if (transition.value) return 'Подождите немного';
+  return connected.value ? 'Ваш трафик защищён' : 'Подключите VPN, чтобы трафик был защищён';
 });
 
 /** Drives the ring colour, the glow and the pulse in one value. */
@@ -120,9 +120,9 @@ const ringState = computed(() => {
 
 
 const primaryLabel = computed(() => {
-  if (cancellable.value) return 'Cancel';
-  if (transition.value) return transition.value.phase === 'disconnecting' ? 'Disconnecting…' : 'Connecting…';
-  return connected.value ? 'Disconnect' : 'Connect';
+  if (cancellable.value) return labels.cancel;
+  if (transition.value) return transition.value.phase === 'disconnecting' ? 'Отключение…' : 'Подключение…';
+  return connected.value ? 'Отключить' : 'Подключить';
 });
 
 const autostartDisabled = computed(() => busy.value || autostartSwitching.value);
@@ -189,9 +189,9 @@ async function setAutostart(nextOn) {
     // loadAutostart() puts it back to whatever the backend actually reports.
     autostartEnabled.value = nextOn;
     await set(nextOn);
-    emit('toast', `Autostart ${nextOn ? 'enabled' : 'disabled'}`);
+    emit('toast', nextOn ? 'Автозапуск включён' : 'Автозапуск выключен');
   } catch (err) {
-    emit('error', getErrMsg(err, 'Failed to change autostart'));
+    emit('error', getErrMsg(err, 'Не удалось изменить автозапуск'));
     await loadAutostart();
   } finally {
     // Cleared only after the RPC settles, so a second click cannot fire while the first is
@@ -208,7 +208,7 @@ async function setAutostart(nextOn) {
 function setSingboxProgress(pct) {
   const v = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
   bootstrapPercent.value = v;
-  bootstrapLabel.value = v >= 100 ? 'Installing…' : 'Downloading sing-box…';
+  bootstrapLabel.value = v >= 100 ? 'Устанавливаем…' : 'Скачиваем sing-box…';
 }
 
 /** Downloads (install or update) behind the overlay. On failure it shows a short message and
@@ -224,8 +224,8 @@ async function runSingboxBootstrap(mode) {
     return false;
   }
 
-  bootstrapTitle.value = isUpdate ? 'Updating sing-box' : 'Setting up sing-box';
-  bootstrapLabel.value = isUpdate ? 'Downloading update…' : 'Downloading sing-box…';
+  bootstrapTitle.value = isUpdate ? 'Обновляем sing-box' : 'Устанавливаем sing-box';
+  bootstrapLabel.value = isUpdate ? 'Скачиваем обновление…' : 'Скачиваем sing-box…';
   bootstrapPercent.value = 0;
   bootstrapVisible.value = true;
 
@@ -234,7 +234,7 @@ async function runSingboxBootstrap(mode) {
     await run();
     ok = true;
   } catch (e) {
-    bootstrapLabel.value = `${getErrMsg(e, 'Download failed')} — will retry on next launch.`;
+    bootstrapLabel.value = `${getErrMsg(e, 'Не удалось скачать')}. Попробуем снова при следующем запуске.`;
     await new Promise((r) => setTimeout(r, BOOTSTRAP_ERROR_MS));
   } finally {
     // Always clear the guard — otherwise a thrown error would wedge it true and block every
@@ -314,20 +314,20 @@ async function runConnect() {
   const wasConnected = !!(isConnected && (await isConnected()));
 
   if (wasConnected) {
-    transition.value = { phase: 'disconnecting', text: 'Disconnecting' };
+    transition.value = { phase: 'disconnecting', text: 'Отключение' };
     try {
       await binding('Disconnect')();
     } catch (e) {
       transition.value = null;
       refreshStatus(true);
-      emit('error', getErrMsg(e, 'Disconnect failed'));
+      emit('error', getErrMsg(e, 'Не удалось отключиться'));
       return;
     }
   }
 
   transition.value = {
     phase: 'connecting',
-    text: 'Finding the best connection',
+    text: 'Ищем лучшее подключение',
   };
 
   cancelRequested = false;
@@ -337,7 +337,7 @@ async function runConnect() {
     await connect();
     connectionProgress.value = { phase: 'starting' };
     clearInterval(progressTimer);
-    transition.value = { phase: 'connecting', text: 'Establishing tunnel' };
+    transition.value = { phase: 'connecting', text: 'Поднимаем туннель' };
     await new Promise((r) => setTimeout(r, TUNNEL_SETTLE_MS));
     transition.value = null;
     refreshStatus(true);
@@ -346,7 +346,7 @@ async function runConnect() {
     transition.value = null;
     refreshStatus(true);
     if (cancelRequested) return;
-    const msg = getErrMsg(e, 'Connect failed');
+    const msg = getErrMsg(e, 'Не удалось подключиться');
     let hasConfig = true;
     try {
       const has = binding('HasUserUUID');
@@ -381,7 +381,7 @@ async function onDisconnect() {
   if (connectOpInFlight) return;
   connectOpInFlight = true;
 
-  transition.value = { phase: 'disconnecting', text: 'Disconnecting' };
+  transition.value = { phase: 'disconnecting', text: 'Отключение' };
   try {
     await disconnect();
     transition.value = null;
@@ -389,7 +389,7 @@ async function onDisconnect() {
   } catch (e) {
     transition.value = null;
     refreshStatus(true);
-    emit('error', getErrMsg(e, 'Disconnect failed'));
+    emit('error', getErrMsg(e, 'Не удалось отключиться'));
   } finally {
     connectOpInFlight = false;
   }
@@ -520,7 +520,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="brand__text">
           <h1>Jorbique VPN Extended</h1>
-          <p>Best connection, chosen automatically</p>
+          <p>Лучшее подключение выбирается автоматически</p>
         </div>
         <ThemeSwitch />
       </div>
@@ -559,7 +559,7 @@ onBeforeUnmount(() => {
     <NCard class="pane" :bordered="false">
       <div v-if="autostartSupported" class="setting">
         <div class="setting__text">
-          <p class="setting__title">Start with Windows</p>
+          <p class="setting__title">Запускать вместе с Windows</p>
         </div>
         <NSwitch
           :value="autostartEnabled"
@@ -572,11 +572,11 @@ onBeforeUnmount(() => {
       <div class="actions">
         <NButton quaternary :disabled="busy" @click="emit('openVpnConfig')">
           <template #icon><NIcon><AppIcon name="settings" /></NIcon></template>
-          Set UUID
+          Изменить UUID
         </NButton>
         <NButton quaternary @click="emit('openIgnoreApps')">
           <template #icon><NIcon><AppIcon name="apps" /></NIcon></template>
-          Ignore apps/domains
+          Исключения
         </NButton>
         <NButton quaternary @click="emit('openLogs')">
           <template #icon><NIcon><AppIcon name="logs" /></NIcon></template>

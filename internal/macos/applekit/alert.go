@@ -18,7 +18,7 @@ func PresentAlert(title, body string, style int) {
 	a.Send(Sel("setMessageText:"), nsString(title))
 	a.Send(Sel("setInformativeText:"), nsString(body))
 	a.Send(Sel("setAlertStyle:"), style)
-	a.Send(Sel("addButtonWithTitle:"), nsString("OK"))
+	a.Send(Sel("addButtonWithTitle:"), nsString("ОК"))
 	if icon := appIconImage; icon != nilID {
 		a.Send(Sel("setIcon:"), icon)
 	}

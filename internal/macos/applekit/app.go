@@ -56,12 +56,12 @@ func (a App) InstallEditMenu() {
 		main = NewMenu()
 		a.SetMainMenu(main)
 	}
-	editItem := NewMenuItem("Edit")
-	edit := NewMenuTitled("Edit")
-	edit.AddItem(menuItemSelector("Cut", "cut:", "x"))
-	edit.AddItem(menuItemSelector("Copy", "copy:", "c"))
-	edit.AddItem(menuItemSelector("Paste", "paste:", "v"))
-	edit.AddItem(menuItemSelector("Select All", "selectAll:", "a"))
+	editItem := NewMenuItem("Правка")
+	edit := NewMenuTitled("Правка")
+	edit.AddItem(menuItemSelector("Вырезать", "cut:", "x"))
+	edit.AddItem(menuItemSelector("Копировать", "copy:", "c"))
+	edit.AddItem(menuItemSelector("Вставить", "paste:", "v"))
+	edit.AddItem(menuItemSelector("Выбрать все", "selectAll:", "a"))
 	editItem.SetSubmenu(edit)
 	main.AddItem(editItem)
 }

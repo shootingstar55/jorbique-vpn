@@ -3,12 +3,12 @@
  * hard-coding it and a translation has a single table to replace.
  */
 export const labels = Object.freeze({
-  cancel: 'Cancel',
-  clear: 'Clear',
-  close: 'Close',
-  continue: 'Continue',
-  copy: 'Copy',
-  logs: 'Logs',
-  quit: 'Quit',
-  save: 'Save',
+  cancel: 'Отмена',
+  clear: 'Очистить',
+  close: 'Закрыть',
+  continue: 'Продолжить',
+  copy: 'Копировать',
+  logs: 'Логи',
+  quit: 'Выйти',
+  save: 'Сохранить',
 });

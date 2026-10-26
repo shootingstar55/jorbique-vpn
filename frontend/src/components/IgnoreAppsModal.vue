@@ -14,7 +14,7 @@ const emit = defineEmits(['error', 'toast', 'saved', 'update:visible']);
 
 /** Debounce for the checkbox autosave, matching the delay the vanilla modal used. */
 const AUTOSAVE_DELAY_MS = 500;
-const SAVE_FAILED = 'Failed to save ignore list';
+const SAVE_FAILED = 'Не удалось сохранить исключения';
 
 const filter = ref('');
 
@@ -177,7 +177,7 @@ async function load({ isRefresh = false } = {}) {
       getNames ? getNames() : [],
     ]);
   } catch (e) {
-    emit('error', getErrMsg(e, 'Could not read the saved ignore list'));
+    emit('error', getErrMsg(e, 'Не удалось прочитать сохранённые исключения'));
     loading.value = false;
     refreshing.value = false;
     return;
@@ -188,7 +188,7 @@ async function load({ isRefresh = false } = {}) {
     nextApps = listApps ? await listApps() : [];
   } catch (e) {
     nextApps = [];
-    emit('error', getErrMsg(e, isRefresh ? 'Failed to refresh apps list' : 'Failed to list active apps'));
+    emit('error', getErrMsg(e, isRefresh ? 'Не удалось обновить список приложений' : 'Не удалось получить список запущенных приложений'));
   }
 
   paths.value = nextPaths || [];
@@ -210,7 +210,7 @@ async function loadDomains() {
     directDomains.value = get ? (await get()) || '' : '';
     domainsHydrated.value = true;
   } catch (e) {
-    domainsError.value = getErrMsg(e, 'Could not read the direct domains');
+    domainsError.value = getErrMsg(e, 'Не удалось прочитать список прямых доменов');
     emit('error', domainsError.value);
   }
 }
@@ -230,7 +230,7 @@ watch(
 async function addExecutable() {
   const pick = binding('PickExecutableForBypass');
   if (!pick) {
-    emit('error', 'File picker is unavailable');
+    emit('error', 'Выбор файла недоступен');
     return;
   }
   try {
@@ -239,13 +239,13 @@ async function addExecutable() {
     if (!value) return;
     const key = value.toLowerCase();
     if (paths.value.some((x) => x.toLowerCase() === key)) {
-      emit('toast', 'Already in list');
+      emit('toast', 'Уже есть в списке');
       return;
     }
     paths.value = [...paths.value, value];
     await flush();
   } catch (e) {
-    emit('error', getErrMsg(e, 'Failed to pick file'));
+    emit('error', getErrMsg(e, 'Не удалось выбрать файл'));
   }
 }
 
@@ -288,14 +288,14 @@ async function save() {
       } catch (e) {
         // A bad domain keeps the window open with the field marked, rather than
         // closing on a save that did not happen.
-        domainsError.value = getErrMsg(e, 'Invalid domain').replace(/^Direct\s+domains:\s*/i, '');
+        domainsError.value = getErrMsg(e, 'Неверный домен').replace(/^(Direct\s+domains|Прямые\s+домены):\s*/i, '');
         emit('error', domainsError.value);
         return;
       }
     }
 
     await close({ persistFirst: false });
-    emit('toast', 'Ignore list saved');
+    emit('toast', 'Исключения сохранены');
     // The host decides what a save means beyond persistence — today, reconnecting so sing-box
     // reloads its config with the new list.
     emit('saved');
@@ -316,20 +316,21 @@ function onUpdateShow(value) {
     preset="card"
     class="dialog dialog--wide"
     :bordered="false"
-    title="Ignore apps/domains"
+    title="Исключения"
     @update:show="onUpdateShow"
   >
     <template #header-extra>
-      <span v-if="selectedCount" class="count">{{ selectedCount }} selected</span>
+      <span v-if="selectedCount" class="count">выбрано: {{ selectedCount }}</span>
     </template>
 
     <div class="body">
       <section class="domains">
-        <label class="domains__label" for="direct-domains">Direct domains</label>
+        <label class="domains__label" for="direct-domains">Домены без VPN</label>
         <p class="domains__hint">
-          One <strong>domain name</strong> per line (no regex). Matches that host and its subdomains
-          (<code>domain_suffix</code>) and bypasses the VPN. Built-in rules for <code>.ru</code>,
-          <code>.su</code> and IDN punycode TLDs stay as they are — do not list them here.
+          Один <strong>домен</strong> на строку (без регулярных выражений). Правило срабатывает для
+          самого домена и его поддоменов (<code>domain_suffix</code>), и они идут мимо VPN. Встроенные
+          правила для <code>.ru</code>, <code>.su</code> и национальных доменов (punycode) уже работают,
+          добавлять их сюда не нужно.
         </p>
         <NInput
           v-model:value="directDomains"
@@ -342,33 +343,33 @@ function onUpdateShow(value) {
       </section>
 
       <p class="lede">
-        Applications that bypass the VPN: <code>process_name</code> for the running apps below, or
-        <code>process_path</code> for a full path to an .exe.
+        Приложения в обход VPN: <code>process_name</code> для запущенных приложений ниже или
+        <code>process_path</code> для полного пути к .exe.
       </p>
 
       <div class="toolbar">
-        <NInput v-model:value="filter" placeholder="Filter list" clearable />
+        <NInput v-model:value="filter" placeholder="Поиск по списку" clearable />
         <NButton quaternary :disabled="loading || !hydrated" @click="addExecutable">
           <template #icon><NIcon><AppIcon name="plus" /></NIcon></template>
-          Add executable
+          Добавить .exe
         </NButton>
         <NButton quaternary :loading="refreshing" :disabled="loading" @click="load({ isRefresh: true })">
           <template #icon><NIcon><AppIcon name="refresh" /></NIcon></template>
-          Refresh
+          Обновить
         </NButton>
       </div>
 
       <section class="group">
-        <p class="group__label">By path</p>
+        <p class="group__label">По пути</p>
         <NSpin :show="loading">
           <div class="paths">
             <NEmpty
               v-if="!loading && !paths.length"
               size="small"
-              description="No executables added by path. Use “Add executable” to pick an .exe."
+              description="Нет файлов, добавленных по пути. Нажмите «Добавить .exe», чтобы выбрать файл."
             />
             <NEmpty v-else-if="!loading && !filteredPaths.length"
-                    size="small" description="No paths match the filter." />
+                    size="small" description="Нет путей, подходящих под поиск." />
             <div v-for="path in filteredPaths" v-else :key="path" class="path">
               <NTooltip trigger="hover" placement="top-start">
                 <template #trigger>
@@ -381,7 +382,7 @@ function onUpdateShow(value) {
                 circle
                 size="small"
                 :disabled="!hydrated"
-                :aria-label="`Remove ${path}`"
+                :aria-label="`Удалить ${path}`"
                 @click="removePath(path)"
               >
                 <template #icon><NIcon><AppIcon name="trash" /></NIcon></template>
@@ -392,10 +393,10 @@ function onUpdateShow(value) {
       </section>
 
       <section class="group group--grow">
-        <p class="group__label">Running apps</p>
+        <p class="group__label">Запущенные приложения</p>
         <NSpin :show="loading" class="group__spin">
           <NScrollbar class="apps">
-            <NEmpty v-if="!loading && !filteredApps.length" size="small" description="No apps found." />
+            <NEmpty v-if="!loading && !filteredApps.length" size="small" description="Приложения не найдены." />
             <div v-for="(process, i) in filteredApps" v-else :key="process.pid ?? i" class="app">
               <NCheckbox
                 :checked="isSelected(process)"

@@ -4,7 +4,7 @@
  */
 export function formatBytes(value) {
   let amount = Math.max(0, Number(value) || 0);
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
   let unit = 0;
   while (amount >= 1024 && unit < units.length - 1) {
     amount /= 1024;

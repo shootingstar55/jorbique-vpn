@@ -60,10 +60,13 @@ const connected = computed(() => running.value.length > 0);
  * the state survives a reload and shows a start begun from the menu bar too.
  */
 const pending = computed(() => {
-  if (acting.value === 'connect') return 'Finding the best connection';
-  if (acting.value === 'disconnect') return 'Disconnecting';
+  if (acting.value === 'connect') return 'Ищем лучшее подключение';
+  if (acting.value === 'disconnect') return 'Отключение';
   const reported = state.value.action || '';
-  return /^(Connecting|Restarting)$/.test(reported) ? 'Finding the best connection' : (/^(Disconnecting|Quitting)$/.test(reported) ? reported : '');
+  if (/^(Connecting|Restarting)$/.test(reported)) return 'Ищем лучшее подключение';
+  if (reported === 'Disconnecting') return 'Отключение';
+  if (reported === 'Quitting') return 'Выход';
+  return '';
 });
 
 const ringState = computed(() => {
@@ -71,11 +74,11 @@ const ringState = computed(() => {
   return connected.value ? 'is-on' : 'is-off';
 });
 
-const headline = computed(() => pending.value || (connected.value ? 'Connected' : 'Disconnected'));
+const headline = computed(() => pending.value || (connected.value ? 'Подключено' : 'Отключено'));
 const subline = computed(() => {
-  if (pending.value) return 'This takes a few seconds.';
+  if (pending.value) return 'Это займёт несколько секунд.';
   if (connected.value) return running.value.join(' · ');
-  return 'Connect VPN to stay protected';
+  return 'Подключите VPN, чтобы трафик был защищён';
 });
 
 /**
@@ -84,8 +87,8 @@ const subline = computed(() => {
  * window should not be labelled differently on the two platforms.
  */
 const ACTIONS = [
-  { id: 'set-uuid', label: 'Set UUID', icon: 'settings' },
-  { id: 'route-rules', label: 'Exclude apps & sites', icon: 'apps' },
+  { id: 'set-uuid', label: 'Изменить UUID', icon: 'settings' },
+  { id: 'route-rules', label: 'Исключения', icon: 'apps' },
 ];
 
 async function refresh() {
@@ -96,7 +99,7 @@ async function refresh() {
     if (next) state.value = next;
     error.value = '';
   } catch (e) {
-    error.value = getErrMsg(e, 'Could not read the VPN status');
+    error.value = getErrMsg(e, 'Не удалось получить состояние VPN');
   } finally {
     loading.value = false;
     refreshing = false;
@@ -110,7 +113,7 @@ async function act(action, payload) {
     await panelAPI.save('main', { action, value: payload });
     await refresh();
   } catch (e) {
-    message.error(getErrMsg(e, 'The action failed'));
+    message.error(getErrMsg(e, 'Действие не выполнено'));
   } finally {
     acting.value = '';
   }
@@ -144,7 +147,7 @@ onBeforeUnmount(() => clearInterval(timer));
         </div>
         <div class="head__text">
           <h1>Jorbique VPN Extended</h1>
-          <p class="head__note">Best connection, chosen automatically</p>
+          <p class="head__note">Лучшее подключение выбирается автоматически</p>
         </div>
         <ThemeSwitch @change="(mode) => act('theme', mode)" />
       </div>
@@ -168,7 +171,7 @@ onBeforeUnmount(() => clearInterval(timer));
           </button>
           <HeroTraffic direction="up" :total="state.uplinkTotal || 0" :active="connected" />
         </div>
-        <ConnectionCheck v-if="pending && !/Disconnecting|Quitting/.test(pending)" :progress="state.connectionProgress" />
+        <ConnectionCheck v-if="pending && !['Отключение', 'Выход'].includes(pending)" :progress="state.connectionProgress" />
         <template v-else>
           <h2 class="hero__headline">{{ headline }}</h2>
           <p class="hero__sub">{{ subline }}</p>
@@ -182,8 +185,8 @@ onBeforeUnmount(() => clearInterval(timer));
       <div class="switches">
         <div class="switches__row">
           <span>
-            <b id="vpn-autostart-label">Start VPN at boot</b>
-            <small>The daemon reconnects the saved tunnels without anyone signing in.</small>
+            <b id="vpn-autostart-label">Включать VPN при загрузке</b>
+            <small>Служба подключит VPN сама, даже если никто не вошёл в систему.</small>
           </span>
           <NSwitch
             :value="state.vpnAutostart"
@@ -194,8 +197,8 @@ onBeforeUnmount(() => clearInterval(timer));
         </div>
         <div class="switches__row">
           <span>
-            <b id="app-autostart-label">Open the app at login</b>
-            <small>Puts the menu bar item back after a restart.</small>
+            <b id="app-autostart-label">Открывать приложение при входе</b>
+            <small>Значок в строке меню вернётся после перезагрузки.</small>
           </span>
           <NSwitch
             :value="state.appAutostart"
@@ -219,7 +222,7 @@ onBeforeUnmount(() => clearInterval(timer));
         </NButton>
       </div>
 
-      <p class="daemon">{{ state.daemon || 'privileged daemon: —' }}</p>
+      <p class="daemon">{{ state.daemon || 'Служба: —' }}</p>
     </NCard>
   </div>
 </template>

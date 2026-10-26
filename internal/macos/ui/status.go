@@ -216,13 +216,13 @@ func connectivityReason(conn string) string {
 func connFailLabel(reason string) string {
 	switch {
 	case reason == "":
-		return "unreachable"
+		return "нет связи"
 	case reason == "dns":
 		return "DNS"
 	case strings.HasPrefix(reason, "http "):
 		return "HTTP " + strings.TrimPrefix(reason, "http ")
 	case reason == "http error":
-		return "HTTP error"
+		return "ошибка HTTP"
 	default:
 		return reason
 	}
@@ -479,23 +479,39 @@ type statusPresentation struct {
 func computeStatusPresentation(running []string, failed []string) statusPresentation {
 	switch {
 	case len(running) > 0 && len(failed) > 0:
-		return statusPresentation{"⚠", "stop", "Connection needs attention", true}
+		return statusPresentation{"⚠", "stop", "Проблема с подключением", true}
 	case len(running) > 0:
-		return statusPresentation{statusBarTitle(len(running)), "ok", "Connected", true}
+		return statusPresentation{statusBarTitle(len(running)), "ok", "Подключено", true}
 	default:
-		return statusPresentation{"○", "stop", "Disconnected", false}
+		return statusPresentation{"○", "stop", "Отключено", false}
 	}
+}
+
+// disconnectedDetail is the line under the header while nothing is connected.
+const disconnectedDetail = "Подключитесь, чтобы защитить трафик"
+
+// daemonLabel renders the CLI's "privileged daemon: …" line for the main window.
+func daemonLabel(line string) string {
+	switch {
+	case strings.Contains(line, ": running"):
+		return "Служба: работает"
+	case strings.Contains(line, "not answering"):
+		return "Служба: загружена, но не отвечает"
+	case strings.Contains(line, "not running"):
+		return "Служба: не запущена"
+	}
+	return "Служба: —"
 }
 
 func connectionDetail(ms MenuStatus, connected bool, exitIP string, failed []string) string {
 	if !connected {
-		return "Connect to secure your traffic"
+		return disconnectedDetail
 	}
 	if len(failed) > 0 {
 		return connFailLabel(connectivityReasonFor(ms, failed[0]))
 	}
 	if exitIP == "" {
-		return "Checking public IP…"
+		return "Проверяем внешний IP…"
 	}
 	return "IP  " + exitIP
 }
@@ -509,7 +525,7 @@ func failureHeader(ms MenuStatus, failed []string) string {
 	if len(failed) == 1 {
 		return "⚠ " + failed[0] + ": " + connFailLabel(connectivityReasonFor(ms, failed[0]))
 	}
-	return "⚠ Error: " + strings.Join(failed, ", ")
+	return "⚠ Ошибка: " + strings.Join(failed, ", ")
 }
 
 // connectivityReasonFor returns the probe reason recorded for a connected VPN.

@@ -66,7 +66,7 @@ async function activate() {
     <div class="activation__card">
       <img :src="appIconUrl" alt="" width="56" height="56" />
       <h1>Jorbique VPN Extended</h1>
-      <p>Enter the user UUID you were given to start using the app.</p>
+      <p>Введите выданный вам UUID пользователя, чтобы начать пользоваться приложением.</p>
 
       <NInput
         v-model:value="uuid"
@@ -74,7 +74,7 @@ async function activate() {
         placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         :disabled="checking"
         :status="error ? 'error' : undefined"
-        :input-props="{ spellcheck: 'false', autocomplete: 'off', 'aria-label': 'User UUID' }"
+        :input-props="{ spellcheck: 'false', autocomplete: 'off', 'aria-label': 'UUID пользователя' }"
         autofocus
         @keyup.enter="activate"
       />

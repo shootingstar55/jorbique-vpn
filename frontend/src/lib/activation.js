@@ -10,9 +10,9 @@ export function looksLikeUUID(value) {
 
 export function explainActivationError(message) {
   const text = String(message || '');
-  if (/invalid user uuid/i.test(text)) return 'That is not a UUID. It looks like xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.';
-  if (/not registered|unknown user uuid/i.test(text)) return 'The server does not know this UUID. Check it and try again.';
-  if (/daemon, which is not running|service is not running/i.test(text)) return 'The Jorbique VPN Extended service is not running. Reinstall the app and try again.';
-  if (/reach the server|server unreachable/i.test(text)) return 'Could not reach the server. Check the internet connection and try again.';
-  return text || 'Could not check the UUID. Try again.';
+  if (/invalid user uuid|неверный формат uuid/i.test(text)) return 'Это не UUID. Он выглядит так: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.';
+  if (/not registered|unknown user uuid|не зарегистрирован/i.test(text)) return 'Сервер не знает этот UUID. Проверьте его и попробуйте ещё раз.';
+  if (/daemon, which is not running|service is not running/i.test(text)) return 'Служба Jorbique VPN Extended не запущена. Переустановите приложение и попробуйте ещё раз.';
+  if (/reach the server|server unreachable|связаться с сервером/i.test(text)) return 'Не удалось связаться с сервером. Проверьте подключение к интернету и попробуйте ещё раз.';
+  return text || 'Не удалось проверить UUID. Попробуйте ещё раз.';
 }

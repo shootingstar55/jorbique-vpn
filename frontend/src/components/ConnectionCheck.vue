@@ -3,22 +3,22 @@ import { computed } from 'vue';
 const props = defineProps({ progress: { type: Object, default: () => ({}) } });
 const phase = computed(() => props.progress?.phase || 'preparing');
 const title = computed(() => ({
-  preparing: 'Preparing connection checks',
-  preferred: 'Checking the preferred connection',
-  alternatives: 'Finding the fastest working connection',
-  starting: 'Connecting your VPN',
-}[phase.value] || 'Preparing your connection'));
+  preparing: 'Готовим проверку подключений',
+  preferred: 'Проверяем основное подключение',
+  alternatives: 'Ищем самое быстрое рабочее подключение',
+  starting: 'Подключаем VPN',
+}[phase.value] || 'Готовим подключение'));
 const note = computed(() => {
   const p = props.progress || {};
-  if (phase.value === 'alternatives' && p.total > 0) return `${p.completed || 0} of ${p.total} connections checked`;
-  if (phase.value === 'preferred') return 'If it works, you are ready to go.';
-  if (phase.value === 'starting') return 'Connection selected. Securing your traffic…';
-  return 'Testing real data transfers before connecting.';
+  if (phase.value === 'alternatives' && p.total > 0) return `Проверено подключений: ${p.completed || 0} из ${p.total}`;
+  if (phase.value === 'preferred') return 'Если оно работает, можно пользоваться.';
+  if (phase.value === 'starting') return 'Подключение выбрано. Защищаем трафик…';
+  return 'Перед подключением проверяем реальную передачу данных.';
 });
 const steps = computed(() => [
-  { label: 'Check', active: ['preparing', 'preferred'].includes(phase.value), done: ['alternatives', 'starting'].includes(phase.value) },
-  { label: 'Compare', active: phase.value === 'alternatives', done: phase.value === 'starting' },
-  { label: 'Connect', active: phase.value === 'starting', done: false },
+  { label: 'Проверка', active: ['preparing', 'preferred'].includes(phase.value), done: ['alternatives', 'starting'].includes(phase.value) },
+  { label: 'Сравнение', active: phase.value === 'alternatives', done: phase.value === 'starting' },
+  { label: 'Подключение', active: phase.value === 'starting', done: false },
 ]);
 </script>
 
