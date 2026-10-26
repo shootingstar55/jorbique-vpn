@@ -22,8 +22,8 @@ const saving = ref(false);
 const picking = ref(false);
 
 const FIELDS = [
-  { key: 'direct', label: 'Websites outside VPN', hint: 'Website names, separated by commas.' },
-  { key: 'processes', label: 'Apps outside VPN (by name)', hint: 'Application names, separated by commas.' },
+  { key: 'direct', label: 'Сайты вне VPN', hint: 'Адреса сайтов через запятую.' },
+  { key: 'processes', label: 'Приложения вне VPN (по имени)', hint: 'Имена приложений через запятую.' },
 ];
 const models = { direct, processes };
 
@@ -34,7 +34,7 @@ onMounted(async () => {
     processes.value = state.processes || '';
     apps.value = state.apps || [];
   } catch (e) {
-    error.value = getErrMsg(e, 'Could not read the current rules');
+    error.value = getErrMsg(e, 'Не удалось прочитать текущие правила');
   }
 });
 
@@ -45,7 +45,7 @@ async function addApplications() {
     const result = await panelAPI.save('pick-apps', apps.value.flatMap((app) => app.paths));
     if (Array.isArray(result?.apps)) apps.value = result.apps;
   } catch (e) {
-    error.value = getErrMsg(e, 'Could not add the application');
+    error.value = getErrMsg(e, 'Не удалось добавить приложение');
   } finally {
     picking.value = false;
   }
@@ -67,7 +67,7 @@ async function save() {
     });
     await panelAPI.close();
   } catch (e) {
-    error.value = getErrMsg(e, 'Could not save the rules');
+    error.value = getErrMsg(e, 'Не удалось сохранить правила');
     saving.value = false;
   }
 }
@@ -76,8 +76,8 @@ async function save() {
 <template>
   <div class="panel">
     <header class="panel__head">
-      <h1>Exclude apps &amp; sites</h1>
-      <p>Choose which apps and websites should use your regular internet connection.</p>
+      <h1>Исключения</h1>
+      <p>Выберите приложения и сайты, которые будут работать через обычный интернет, без VPN.</p>
     </header>
 
     <NAlert v-if="error" type="error" :bordered="false">{{ error }}</NAlert>
@@ -90,16 +90,16 @@ async function save() {
 
     <section class="apps">
       <div class="apps__head">
-        <span class="field__label">Applications that bypass the VPN</span>
-        <NButton size="small" tertiary :loading="picking" @click="addApplications">Add applications…</NButton>
+        <span class="field__label">Приложения в обход VPN</span>
+        <NButton size="small" tertiary :loading="picking" @click="addApplications">Добавить приложения…</NButton>
       </div>
       <p v-if="!apps.length" class="apps__empty">
-        None yet — use Add applications to choose .app bundles.
+        Пока пусто. Нажмите «Добавить приложения» и выберите .app.
       </p>
       <ul v-else class="apps__list">
         <li v-for="app in apps" :key="app.id">
           <span class="apps__name">{{ app.name }}</span>
-          <span class="apps__count">{{ app.paths.length }} executables</span>
+          <span class="apps__count">исполняемых файлов: {{ app.paths.length }}</span>
           <NButton size="tiny" quaternary @click="removeApp(app.id)">✕</NButton>
         </li>
       </ul>
@@ -107,7 +107,7 @@ async function save() {
 
     <div class="panel__footer">
       <NButton quaternary :disabled="saving" @click="panelAPI.close()">{{ labels.cancel }}</NButton>
-      <NButton type="primary" :loading="saving" @click="save">Save rules</NButton>
+      <NButton type="primary" :loading="saving" @click="save">Сохранить правила</NButton>
     </div>
   </div>
 </template>

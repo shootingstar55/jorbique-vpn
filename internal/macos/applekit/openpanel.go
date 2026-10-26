@@ -18,8 +18,8 @@ func ChooseApplicationFiles() []string {
 		return nil
 	}
 	panel := cls("NSOpenPanel", "openPanel")
-	panel.Send(Sel("setTitle:"), nsString("Add applications"))
-	panel.Send(Sel("setPrompt:"), nsString("Add"))
+	panel.Send(Sel("setTitle:"), nsString("Добавить приложения"))
+	panel.Send(Sel("setPrompt:"), nsString("Добавить"))
 	panel.Send(Sel("setCanChooseFiles:"), true)
 	panel.Send(Sel("setCanChooseDirectories:"), false)
 	panel.Send(Sel("setAllowsMultipleSelection:"), true)

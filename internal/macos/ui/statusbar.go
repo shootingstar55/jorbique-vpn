@@ -110,7 +110,7 @@ func RunStatusBarAppPurego(exePath, displayName string) error {
 	// client at all, and a UUID window would not help them.
 	if cfg, err := core.ReadConfig(core.NewPaths()); err == nil && strings.TrimSpace(cfg.Singbox.UUID) == "" {
 		if err := c.showUUIDGate(); err != nil {
-			applekit.PresentAlert("Could not open "+displayName, err.Error(), applekit.AlertWarning)
+			applekit.PresentAlert("Не удалось открыть "+displayName, err.Error(), applekit.AlertWarning)
 			return err
 		}
 		app.Run()
@@ -231,29 +231,29 @@ func (c *statusBarController) buildMenu() applekit.Menu {
 	brand := menu.AddTitled(c.displayName)
 	brand.SetEnabled(false)
 	brand.SetMutedTitle(c.displayName)
-	c.headerItem = menu.AddTitled("Disconnected")
+	c.headerItem = menu.AddTitled("Отключено")
 	c.headerItem.SetEnabled(false)
-	c.detailItem = menu.AddTitled("Connect to secure your traffic")
+	c.detailItem = menu.AddTitled(disconnectedDetail)
 	c.detailItem.SetEnabled(false)
-	c.detailItem.SetSubtitle("Connect to secure your traffic")
+	c.detailItem.SetSubtitle(disconnectedDetail)
 	menu.AddSeparator()
 
-	c.connectItem = menu.AddTitled("Connect")
+	c.connectItem = menu.AddTitled("Подключить")
 	c.connectItem.SetSymbol("power")
 	c.connectItem.SetAction(c.toggleConnection)
-	c.restartItem = menu.AddTitled("Reconnect")
+	c.restartItem = menu.AddTitled("Переподключить")
 	c.restartItem.SetSymbol("arrow.clockwise")
 	c.restartItem.SetEnabled(false)
 	c.restartItem.SetAction(c.cmdRestart)
 	menu.AddSeparator()
 
-	openWindow := applekit.NewMenuItemKey("Open "+c.displayName, "o")
+	openWindow := applekit.NewMenuItemKey("Открыть "+c.displayName, "o")
 	openWindow.SetSymbol("macwindow")
 	openWindow.SetAction(c.cmdOpenMainWindow)
 	menu.AddItem(openWindow)
 	menu.AddSeparator()
 
-	c.quitItem = applekit.NewMenuItemKey("Quit "+c.displayName, "q")
+	c.quitItem = applekit.NewMenuItemKey("Выйти из "+c.displayName, "q")
 	c.quitItem.SetSymbol("rectangle.portrait.and.arrow.right")
 	c.quitItem.SetAction(c.quit)
 	menu.AddItem(c.quitItem)
@@ -283,16 +283,16 @@ func (c *statusBarController) toggleConnection() {
 // updateConnectionActions also runs immediately on a click, before status returns.
 func (c *statusBarController) updateConnectionActions() {
 	action, busy := c.currentAction()
-	title := "Connect"
+	title := "Подключить"
 	if c.menuConnected {
-		title = "Disconnect"
+		title = "Отключить"
 	}
 	cancellable := busy && action.verb == "Connecting"
 	if busy {
-		title = action.verb + "…"
+		title = action.label() + "…"
 	}
 	if cancellable {
-		title = "Cancel"
+		title = "Отмена"
 	}
 	c.connectItem.SetTitle(title)
 	c.connectItem.SetEnabled(!busy || cancellable)
@@ -496,7 +496,7 @@ func (c *statusBarController) autoUpdateSingboxIfNeeded() {
 	}
 	if local == "" {
 		// First launch: nothing installed, fetch from the server.
-		c.recordSingboxCheck(c.downloadSingboxWithProgress("Downloading sing-box "+server+"…") == 0)
+		c.recordSingboxCheck(c.downloadSingboxWithProgress("Скачиваем sing-box "+server+"…") == 0)
 		return
 	}
 	if !update.ShouldUpdateSingbox(local, server) {
@@ -506,7 +506,7 @@ func (c *statusBarController) autoUpdateSingboxIfNeeded() {
 	// An upgrade downloads the same way a first install does. It used to run
 	// silently, which meant the one thing the user could see — a several-MB
 	// download over a slow link — looked like the app doing nothing at all.
-	c.recordSingboxCheck(c.downloadSingboxWithProgress("Updating sing-box "+local+" → "+server+"…") == 0)
+	c.recordSingboxCheck(c.downloadSingboxWithProgress("Обновляем sing-box "+local+" → "+server+"…") == 0)
 }
 
 // renewFailureBody builds the alert text for a failed config sync: an
@@ -539,9 +539,9 @@ func (c *statusBarController) downloadSingboxWithProgress(message string) int {
 	applekit.RunOnMain(func() {
 		if status == 0 {
 			pw.SetPercent(100)
-			pw.SetMessage("sing-box installed.")
+			pw.SetMessage("sing-box установлен.")
 		} else {
-			pw.SetMessage("Download failed — the client will try again later.")
+			pw.SetMessage("Не удалось скачать. Клиент попробует ещё раз позже.")
 		}
 	})
 	time.Sleep(700 * time.Millisecond) // let the user see the final state
@@ -637,10 +637,10 @@ func (c *statusBarController) reportIfDaemonMissing(out string) {
 		return
 	}
 	applekit.RunOnMain(func() {
-		applekit.PresentAlert(c.displayName+" cannot reach its background service",
-			"Nothing that needs administrator rights can run until it is back.\n\n"+
-				"Quit "+c.displayName+" and open it again: it will offer to put the service back, "+
-				"and ask for an administrator password once.",
+		applekit.PresentAlert(c.displayName+" не может связаться со своей фоновой службой",
+			"Пока служба не вернётся, ничего, что требует прав администратора, работать не будет.\n\n"+
+				"Закройте "+c.displayName+" и откройте снова: приложение предложит восстановить службу "+
+				"и один раз попросит пароль администратора.",
 			applekit.AlertWarning)
 	})
 }
@@ -653,6 +653,22 @@ type actionState struct {
 	verb  string
 	color string
 	names []string
+}
+
+// label is the verb as the menu shows it. verb itself stays English: the main
+// window reads it back from mainState.Action to tell the phases apart.
+func (a actionState) label() string {
+	switch a.verb {
+	case "Quitting":
+		return "Выход"
+	case "Restarting":
+		return "Переподключение"
+	case "Connecting":
+		return "Подключение"
+	case "Disconnecting":
+		return "Отключение"
+	}
+	return a.verb
 }
 
 // currentAction picks the action to show. Quitting outranks everything (the app
@@ -703,7 +719,7 @@ func (c *statusBarController) startSpinner() {
 			applekit.RunOnMain(func() {
 				color := applekit.StatusColor(act.color)
 				c.setBarIcon(act.color, alpha)
-				c.headerItem.SetColoredTitle(act.verb+"…", color)
+				c.headerItem.SetColoredTitle(act.label()+"…", color)
 			})
 			<-t.C
 		}
@@ -757,7 +773,7 @@ func (c *statusBarController) openSingboxThenStart(retry func()) {
 		func() { c.singboxP = nil },
 	)
 	if err != nil {
-		c.alertFail("Set UUID", err.Error(), 0)
+		c.alertFail("UUID пользователя", err.Error(), 0)
 		return
 	}
 	c.singboxP = panel
@@ -881,7 +897,7 @@ func (c *statusBarController) cmdRouteRules() {
 		func() { c.routeP = nil },
 	)
 	if err != nil {
-		applekit.PresentAlert("Route rules failed", err.Error(), applekit.AlertWarning)
+		applekit.PresentAlert("Не удалось сохранить исключения", err.Error(), applekit.AlertWarning)
 		return
 	}
 	c.routeP = panel
@@ -952,7 +968,7 @@ func (c *statusBarController) cmdOpenMainWindow() {
 	}
 	panel, err := showMainPanel(c.mainWindowState, c.mainWindowAction, c.ipInfo, func() { c.mainP = nil })
 	if err != nil {
-		applekit.PresentAlert("Could not open the window", err.Error(), applekit.AlertWarning)
+		applekit.PresentAlert("Не удалось открыть окно", err.Error(), applekit.AlertWarning)
 		return
 	}
 	c.mainP = panel

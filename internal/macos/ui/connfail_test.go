@@ -67,9 +67,9 @@ func TestConnectivityReasonAndLabel(t *testing.T) {
 		{"http FAIL (http 503)", "http 503", "HTTP 503"},
 		{"http FAIL (refused)", "refused", "refused"},
 		{"http FAIL (dns) — TLS handshake failed", "dns", "DNS"},
-		{"http FAIL", "", "unreachable"},
-		{"http OK", "", "unreachable"},
-		{"", "", "unreachable"},
+		{"http FAIL", "", "нет связи"},
+		{"http OK", "", "нет связи"},
+		{"", "", "нет связи"},
 	}
 	for _, tt := range tests {
 		if got := connectivityReason(tt.conn); got != tt.reason {
@@ -96,7 +96,7 @@ func TestFailureHeaderNamesTheReason(t *testing.T) {
 	}
 	// Several at once nearly always share one cause, and the reasons would not
 	// fit in the menu bar.
-	if got := failureHeader(ms, []string{"projects", "intra"}); got != "⚠ Error: projects, intra" {
+	if got := failureHeader(ms, []string{"projects", "intra"}); got != "⚠ Ошибка: projects, intra" {
 		t.Errorf("multi failure header = %q", got)
 	}
 }

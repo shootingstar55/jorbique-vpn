@@ -44,7 +44,7 @@ func showRouteRulesPanel(init routeRulesInput, onSubmit func(routeRulesInput) er
 		Processes: init.Processes,
 		Apps:      routeRuleAppsOf(init.Paths),
 	}
-	return showWebPanel("Route rules", 640, 560, 520, 440,
+	return showWebPanel("Исключения", 640, 560, 520, 440,
 		func(closeWindow func()) (*localapi.LocalServer, error) {
 			return localapi.StartFormServerWithActions(panelQuery("route-rules"), "route-rules", assets, state,
 				func(body json.RawMessage) error {

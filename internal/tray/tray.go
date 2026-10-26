@@ -63,20 +63,20 @@ func Run() {
 
 func onReady() {
 	systray.SetIcon(trayIcon())
-	systray.SetTitle(constants.AppDisplayName + " - Stopped")
+	systray.SetTitle(constants.AppDisplayName + " — отключено")
 	systray.SetTooltip(constants.AppDisplayName)
 
-	openUIItem = systray.AddMenuItem("Open UI", "Open main window")
+	openUIItem = systray.AddMenuItem("Открыть окно", "Открыть главное окно")
 	systray.AddSeparator()
 
-	statusItem = systray.AddMenuItem("Status: Stopped", "Current status")
+	statusItem = systray.AddMenuItem("Состояние: отключено", "Текущее состояние")
 	statusItem.Disable()
 	systray.AddSeparator()
 
-	startStopItem = systray.AddMenuItem("Connect", "Connect VPN")
+	startStopItem = systray.AddMenuItem("Подключить", "Подключить VPN")
 	systray.AddSeparator()
 
-	quitItem := systray.AddMenuItem("Exit", "Exit application")
+	quitItem := systray.AddMenuItem("Выход", "Закрыть приложение")
 
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
@@ -178,16 +178,16 @@ func updateMenuItems() {
 	mu.Unlock()
 	if statusItem != nil {
 		if r {
-			statusItem.SetTitle("Status: Running")
+			statusItem.SetTitle("Состояние: подключено")
 		} else {
-			statusItem.SetTitle("Status: Stopped")
+			statusItem.SetTitle("Состояние: отключено")
 		}
 	}
 	if startStopItem != nil {
 		if r {
-			startStopItem.SetTitle("Disconnect")
+			startStopItem.SetTitle("Отключить")
 		} else {
-			startStopItem.SetTitle("Connect")
+			startStopItem.SetTitle("Подключить")
 		}
 	}
 }

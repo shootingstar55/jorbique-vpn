@@ -39,10 +39,10 @@ watch(
   { immediate: true },
 );
 
-const label = computed(() => (props.direction === 'up' ? 'Upload' : 'Download'));
+const label = computed(() => (props.direction === 'up' ? 'Отдача' : 'Загрузка'));
 const arrow = computed(() => (props.direction === 'up' ? '↑' : '↓'));
-const rateText = computed(() => (props.active ? `${formatBytes(rate.value)}/s` : '—'));
-const totalText = computed(() => (props.active ? `${formatBytes(props.total)} total` : 'Not connected'));
+const rateText = computed(() => (props.active ? `${formatBytes(rate.value)}/с` : '—'));
+const totalText = computed(() => (props.active ? `всего ${formatBytes(props.total)}` : 'Нет подключения'));
 </script>
 
 <template>

@@ -199,10 +199,10 @@ func (a *App) PickExecutableForBypass() (string, error) {
 		return "", errors.New("application context not ready")
 	}
 	return runtime.OpenFileDialog(ctx, runtime.OpenDialogOptions{
-		Title: "Select executable",
+		Title: "Выберите исполняемый файл",
 		Filters: []runtime.FileFilter{
-			{DisplayName: "Executable (*.exe)", Pattern: "*.exe"},
-			{DisplayName: "All files", Pattern: "*.*"},
+			{DisplayName: "Программы (*.exe)", Pattern: "*.exe"},
+			{DisplayName: "Все файлы", Pattern: "*.*"},
 		},
 	})
 }

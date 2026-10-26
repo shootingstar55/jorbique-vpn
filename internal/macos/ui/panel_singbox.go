@@ -15,7 +15,7 @@ func showUUIDEditPanel(initialUUID string, onSubmit func(string) error, onClosed
 	if err != nil {
 		return nil, err
 	}
-	return showWebPanel("Set UUID", 520, 300, 440, 260, func(closeWindow func()) (*localapi.LocalServer, error) {
+	return showWebPanel("UUID пользователя", 520, 300, 440, 260, func(closeWindow func()) (*localapi.LocalServer, error) {
 		return localapi.StartConfigServer(panelQuery("set-uuid"), localapi.ConfigState{UUID: initialUUID}, assets,
 			func(update localapi.ConfigUpdate) error {
 				uuid := strings.TrimSpace(update.UUID)

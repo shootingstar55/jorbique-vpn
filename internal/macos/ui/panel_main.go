@@ -109,7 +109,7 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 		Outbounds: outbounds,
 		Running:   []string{},
 		ExitIP:    exitIP,
-		Daemon:    ms.SudoersLine,
+		Daemon:    daemonLabel(ms.SudoersLine),
 	}
 	if paths != nil {
 		if data, err := os.ReadFile(filepath.Join(paths.RunDir, autoconnect.ProgressFile)); err == nil {

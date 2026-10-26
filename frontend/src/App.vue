@@ -1,5 +1,5 @@
 <script setup>
-import { NConfigProvider, NDialogProvider, NMessageProvider } from 'naive-ui';
+import { NConfigProvider, NDialogProvider, NMessageProvider, dateRuRU, ruRU } from 'naive-ui';
 import AppShell from './components/AppShell.vue';
 import RouteRulesPanel from './components/RouteRulesPanel.vue';
 import MainPanel from './components/MainPanel.vue';
@@ -25,7 +25,7 @@ watchEffect(() => {
 <template>
   <!-- The providers have to sit above anything calling useMessage()/useDialog(), which is why
        the shell is a child rather than this component doing the work itself. -->
-  <NConfigProvider :theme="naiveTheme" :theme-overrides="naiveThemeOverrides">
+  <NConfigProvider :locale="ruRU" :date-locale="dateRuRU" :theme="naiveTheme" :theme-overrides="naiveThemeOverrides">
     <NMessageProvider :max="3" placement="bottom">
       <NDialogProvider>
         <ActivationScreen v-if="standaloneActivate" standalone />

@@ -82,10 +82,10 @@ func TestConnectionMenuPresentation(t *testing.T) {
 		ip                                string
 		wantHeader, wantDetail, wantColor string
 	}{
-		{"idle", nil, nil, "", "Disconnected", "Connect to secure your traffic", "stop"},
-		{"connected", []string{"Jorbique VPN"}, nil, "1.2.3.4 (NL)", "Connected", "IP  1.2.3.4 (NL)", "ok"},
-		{"ip pending", []string{"Jorbique VPN"}, nil, "", "Connected", "Checking public IP…", "ok"},
-		{"failed", []string{"Jorbique VPN"}, []string{"Jorbique VPN"}, "1.2.3.4", "Connection needs attention", "DNS", "stop"},
+		{"idle", nil, nil, "", "Отключено", "Подключитесь, чтобы защитить трафик", "stop"},
+		{"connected", []string{"Jorbique VPN"}, nil, "1.2.3.4 (NL)", "Подключено", "IP  1.2.3.4 (NL)", "ok"},
+		{"ip pending", []string{"Jorbique VPN"}, nil, "", "Подключено", "Проверяем внешний IP…", "ok"},
+		{"failed", []string{"Jorbique VPN"}, []string{"Jorbique VPN"}, "1.2.3.4", "Проблема с подключением", "DNS", "stop"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ms := MenuStatus{VPNLines: []VPNLine{{Name: "Jorbique VPN", Connected: true, Connectivity: "http FAIL (dns)"}}}

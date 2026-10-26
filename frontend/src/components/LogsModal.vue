@@ -42,9 +42,9 @@ async function loadContent() {
   loading.value = true;
   try {
     const text = await get(selected.value || DEFAULT_LOG);
-    content.value = text || '(empty)';
+    content.value = text || '(пусто)';
   } catch (e) {
-    content.value = `Error: ${getErrMsg(e, 'Failed to load')}`;
+    content.value = `Ошибка: ${getErrMsg(e, 'Не удалось загрузить')}`;
   } finally {
     loading.value = false;
   }
@@ -67,9 +67,9 @@ async function copy() {
   if (!content.value) return;
   try {
     await navigator.clipboard.writeText(content.value);
-    emit('toast', 'Copied to clipboard');
+    emit('toast', 'Скопировано в буфер обмена');
   } catch {
-    emit('error', 'Failed to copy');
+    emit('error', 'Не удалось скопировать');
   }
 }
 
@@ -77,16 +77,16 @@ function clear() {
   const clearLogs = binding('ClearLogs');
   if (!clearLogs) return;
   dialog.warning({
-    title: 'Clear logs',
-    content: 'Delete all log files? This cannot be undone.',
-    positiveText: 'Clear',
-    negativeText: 'Cancel',
+    title: 'Очистить логи',
+    content: 'Удалить все файлы логов? Это действие нельзя отменить.',
+    positiveText: labels.clear,
+    negativeText: labels.cancel,
     onPositiveClick: async () => {
       try {
         await clearLogs();
         await loadContent();
       } catch (e) {
-        emit('error', getErrMsg(e, 'Failed to clear'));
+        emit('error', getErrMsg(e, 'Не удалось очистить'));
       }
     },
   });
@@ -103,7 +103,7 @@ function close() {
     preset="card"
     class="dialog dialog--wide"
     :bordered="false"
-    title="Logs"
+    :title="labels.logs"
     @update:show="$event || close()"
   >
     <template #header-extra>
