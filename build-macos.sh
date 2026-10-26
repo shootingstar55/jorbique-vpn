@@ -281,6 +281,19 @@ ${icon_key:+${icon_key}
   <string>11.0</string>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <!-- jorbique://import?uuid=… links from the /sub page: the menu bar takes them
+       in application:openURLs: (internal/macos/ui/importlink.go). -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>one.jorbique.vpn.import</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>jorbique</string>
+      </array>
+    </dict>
+  </array>
   <!-- No LSUIElement: the client has a window of its own, and a window with no
        Dock icon cannot be minimised anywhere or brought back. The status item is
        installed either way — the policy decides whether there is also an icon. -->

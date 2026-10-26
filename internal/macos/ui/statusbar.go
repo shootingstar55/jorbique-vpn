@@ -100,6 +100,8 @@ func RunStatusBarAppPurego(exePath, displayName string) error {
 	// The Dock icon opens the window, like every other app's does. The menu
 	// item does the same thing; this is the same command on the other handle.
 	app.OnReopen(c.reopen)
+	// jorbique:// links from the /sub page bring the user's UUID (importlink.go).
+	app.OnOpenURLs(c.openLinks)
 	app.InstallEditMenu()
 	// Use the installed app icon for alerts/Dock (staged next to the binary).
 	applekit.SetAppIcon(filepath.Join(filepath.Dir(exePath), "AppIcon.icns"))

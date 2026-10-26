@@ -8,6 +8,7 @@ import (
 
 	"jorbiquevpn/internal/app"
 	"jorbiquevpn/internal/autoconnect"
+	"jorbiquevpn/internal/deeplink"
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/utils"
 
@@ -74,6 +75,12 @@ func (a *App) ActivateUserUUID(userUUID string) error {
 // SetVpnUserConfig saves user UUID, outbound toggles, and optional direct-domain hostnames (one per line).
 func (a *App) SetVpnUserConfig(userUUID string, outboundEnabled map[string]bool) error {
 	return wrapBackendError(a.backend.SetVpnUserConfig(userUUID, outboundEnabled))
+}
+
+// TakePendingImportUUID hands the window the UUID of a jorbique:// link the
+// client was opened with, once; empty when there is none.
+func (a *App) TakePendingImportUUID() string {
+	return deeplink.TakePending(a.backend.GetDataDir())
 }
 
 func (a *App) GetUserUUID() string { return a.backend.GetUserUUID() }

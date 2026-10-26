@@ -80,3 +80,10 @@ func frontendAssets() (fs.FS, error) {
 	}
 	return assets, nil
 }
+
+// Close closes the window, as its own close button would.
+func (p *webPanel) Close() {
+	if p != nil {
+		p.window.Close()
+	}
+}

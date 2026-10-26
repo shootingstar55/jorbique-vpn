@@ -15,6 +15,7 @@ import (
 	"jorbiquevpn/internal/app"
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/core"
+	"jorbiquevpn/internal/deeplink"
 	"jorbiquevpn/internal/defender"
 	"jorbiquevpn/internal/paths"
 	"jorbiquevpn/internal/singleinstance"
@@ -35,6 +36,10 @@ func main() {
 			writeStartupError(fmt.Sprintf("panic: %v", r), false)
 		}
 	}()
+
+	if handOverLink(os.Args[1:]) {
+		os.Exit(0)
+	}
 
 	logonAutostart := isLogonAutostartArg(os.Args[1:])
 	if logonAutostart {
@@ -113,6 +118,10 @@ func main() {
 			fitWindowToScreen(ctx)
 			winicon.ApplyTitleBarFromExeDir(exeDir)
 			_ = tray.RefreshAutostartIfEnabled()
+			if err := deeplink.Register(exePath); err != nil {
+				appendLogonTrace("jorbique:// registration failed: " + err.Error())
+			}
+			go watchImportLinks(ctx, dataDir)
 			showUI := func() {
 				runtime.WindowShow(ctx)
 			}
@@ -147,6 +156,62 @@ func main() {
 	if err != nil {
 		writeStartupError(err.Error(), false)
 		os.Exit(1)
+	}
+}
+
+// handOverLink deals with a start from a jorbique:// link (the /sub page's
+// «Открыть в Jorbique VPN»): the UUID is left in the data folder for the window
+// to take. When the client is already running, that is all this copy has to do
+// — the running one picks the link up (watchImportLinks) — and true tells main
+// to exit before it asks for elevation. Otherwise the app starts as usual and
+// takes the link once its window is up.
+func handOverLink(args []string) bool {
+	if !deeplink.HasLink(args) {
+		return false
+	}
+	uuid, ok := deeplink.FromArgs(args)
+	if ok {
+		if err := deeplink.SavePending(paths.DataDir(), uuid); err != nil {
+			appendLogonTrace("jorbique:// link not saved: " + err.Error())
+		}
+	}
+	if !singleinstance.IsRunning() {
+		return false
+	}
+	if !ok {
+		showErrorBox("Ссылка не содержит UUID пользователя. Откройте её ещё раз со страницы подписки.")
+	}
+	return true
+}
+
+// importLinkPoll is how often the running client looks for a link handed over
+// by a second copy. It is one stat of a file that is almost never there.
+const importLinkPoll = time.Second
+
+// watchImportLinks brings the window up when a jorbique:// link arrives and
+// tells the page, which takes the UUID (ui.App.TakePendingImportUUID) and saves
+// it. The page also takes one on load, which covers the link that started the
+// app; an event sent before the page listens is simply not needed.
+func watchImportLinks(ctx context.Context, dataDir string) {
+	ticker := time.NewTicker(importLinkPoll)
+	defer ticker.Stop()
+	shown := false
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		if !deeplink.HasPending(dataDir) {
+			shown = false
+			continue
+		}
+		if !shown {
+			runtime.WindowUnminimise(ctx)
+			runtime.WindowShow(ctx)
+			shown = true
+		}
+		runtime.EventsEmit(ctx, "jorbique-import")
 	}
 }
 

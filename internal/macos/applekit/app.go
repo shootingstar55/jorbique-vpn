@@ -73,8 +73,12 @@ func (a App) InstallEditMenu() {
 var (
 	appReopenMu sync.Mutex
 	appReopenFn func()
-	appDelegID  ID
-	appDelgOnce sync.Once
+	// appOpenURLsFn takes the links the app is opened with; appOpenURLsQueue
+	// keeps the ones that arrive before it is registered. Both under appReopenMu.
+	appOpenURLsFn    func([]string)
+	appOpenURLsQueue []string
+	appDelegID       ID
+	appDelgOnce      sync.Once
 )
 
 // OnReopen registers fn to run when the app is reopened — a click on the Dock
@@ -89,11 +93,66 @@ func (a App) OnReopen(fn func()) {
 	a.id.Send(Sel("setDelegate:"), appDelegate())
 }
 
+// OnOpenURLs registers fn to receive the URLs the app is opened with — the
+// jorbique:// links the bundle declares in CFBundleURLTypes. AppKit turns the
+// GetURL Apple Event into application:openURLs: once the delegate answers it,
+// whether the link launched the app or found it running. Links that came in
+// before fn was registered are handed over now. fn runs on the main thread.
+func (a App) OnOpenURLs(fn func([]string)) {
+	appReopenMu.Lock()
+	appOpenURLsFn = fn
+	queued := appOpenURLsQueue
+	appOpenURLsQueue = nil
+	appReopenMu.Unlock()
+	a.id.Send(Sel("setDelegate:"), appDelegate())
+	if len(queued) > 0 && fn != nil {
+		fn(queued)
+	}
+}
+
+// deliverOpenURLs hands urls to the registered handler, or queues them.
+func deliverOpenURLs(urls []string) {
+	if len(urls) == 0 {
+		return
+	}
+	appReopenMu.Lock()
+	fn := appOpenURLsFn
+	if fn == nil {
+		appOpenURLsQueue = append(appOpenURLsQueue, urls...)
+	}
+	appReopenMu.Unlock()
+	if fn != nil {
+		fn(urls)
+	}
+}
+
+// urlStrings reads an NSArray of NSURL into their absolute strings.
+func urlStrings(array ID) []string {
+	if array == nilID {
+		return nil
+	}
+	n := intMsg(array, "count")
+	out := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		u := array.Send(Sel("objectAtIndex:"), i)
+		if s := goStringFromNS(send(u, "absoluteString")); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // appDelegate returns the shared NSApplicationDelegate, registering its class on
 // first use — the same one-shot registration the window and menu delegates use.
 func appDelegate() ID {
 	appDelgOnce.Do(func() {
 		_, err := registerClass("AKAppDelegate", "NSObject", []method{{
+			cmd: Sel("application:openURLs:"),
+			fn: func(_ ID, _ SEL, _ ID, urls ID) {
+				defer recoverPanic()
+				deliverOpenURLs(urlStrings(urls))
+			},
+		}, {
 			cmd: Sel("applicationShouldHandleReopen:hasVisibleWindows:"),
 			fn: func(_ ID, _ SEL, _ ID, _ bool) bool {
 				appReopenMu.Lock()
