@@ -242,7 +242,9 @@ func isLogonAutostartArg(args []string) bool {
 
 // The size the window opens at, in logical pixels.
 const (
-	windowWidth = 754 // 580 * 1.3
+	// The macOS panel's 560pt plus the Windows frame. It was 754 (580 * 1.3),
+	// which stretched every row into a wide strip with empty middles.
+	windowWidth = 580
 	// The screen is 634px of content with the IP card empty and roughly 710
 	// with a lease in it; 820 clears that with room for an IPv6 address, which
 	// wraps and takes a line more. It used to be 960, which is what pushed the

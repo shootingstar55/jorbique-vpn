@@ -628,18 +628,15 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /*
- * The window is resizable, so the screen follows it: the cap was fixed at 620px,
- * which left the sides of a widened window empty and the content stranded in the
- * middle. It still stops growing eventually — a 2000px-wide row of two switches
- * reads worse than a column — but the ceiling is the window, not a number from
- * the first layout.
+ * The same column the macOS panel draws: 560px, centred. A widened window gets
+ * margins rather than stretched rows, which read as one wide empty strip.
  */
 .screen {
   display: flex;
   flex-direction: column;
   gap: 6px;
   width: 100%;
-  max-width: min(100%, 1100px);
+  max-width: 560px;
   margin: 0 auto;
 }
 
@@ -800,7 +797,7 @@ onBeforeUnmount(() => {
 
 .actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -847,12 +844,6 @@ onBeforeUnmount(() => {
      the first thing to go when the screen is this short. */
   .hero__subline {
     display: none;
-  }
-}
-
-@media (min-width: 560px) {
-  .actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
