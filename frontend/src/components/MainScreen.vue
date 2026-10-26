@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { NButton, NCard, NIcon, NModal, NProgress, NSwitch, NTag } from 'naive-ui';
+import { NButton, NCard, NIcon, NModal, NProgress, NSwitch } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
@@ -530,8 +530,7 @@ onBeforeUnmount(() => {
           <h1>Jorbique VPN Extended</h1>
           <p>Best connection, chosen automatically</p>
         </div>
-        <ThemeSwitch class="brand__theme" />
-        <NTag class="brand__chip" type="success" round size="small">sing-box client</NTag>
+        <ThemeSwitch />
       </div>
     </NCard>
 
@@ -549,7 +548,7 @@ onBeforeUnmount(() => {
             @click="onPrimaryAction"
           >
             <span class="ring__pulse" aria-hidden="true"></span>
-            <NIcon :size="46" class="ring__icon"><AppIcon name="power" /></NIcon>
+            <NIcon :size="38" class="ring__icon"><AppIcon name="power" /></NIcon>
           </button>
           <HeroTraffic direction="up" :total="traffic.uplinkTotal" :active="connected" />
         </div>
@@ -655,22 +654,23 @@ onBeforeUnmount(() => {
   border-color: rgba(148, 163, 184, 0.16);
 }
 
-/* --- Identity --- */
-
-.brand__theme {
-  flex-shrink: 0;
-  width: 186px;
+/* Naive's medium card pads 19px/24px, which on four stacked cards is most of
+   the window's height spent on air. */
+.screen .pane :deep(.n-card-content) {
+  padding: 10px 14px;
 }
+
+/* --- Identity --- */
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .brand__logo {
-  width: 34px;
-  height: 40px;
+  width: 28px;
+  height: 32px;
   flex-shrink: 0;
 }
 
@@ -694,14 +694,14 @@ onBeforeUnmount(() => {
 
 .brand__text h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text);
 }
 
 .brand__text p {
-  margin: 2px 0 0;
+  margin: 1px 0 0;
   font-size: 12px;
   color: var(--text-dim);
   white-space: nowrap;
@@ -714,17 +714,13 @@ onBeforeUnmount(() => {
   opacity: 0.75;
 }
 
-.brand__chip {
-  flex-shrink: 0;
-}
-
 /* --- Connection --- */
 
 .hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 0;
 }
 
@@ -739,8 +735,10 @@ onBeforeUnmount(() => {
 }
 
 /* Shape, motion and the connected glow are in styles.css; this window's
-   surface and resting colours are its own. */
+   surface, size and resting colours are its own. */
 .ring {
+  width: 68px;
+  height: 68px;
   background: radial-gradient(circle at 50% 35%, var(--surface), var(--surface-sunken));
   color: var(--ring, var(--text-dim));
 }
@@ -764,7 +762,7 @@ onBeforeUnmount(() => {
 
 .hero__headline {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -782,8 +780,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -812,8 +810,8 @@ onBeforeUnmount(() => {
    padding come down together, which is the last 47px. */
 @media (max-height: 700px) {
   .ring {
-    width: 64px;
-    height: 64px;
+    width: 58px;
+    height: 58px;
   }
 
   .hero {
@@ -824,8 +822,8 @@ onBeforeUnmount(() => {
     font-size: 16px;
   }
 
-  .screen :deep(.n-card__content) {
-    padding: 6px 12px !important;
+  .screen .pane :deep(.n-card-content) {
+    padding: 6px 12px;
   }
 
   .screen {
@@ -865,7 +863,7 @@ onBeforeUnmount(() => {
   font-size: 13px;
   padding: 3px 8px;
   height: auto;
-  min-height: 30px;
+  min-height: 28px;
 }
 
 /* The label sits in a fixed-height pill, so a descender (the tail of a "g" or a
