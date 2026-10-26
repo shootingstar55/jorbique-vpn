@@ -60,12 +60,8 @@ class Bridge(private val activity: MainActivity, private val webView: WebView) {
             TunnelService.stop(activity)
             ""
         }
-        "IsAutostartSupported" -> "true"
-        "IsAutostartEnabled" -> Settings.autostart(activity).toString()
-        "SetAutostartEnabled" -> {
-            Settings.setAutostart(activity, args.optBoolean(0))
-            ""
-        }
+        // A phone is not started like a desktop session; the main screen hides the switch.
+        "IsAutostartSupported" -> "false"
         "ListActiveApps" -> installedApps()
         else -> Core.call(method, args.toString())
     }
@@ -113,8 +109,7 @@ class Bridge(private val activity: MainActivity, private val webView: WebView) {
             "ListLogFiles", "GetLogContent", "ClearLogs",
         )
         private val ANDROID_METHODS = listOf(
-            "Connect", "Disconnect", "IsAutostartSupported", "IsAutostartEnabled", "SetAutostartEnabled",
-            "ListActiveApps",
+            "Connect", "Disconnect", "IsAutostartSupported", "ListActiveApps",
         )
 
         private fun message(e: Throwable): String {

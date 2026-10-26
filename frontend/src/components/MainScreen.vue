@@ -120,8 +120,6 @@ const primaryLabel = computed(() => {
 });
 
 const autostartDisabled = computed(() => busy.value || autostartSwitching.value);
-/** On a phone there is no login to start with: the switch connects after the phone boots. */
-const autostartTitle = isAndroid ? 'Подключаться при включении телефона' : 'Запускать вместе с Windows';
 
 // --- Status ------------------------------------------------------------------------
 
@@ -553,7 +551,7 @@ onBeforeUnmount(() => {
     <NCard class="pane" :bordered="false">
       <div v-if="autostartSupported" class="setting">
         <div class="setting__text">
-          <p class="setting__title">{{ autostartTitle }}</p>
+          <p class="setting__title">Запускать вместе с Windows</p>
         </div>
         <NSwitch
           :value="autostartEnabled"

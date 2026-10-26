@@ -93,16 +93,16 @@ func tunnelStates() map[string]bool { return map[string]bool{"sing-box": IsConne
 
 func logPath(name string) string { return filepath.Join(dataDir, "logs", name) }
 
-// HasUserUUID reports whether an account is stored; until one is, the app
+// hasUserUUID reports whether an account is stored; until one is, the app
 // shows only the activation screen and Connect refuses.
-func HasUserUUID() bool {
+func hasUserUUID() bool {
 	return store != nil && security.ValidUUID(store.GetUserUUID(), false)
 }
 
 // Call is the window's backend: the Vue interface calls the desktop
 // client's method names, and the Kotlin bridge passes them here with the
 // arguments as a JSON array. The answer is JSON. Methods that need Android
-// itself (connecting through the VpnService, the app list, autostart) are
+// itself (connecting through the VpnService, the app list) are
 // answered in Kotlin and never reach this.
 func Call(method, argsJSON string) (string, error) {
 	if err := ready(); err != nil {
@@ -128,7 +128,7 @@ func Call(method, argsJSON string) (string, error) {
 func dispatch(method string, args []json.RawMessage) (any, error) {
 	switch method {
 	case "HasUserUUID", "HasVpnUserConfig":
-		return HasUserUUID(), nil
+		return hasUserUUID(), nil
 	case "GetUserUUID":
 		return store.GetUserUUID(), nil
 	case "ActivateUserUUID", "SetUserUUID":

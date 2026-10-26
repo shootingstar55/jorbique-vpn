@@ -3,7 +3,6 @@ package com.jorbique.vpn
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.Context
 import com.jorbique.vpn.core.Core
 
 class App : Application() {
@@ -26,15 +25,3 @@ class App : Application() {
     }
 }
 
-/** The switch on the main screen: connect when the phone has booted. */
-object Settings {
-    private const val PREFS = "settings"
-    private const val AUTOSTART = "autostart"
-
-    fun autostart(context: Context): Boolean =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(AUTOSTART, false)
-
-    fun setAutostart(context: Context, on: Boolean) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(AUTOSTART, on).apply()
-    }
-}
