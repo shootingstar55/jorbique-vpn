@@ -22,6 +22,22 @@ const live = computed(() => (props.connected && props.report?.active ? props.rep
 const rows = computed(() => protocolRows(props.protocols, live.value));
 const active = computed(() => rows.value.find((row) => row.state === 'active'));
 
+/**
+ * The line under the chips, while connected. Naive is checked first and a pass ends the
+ * check, so the rest were not tried rather than broken: they stay neutral, never struck out.
+ * Otherwise it counts what the chips show, so the dots need no legend.
+ */
+const note = computed(() => {
+  if (!live.value) return '';
+  if (live.value.naive) return 'NaiveProxy прошёл проверку первым, остальные не проверялись';
+  const count = (state) => rows.value.filter((row) => row.state === state).length;
+  const parts = [`запасных: ${count('standby')}`];
+  if (count('failed')) parts.push(`не прошли проверку: ${count('failed')}`);
+  if (count('skipped')) parts.push(`не проверялись: ${count('skipped')}`);
+  const line = parts.join(', ');
+  return line.charAt(0).toUpperCase() + line.slice(1);
+});
+
 const summary = computed(() => {
   if (active.value) return `Сейчас: ${active.value.label}`;
   if (!rows.value.length) return 'Профиль ещё не загружен';
@@ -46,6 +62,7 @@ const summary = computed(() => {
         <i aria-hidden="true" />{{ row.label }}<span v-if="row.note" class="sr-only">, {{ row.note }}</span>
       </li>
     </ul>
+    <p v-if="note" class="protocols__note">{{ note }}</p>
   </NCard>
 </template>
 
@@ -133,8 +150,10 @@ const summary = computed(() => {
   background: #ef4444;
 }
 
-.chip.is-skipped {
-  opacity: 0.7;
+.protocols__note {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 .sr-only {
