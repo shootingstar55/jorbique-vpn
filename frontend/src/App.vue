@@ -1,7 +1,6 @@
 <script setup>
 import { NConfigProvider, NDialogProvider, NMessageProvider } from 'naive-ui';
 import AppShell from './components/AppShell.vue';
-import DashboardView from './components/DashboardView.vue';
 import RouteRulesPanel from './components/RouteRulesPanel.vue';
 import MainPanel from './components/MainPanel.vue';
 import UuidModal from './components/UuidModal.vue';
@@ -10,7 +9,6 @@ import { watchEffect } from 'vue';
 import { isDark, naiveTheme, naiveThemeOverrides } from './lib/theme.js';
 
 const search = new URLSearchParams(window.location.search);
-const standaloneDashboard = search.has('dashboard');
 const standaloneVpnConfig = search.has('set-uuid');
 const standaloneRouteRules = search.has('route-rules');
 const standaloneMain = search.has('main');
@@ -32,7 +30,6 @@ watchEffect(() => {
       <NDialogProvider>
         <ActivationScreen v-if="standaloneActivate" standalone />
         <UuidModal v-else-if="standaloneVpnConfig" :visible="true" standalone />
-        <DashboardView v-else-if="standaloneDashboard" standalone />
         <RouteRulesPanel v-else-if="standaloneRouteRules" />
         <MainPanel v-else-if="standaloneMain" />
         <AppShell v-else />

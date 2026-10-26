@@ -1,12 +1,10 @@
-package dashboard
+package localapi
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"net"
@@ -36,34 +34,6 @@ type ConfigUpdate struct {
 	// NaiveMode is nil from a page that does not know the mode, which keeps
 	// what is stored.
 	NaiveMode *bool `json:"naiveMode,omitempty"`
-}
-
-// StartLocalServer serves embedded UI and a token-scoped loopback bridge for
-// WKWebView. No CORS: dashboard and bridge share one private local origin.
-func StartLocalServer(query, configPath string, assets fs.FS, memoryFallback func() uint64) (*LocalServer, error) {
-	prefix, listener, mux, err := newLocalMux()
-	if err != nil {
-		return nil, err
-	}
-
-	mux.HandleFunc(prefix+"api/snapshot", snapshotHandler(configPath, memoryFallback))
-
-	post := func(path string, action func(context.Context, *Client, []string) error) {
-		mux.HandleFunc(prefix+"api/"+path, postHandler(configPath, path, action))
-	}
-	post("select", func(ctx context.Context, api *Client, values []string) error {
-		if len(values) != 2 {
-			return fmt.Errorf("group and outbound are required")
-		}
-		return api.SelectOutbound(ctx, values[0], values[1])
-	})
-	post("url-test", func(ctx context.Context, api *Client, values []string) error {
-		if len(values) != 1 {
-			return fmt.Errorf("outbound is required")
-		}
-		return api.URLTest(ctx, values[0])
-	})
-	return serveLocal(listener, mux, prefix, assets, query), nil
 }
 
 // StartFormServer serves one of the shared Vue forms to WKWebView: GET
@@ -156,53 +126,6 @@ func (s *LocalServer) Close() {
 
 func respondError(writer http.ResponseWriter, err error) {
 	http.Error(writer, err.Error(), http.StatusBadGateway)
-}
-
-func snapshotHandler(configPath string, memoryFallback func() uint64) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		if request.Method != http.MethodGet {
-			http.Error(writer, methodNotAllowed, http.StatusMethodNotAllowed)
-			return
-		}
-		api, err := NewClient(configPath)
-		if err != nil {
-			respondError(writer, err)
-			return
-		}
-		result, err := api.Snapshot(request.Context())
-		if err != nil {
-			respondError(writer, err)
-			return
-		}
-		if result.Status.Memory == 0 && memoryFallback != nil {
-			result.Status.Memory = memoryFallback()
-		}
-		writeJSON(writer, result)
-	}
-}
-
-func postHandler(configPath, path string, action func(context.Context, *Client, []string) error) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		if request.Method != http.MethodPost {
-			http.Error(writer, methodNotAllowed, http.StatusMethodNotAllowed)
-			return
-		}
-		request.Body = http.MaxBytesReader(writer, request.Body, 8<<10)
-		var values []string
-		if err := json.NewDecoder(request.Body).Decode(&values); err != nil {
-			http.Error(writer, invalidRequest, http.StatusBadRequest)
-			return
-		}
-		api, err := NewClient(configPath)
-		if err == nil {
-			err = action(request.Context(), api, values)
-		}
-		if err != nil {
-			respondError(writer, err)
-			return
-		}
-		writer.WriteHeader(http.StatusNoContent)
-	}
 }
 
 func formActionHandler(name string, handler func(json.RawMessage) (any, error)) http.HandlerFunc {

@@ -1,27 +1,15 @@
-package dashboard
+package localapi
 
 // Minimal protobuf v1 message set for sing-box 1.14 StartedService. Keeping
 // only fields the client uses avoids importing sing-box itself into client.
-
-type versionMessage struct {
-	Version    string `protobuf:"bytes,1,opt,name=version,proto3"`
-	APIVersion int32  `protobuf:"varint,2,opt,name=apiVersion,proto3"`
-}
 
 type statusRequest struct {
 	Interval int64 `protobuf:"varint,1,opt,name=interval,proto3"`
 }
 
 type statusMessage struct {
-	Memory           uint64 `protobuf:"varint,1,opt,name=memory,proto3"`
-	Goroutines       int32  `protobuf:"varint,2,opt,name=goroutines,proto3"`
-	ConnectionsIn    int32  `protobuf:"varint,3,opt,name=connectionsIn,proto3"`
-	ConnectionsOut   int32  `protobuf:"varint,4,opt,name=connectionsOut,proto3"`
-	TrafficAvailable bool   `protobuf:"varint,5,opt,name=trafficAvailable,proto3"`
-	Uplink           int64  `protobuf:"varint,6,opt,name=uplink,proto3"`
-	Downlink         int64  `protobuf:"varint,7,opt,name=downlink,proto3"`
-	UplinkTotal      int64  `protobuf:"varint,8,opt,name=uplinkTotal,proto3"`
-	DownlinkTotal    int64  `protobuf:"varint,9,opt,name=downlinkTotal,proto3"`
+	UplinkTotal   int64 `protobuf:"varint,8,opt,name=uplinkTotal,proto3"`
+	DownlinkTotal int64 `protobuf:"varint,9,opt,name=downlinkTotal,proto3"`
 }
 
 type groupsMessage struct {
@@ -43,10 +31,6 @@ type groupItemMessage struct {
 	URLTestDelay int32  `protobuf:"varint,4,opt,name=urlTestDelay,proto3"`
 }
 
-type urlTestMessage struct {
-	OutboundTag string `protobuf:"bytes,1,opt,name=outboundTag,proto3"`
-}
-
 type selectOutboundMessage struct {
 	GroupTag    string `protobuf:"bytes,1,opt,name=groupTag,proto3"`
 	OutboundTag string `protobuf:"bytes,2,opt,name=outboundTag,proto3"`
@@ -56,11 +40,6 @@ type selectOutboundMessage struct {
 // them to protobuf v2 internally.
 func reset[T any](m *T) { var zero T; *m = zero }
 
-func (m *versionMessage) Reset()       { reset(m) }
-func (*versionMessage) String() string { return "" }
-func (*versionMessage) ProtoMessage() {
-	// Marker method required by the protobuf v1 message interface.
-}
 func (m *statusRequest) Reset()       { reset(m) }
 func (*statusRequest) String() string { return "" }
 func (*statusRequest) ProtoMessage() {
@@ -84,11 +63,6 @@ func (*groupMessage) ProtoMessage() {
 func (m *groupItemMessage) Reset()       { reset(m) }
 func (*groupItemMessage) String() string { return "" }
 func (*groupItemMessage) ProtoMessage() {
-	// Marker method required by the protobuf v1 message interface.
-}
-func (m *urlTestMessage) Reset()       { reset(m) }
-func (*urlTestMessage) String() string { return "" }
-func (*urlTestMessage) ProtoMessage() {
 	// Marker method required by the protobuf v1 message interface.
 }
 func (m *selectOutboundMessage) Reset()       { reset(m) }

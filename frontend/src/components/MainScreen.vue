@@ -6,13 +6,12 @@ import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
 import HeroTraffic from './HeroTraffic.vue';
 import ConnectionCheck from './ConnectionCheck.vue';
-import { dashboardAPI } from '../lib/dashboard-api.js';
 import { binding } from '../lib/bindings.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
 
 const emit = defineEmits([
-  'error', 'toast', 'openVpnConfig', 'openIgnoreApps', 'openLogs', 'openDashboard',
+  'error', 'toast', 'openVpnConfig', 'openIgnoreApps', 'openLogs',
 ]);
 
 /**
@@ -35,9 +34,9 @@ const AUTOSTART_RECHECK_MS = 1500;
 const connected = ref(false);
 
 /**
- * What the core has carried, for the columns beside the ring. Read from the same
- * API the dashboard uses, and only while a tunnel is up — with nothing running
- * there is no API to ask.
+ * What the core has carried, for the columns beside the ring. Read from sing-box's
+ * own API, and only while a tunnel is up — with nothing running there is no API
+ * to ask.
  */
 const traffic = ref({ uplinkTotal: 0, downlinkTotal: 0 });
 
@@ -46,11 +45,13 @@ async function refreshTraffic() {
     traffic.value = { uplinkTotal: 0, downlinkTotal: 0 };
     return;
   }
+  const trafficTotals = binding('TrafficTotals');
+  if (!trafficTotals) return;
   try {
-    const snapshot = await dashboardAPI.snapshot();
+    const totals = await trafficTotals();
     traffic.value = {
-      uplinkTotal: Number(snapshot?.status?.uplinkTotal) || 0,
-      downlinkTotal: Number(snapshot?.status?.downlinkTotal) || 0,
+      uplinkTotal: Number(totals?.uplinkTotal) || 0,
+      downlinkTotal: Number(totals?.downlinkTotal) || 0,
     };
   } catch {
     /* the API comes and goes with the tunnel; the columns just hold their last value */
@@ -131,8 +132,6 @@ const autostartDisabled = computed(() => busy.value || autostartSwitching.value)
 async function refreshStatus(force = false) {
   if (transition.value && !force) return;
 
-  dashboardSupported.value = Boolean(binding('DashboardSnapshot'));
-
   const isConnected = binding('IsConnected');
   if (!isConnected) return;
   try {
@@ -180,13 +179,6 @@ async function loadAutostart() {
   }
   autostartEnabled.value = !!on;
 }
-
-/**
- * Whether the backend can open the dashboard. Re-read on every status poll rather than once
- * at setup: window.go is filled when the Wails runtime boots, which is after this component
- * is created, so a one-shot check at setup would hide the button for the whole session.
- */
-const dashboardSupported = ref(false);
 
 async function setAutostart(nextOn) {
   const set = binding('SetAutostartEnabled');
@@ -578,10 +570,6 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="actions">
-        <NButton v-if="dashboardSupported" quaternary :disabled="!connected" @click="emit('openDashboard')">
-          <template #icon><NIcon><AppIcon name="monitor" /></NIcon></template>
-          {{ labels.dashboard }}
-        </NButton>
         <NButton quaternary :disabled="busy" @click="emit('openVpnConfig')">
           <template #icon><NIcon><AppIcon name="settings" /></NIcon></template>
           Set UUID

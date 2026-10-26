@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"jorbiquevpn/internal/dashboard"
+	"jorbiquevpn/internal/localapi"
 )
 
 func TestSingboxConfigState(t *testing.T) {
@@ -28,7 +28,7 @@ func TestSingboxConfigState(t *testing.T) {
 
 func TestSingboxConfigSelection(t *testing.T) {
 	uuid := "7998568d-7ae4-4f65-a4cb-b20e78af6a87"
-	gotUUID, enabled, err := singboxConfigSelection(dashboard.ConfigUpdate{
+	gotUUID, enabled, err := singboxConfigSelection(localapi.ConfigUpdate{
 		UUID:            " " + uuid + " ",
 		OutboundEnabled: map[string]bool{"vless-reality": false, "tuic": true},
 	}, []string{"vless-reality", "tuic"})
@@ -38,7 +38,7 @@ func TestSingboxConfigSelection(t *testing.T) {
 
 	// The UUID is what every protocol authenticates with: none is refused,
 	// whatever is switched on, and so is one that is not a UUID.
-	for _, update := range []dashboard.ConfigUpdate{
+	for _, update := range []localapi.ConfigUpdate{
 		{OutboundEnabled: map[string]bool{"tuic": true}},
 		{OutboundEnabled: map[string]bool{"tuic": false}},
 		{UUID: "not-a-uuid"},

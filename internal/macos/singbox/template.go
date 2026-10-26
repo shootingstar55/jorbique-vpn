@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"jorbiquevpn/internal/constants"
-	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/httpsclient"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/core"
 	"jorbiquevpn/internal/macos/fsatomic"
 	"jorbiquevpn/internal/singboxcfg"
@@ -302,7 +302,7 @@ func BuildConfigFromTemplate(settings core.SingboxSection, baseConfigPath string
 	// deleted (or that has never run) gets one from the downloaded profile
 	// alone.
 	baseRoot := localRootOrDefault(baseConfigPath)
-	localAPISecret := dashboard.APISecret(baseRoot)
+	localAPISecret := localapi.APISecret(baseRoot)
 
 	remoteRoot := NewOrderedMap()
 	if err := unmarshalToOrderedMap(body, remoteRoot); err != nil {
@@ -350,7 +350,7 @@ func BuildConfigFromTemplate(settings core.SingboxSection, baseConfigPath string
 	// written into a group that no longer offers it.
 	singboxcfg.SetSelectorDefault(root, settings.SelectedNode)
 
-	if err := dashboard.ConfigureAPI(root, localAPISecret); err != nil {
+	if err := localapi.ConfigureAPI(root, localAPISecret); err != nil {
 		return nil, core.BadConfig(err.Error())
 	}
 	return root, nil

@@ -1,9 +1,8 @@
-package dashboard
+package localapi
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -43,14 +42,7 @@ func writeAPIConfig(t *testing.T, address string) string {
 	return path
 }
 
-func TestSnapshotHandlerRejectsNonGet(t *testing.T) {
-	response := serve(snapshotHandler("unused.json", nil), http.MethodPost, "/api/snapshot", "")
-	if response.Code != http.StatusMethodNotAllowed {
-		t.Fatalf("status = %d, want 405", response.Code)
-	}
-}
-
-func TestSnapshotHandlerAnswersAPIErrorsWithBadGateway(t *testing.T) {
+func TestTrafficFailsWithoutAReachableAPI(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -68,38 +60,18 @@ func TestSnapshotHandlerAnswersAPIErrorsWithBadGateway(t *testing.T) {
 		name       string
 		configPath string
 	}{
-		// A stopped tunnel is routine while the dashboard polls.
+		// A stopped tunnel is routine while the main window polls.
 		{"stopped tunnel", writeAPIConfig(t, stoppedAddress)},
 		// The config has no secret, so the running API rejects the call.
 		{"unauthenticated", writeAPIConfig(t, running.address)},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			response := serve(snapshotHandler(test.configPath, nil), http.MethodGet, "/api/snapshot", "")
-			if response.Code != http.StatusBadGateway {
-				t.Fatalf("status = %d, want 502", response.Code)
+			client, err := NewClient(test.configPath)
+			if err != nil {
+				t.Fatal(err)
 			}
-		})
-	}
-}
-
-func TestPostHandlerRejectsBadRequestsAndFailures(t *testing.T) {
-	configPath := writeAPIConfig(t, "127.0.0.1:1")
-	missingPath := filepath.Join(t.TempDir(), "missing.json")
-	failing := func(context.Context, *Client, []string) error { return errors.New("selector rejected outbound") }
-	for _, test := range []struct {
-		name, method, configPath, body string
-		wantStatus                     int
-		wantBody                       string
-	}{
-		{"wrong method", http.MethodGet, configPath, "", http.StatusMethodNotAllowed, methodNotAllowed},
-		{"not JSON", http.MethodPost, configPath, "{", http.StatusBadRequest, invalidRequest},
-		{"missing config", http.MethodPost, missingPath, `["proxy","tuic"]`, http.StatusBadGateway, "read sing-box config"},
-		{"action fails", http.MethodPost, configPath, `["proxy","tuic"]`, http.StatusBadGateway, "selector rejected outbound"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			response := serve(postHandler(test.configPath, "select", failing), test.method, "/api/select", test.body)
-			if response.Code != test.wantStatus || !strings.Contains(response.Body.String(), test.wantBody) {
-				t.Fatalf("response = %d %q, want %d containing %q", response.Code, response.Body, test.wantStatus, test.wantBody)
+			if _, err := client.Traffic(context.Background()); err == nil {
+				t.Fatal("Traffic succeeded, want an error")
 			}
 		})
 	}
@@ -188,13 +160,11 @@ func TestConfigServerRejectsMalformedUpdateAndSavesWithoutCallback(t *testing.T)
 
 func TestWireMessagesResetToZero(t *testing.T) {
 	for _, message := range []protoadapt.MessageV1{
-		&versionMessage{Version: "1.14.0", APIVersion: 1},
 		&statusRequest{Interval: 1},
-		&statusMessage{Memory: 1, Goroutines: 2},
+		&statusMessage{UplinkTotal: 1, DownlinkTotal: 2},
 		&groupsMessage{Groups: []*groupMessage{{Tag: "proxy"}}},
 		&groupMessage{Tag: "proxy", Selected: "tuic"},
 		&groupItemMessage{Tag: "tuic", URLTestDelay: 75},
-		&urlTestMessage{OutboundTag: "auto"},
 		&selectOutboundMessage{GroupTag: "proxy", OutboundTag: "tuic"},
 	} {
 		message.ProtoMessage()

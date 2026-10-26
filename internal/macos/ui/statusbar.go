@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"jorbiquevpn/internal/dashboard"
 	"jorbiquevpn/internal/ipinfo"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/applekit"
 	"jorbiquevpn/internal/macos/core"
 	"jorbiquevpn/internal/update"
@@ -58,7 +58,6 @@ type statusBarController struct {
 	singboxP       *webPanel // the open sing-box config panel, if any
 	routeP         *webPanel // the open route-rules panel, if any
 	mainP          *webPanel // the main window, if open
-	dashboardP     *webPanel // embedded Naive UI dashboard, if open
 	gateP          *webPanel // the first-run UUID window, while no UUID is stored
 	gateAccepted   bool      // the gate's UUID was saved; closing it no longer quits
 	lastRunningKey string    // invalidates exit-IP details when connection changes
@@ -779,26 +778,6 @@ func (c *statusBarController) cmdRestart() {
 	c.runRestart(started, []string{"-restart"})
 }
 
-func (c *statusBarController) cmdOpenDashboard() {
-	if c.dashboardP != nil {
-		c.dashboardP.Show()
-		return
-	}
-	cfg, _ := c.loadConfig()
-	configPath := singboxRuntimeConfigPath(cfg)
-	if configPath == "" {
-		c.alertFail("Dashboard", "No running sing-box configuration found", 0)
-		return
-	}
-	runDir := cfg.EffectivePaths().RunDir
-	panel, err := showDashboardPanel(configPath, func() uint64 { return singboxResidentMemory(cfg, runDir) }, func() { c.dashboardP = nil })
-	if err != nil {
-		c.alertFail("Dashboard", err.Error(), 0)
-		return
-	}
-	c.dashboardP = panel
-}
-
 // alertFail shows a themed warning alert on the main thread for a failed command.
 func (c *statusBarController) alertFail(title, out string, rc int) {
 	body := alertBody(out, rc)
@@ -1006,17 +985,17 @@ func (c *statusBarController) trafficTotals(cfg *core.AppConfig, running []strin
 	if configPath == "" {
 		return 0, 0
 	}
-	client, err := dashboard.NewClient(configPath)
+	client, err := localapi.NewClient(configPath)
 	if err != nil {
 		return 0, 0
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	snapshot, err := client.Snapshot(ctx)
+	traffic, err := client.Traffic(ctx)
 	if err != nil {
 		return 0, 0
 	}
-	return snapshot.Status.UplinkTotal, snapshot.Status.DownlinkTotal
+	return traffic.UplinkTotal, traffic.DownlinkTotal
 }
 
 // invalidateIPInfo drops the cached exit address, the window's and the menu's.
@@ -1158,8 +1137,6 @@ func (c *statusBarController) mainWindowAction(action mainAction) error {
 			applekit.RunOnMain(c.cmdSetSingboxConfig)
 		case "route-rules":
 			applekit.RunOnMain(c.cmdRouteRules)
-		case "dashboard":
-			applekit.RunOnMain(c.cmdOpenDashboard)
 		default:
 			return fmt.Errorf("unknown panel")
 		}

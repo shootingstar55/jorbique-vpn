@@ -1,4 +1,4 @@
-package dashboard
+package localapi
 
 import (
 	"crypto/rand"

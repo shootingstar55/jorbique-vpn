@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"jorbiquevpn/internal/dashboard"
+	"jorbiquevpn/internal/localapi"
 )
 
 // showUUIDEditPanel contains only the saved account UUID.
@@ -15,9 +15,9 @@ func showUUIDEditPanel(initialUUID string, onSubmit func(string) error, onClosed
 	if err != nil {
 		return nil, err
 	}
-	return showWebPanel("Set UUID", 520, 300, 440, 260, func(closeWindow func()) (*dashboard.LocalServer, error) {
-		return dashboard.StartConfigServer(panelQuery("set-uuid"), dashboard.ConfigState{UUID: initialUUID}, assets,
-			func(update dashboard.ConfigUpdate) error {
+	return showWebPanel("Set UUID", 520, 300, 440, 260, func(closeWindow func()) (*localapi.LocalServer, error) {
+		return localapi.StartConfigServer(panelQuery("set-uuid"), localapi.ConfigState{UUID: initialUUID}, assets,
+			func(update localapi.ConfigUpdate) error {
 				uuid := strings.TrimSpace(update.UUID)
 				if !validSingboxUUID(uuid) {
 					return fmt.Errorf("Enter a valid user UUID")
@@ -30,7 +30,7 @@ func showUUIDEditPanel(initialUUID string, onSubmit func(string) error, onClosed
 	}, onClosed)
 }
 
-func singboxConfigSelection(update dashboard.ConfigUpdate, available []string) (string, []string, error) {
+func singboxConfigSelection(update localapi.ConfigUpdate, available []string) (string, []string, error) {
 	uuid := strings.TrimSpace(update.UUID)
 	if uuid == "" {
 		return "", nil, fmt.Errorf("Enter a user UUID")
@@ -47,9 +47,9 @@ func singboxConfigSelection(update dashboard.ConfigUpdate, available []string) (
 	return uuid, enabled, nil
 }
 
-func singboxConfigState(initialUUID string, initialEnabled, available []string, naive bool) dashboard.ConfigState {
+func singboxConfigState(initialUUID string, initialEnabled, available []string, naive bool) localapi.ConfigState {
 	enabledSet := lowerStringSet(initialEnabled)
-	state := dashboard.ConfigState{
+	state := localapi.ConfigState{
 		UUID:               initialUUID,
 		NaiveMode:          naive,
 		AvailableOutbounds: append([]string(nil), available...),

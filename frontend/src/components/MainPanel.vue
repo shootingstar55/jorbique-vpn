@@ -82,12 +82,8 @@ const subline = computed(() => {
  * The buttons, in the order both clients show them. The icons are the ones the
  * Windows screen draws, from the same component — a panel that opens the same
  * window should not be labelled differently on the two platforms.
- *
- * needsTunnel marks what only exists while the core is running: the dashboard is
- * served by sing-box's own API.
  */
 const ACTIONS = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'monitor', needsTunnel: true },
   { id: 'set-uuid', label: 'Set UUID', icon: 'settings' },
   { id: 'route-rules', label: 'Exclude apps & sites', icon: 'apps' },
 ];
@@ -215,7 +211,7 @@ onBeforeUnmount(() => clearInterval(timer));
           v-for="action in ACTIONS"
           :key="action.id"
           tertiary
-          :disabled="!!acting || !!pending || (action.needsTunnel && !connected)"
+          :disabled="!!acting || !!pending"
           @click="act('open', action.id)"
         >
           <template #icon><NIcon><AppIcon :name="action.icon" /></NIcon></template>

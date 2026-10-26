@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"jorbiquevpn/internal/dashboard"
+	"jorbiquevpn/internal/localapi"
 )
 
 // Activate applies the configured default after startup as well as in the JSON.
@@ -16,7 +16,7 @@ import (
 func (r Result) Activate(ctx context.Context, configPath string) error {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
-	client, err := dashboard.NewClient(configPath)
+	client, err := localapi.NewClient(configPath)
 	if err != nil {
 		return err
 	}

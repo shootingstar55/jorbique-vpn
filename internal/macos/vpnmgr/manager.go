@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"jorbiquevpn/internal/autoconnect"
-	"jorbiquevpn/internal/dashboard"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/ansiutil"
 	"jorbiquevpn/internal/macos/control"
 	"jorbiquevpn/internal/macos/core"
@@ -1243,7 +1243,7 @@ func (m *Manager) switchSelectorNow() {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	for _, path := range m.singboxConfigPathsToUpdate() {
-		client, err := dashboard.NewClient(path)
+		client, err := localapi.NewClient(path)
 		if err != nil {
 			continue
 		}

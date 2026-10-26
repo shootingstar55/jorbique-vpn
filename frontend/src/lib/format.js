@@ -1,5 +1,5 @@
 /**
- * Renders a byte count the way both the main screen and the dashboard show it:
+ * Renders a byte count the way the main screens show it:
  * the largest unit that leaves a number below 1024, one decimal below ten.
  */
 export function formatBytes(value) {

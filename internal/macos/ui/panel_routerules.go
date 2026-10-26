@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"jorbiquevpn/internal/dashboard"
+	"jorbiquevpn/internal/localapi"
 	"jorbiquevpn/internal/macos/applekit"
 )
 
@@ -45,8 +45,8 @@ func showRouteRulesPanel(init routeRulesInput, onSubmit func(routeRulesInput) er
 		Apps:      routeRuleAppsOf(init.Paths),
 	}
 	return showWebPanel("Route rules", 640, 560, 520, 440,
-		func(closeWindow func()) (*dashboard.LocalServer, error) {
-			return dashboard.StartFormServerWithActions(panelQuery("route-rules"), "route-rules", assets, state,
+		func(closeWindow func()) (*localapi.LocalServer, error) {
+			return localapi.StartFormServerWithActions(panelQuery("route-rules"), "route-rules", assets, state,
 				func(body json.RawMessage) error {
 					var update routeRulesUpdate
 					if err := json.Unmarshal(body, &update); err != nil {

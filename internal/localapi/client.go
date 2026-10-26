@@ -1,4 +1,4 @@
-package dashboard
+package localapi
 
 import (
 	"context"
@@ -20,22 +20,11 @@ const (
 	serviceName = "/daemon.StartedService/"
 )
 
-type Snapshot struct {
-	Version string  `json:"version"`
-	Status  Status  `json:"status"`
-	Groups  []Group `json:"groups"`
-}
-
-type Status struct {
-	Memory           uint64 `json:"memory"`
-	Goroutines       int32  `json:"goroutines"`
-	ConnectionsIn    int32  `json:"connectionsIn"`
-	ConnectionsOut   int32  `json:"connectionsOut"`
-	TrafficAvailable bool   `json:"trafficAvailable"`
-	Uplink           int64  `json:"uplink"`
-	Downlink         int64  `json:"downlink"`
-	UplinkTotal      int64  `json:"uplinkTotal"`
-	DownlinkTotal    int64  `json:"downlinkTotal"`
+// Traffic is what the core has carried since it started, as the main windows
+// show it beside the connect ring.
+type Traffic struct {
+	UplinkTotal   int64 `json:"uplinkTotal"`
+	DownlinkTotal int64 `json:"downlinkTotal"`
 }
 
 type Group struct {
@@ -116,32 +105,19 @@ func receive(ctx context.Context, conn *grpc.ClientConn, method string, request,
 	return stream.RecvMsg(response)
 }
 
-func (c *Client) Snapshot(ctx context.Context) (Snapshot, error) {
+func (c *Client) Traffic(ctx context.Context) (Traffic, error) {
 	ctx, cancel := context.WithTimeout(c.authorize(ctx), 3*time.Second)
 	defer cancel()
 	conn, err := c.connect()
 	if err != nil {
-		return Snapshot{}, err
+		return Traffic{}, err
 	}
 	defer conn.Close()
-
-	var version versionMessage
-	if err := conn.Invoke(ctx, serviceName+"GetVersion", &emptypb.Empty{}, &version); err != nil {
-		return Snapshot{}, fmt.Errorf("sing-box API: %w", err)
-	}
 	var status statusMessage
 	if err := receive(ctx, conn, "SubscribeStatus", &statusRequest{Interval: int64(time.Second)}, &status); err != nil {
-		return Snapshot{}, fmt.Errorf("sing-box status: %w", err)
+		return Traffic{}, fmt.Errorf("sing-box status: %w", err)
 	}
-	var groups groupsMessage
-	if err := receive(ctx, conn, "SubscribeGroups", &emptypb.Empty{}, &groups); err != nil {
-		return Snapshot{}, fmt.Errorf("sing-box groups: %w", err)
-	}
-	return Snapshot{
-		Version: version.Version,
-		Status:  Status(status),
-		Groups:  groupsFromMessage(groups.Groups),
-	}, nil
+	return Traffic{UplinkTotal: status.UplinkTotal, DownlinkTotal: status.DownlinkTotal}, nil
 }
 
 func (c *Client) Groups(ctx context.Context) ([]Group, error) {
@@ -176,13 +152,6 @@ func (c *Client) SelectOutbound(ctx context.Context, group, outbound string) err
 		return fmt.Errorf("group and outbound are required")
 	}
 	return c.invoke(ctx, "SelectOutbound", &selectOutboundMessage{GroupTag: group, OutboundTag: outbound})
-}
-
-func (c *Client) URLTest(ctx context.Context, outbound string) error {
-	if strings.TrimSpace(outbound) == "" {
-		return fmt.Errorf("outbound is required")
-	}
-	return c.invoke(ctx, "URLTest", &urlTestMessage{OutboundTag: outbound})
 }
 
 func (c *Client) invoke(ctx context.Context, method string, request any) error {
