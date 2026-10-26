@@ -147,8 +147,18 @@ func (m *Manager) Start(names []string) error {
 	return m.startTargets(allTargets)
 }
 
+// connectionCancelFile is how a stop, which runs in another process, reaches a
+// start that is still checking connections: the start polls for it and gives
+// up before it spawns sing-box. The start removes it when it ends.
+const connectionCancelFile = "connection-cancel"
+
+// errConnectCancelled ends a start that a stop interrupted. Like
+// errStartInProgress it must not be retried.
+var errConnectCancelled = errors.New("connection cancelled")
+
 // Stop stops a VPN by name or "all".
 func (m *Manager) Stop(name string) {
+	_ = os.WriteFile(filepath.Join(m.Paths.RunDir, connectionCancelFile), nil, 0600)
 	if name == "all" {
 		m.saveStartedList(nil)
 		time.Sleep(time.Second)
@@ -277,7 +287,7 @@ func (m *Manager) startOneWithRetry(v core.VPNItem, maxAttempts int) error {
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		if err := m.startOne(v); err == nil {
 			return nil
-		} else if errors.Is(err, errStartInProgress) {
+		} else if errors.Is(err, errStartInProgress) || errors.Is(err, errConnectCancelled) {
 			// Retrying would only lose the same race again, slower.
 			return err
 		} else {
@@ -311,6 +321,9 @@ func (m *Manager) startOne(v core.VPNItem) error {
 	if m.IsRunning(v) {
 		return nil
 	}
+	cancelPath := filepath.Join(m.Paths.RunDir, connectionCancelFile)
+	_ = os.Remove(cancelPath) // left by a stop that had nothing to interrupt
+	defer os.Remove(cancelPath)
 	report := func(p autoconnect.Progress) { autoconnect.WriteProgress(m.Paths.RunDir, p) }
 	report(autoconnect.Progress{Phase: "preparing"})
 	defer os.Remove(filepath.Join(m.Paths.RunDir, autoconnect.ProgressFile))
@@ -369,7 +382,24 @@ func (m *Manager) startOne(v core.VPNItem) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), autoconnect.ScanTimeout)
 	defer cancel()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(200 * time.Millisecond):
+			}
+			if _, err := os.Stat(cancelPath); err == nil {
+				cancel()
+				return
+			}
+		}
+	}()
 	selection, err := autoconnect.Select(ctx, profile, probe, m.Logger.Log, report)
+	if errors.Is(err, context.Canceled) {
+		m.Logger.Log("Connection check cancelled for " + v.Name)
+		return errConnectCancelled
+	}
 	if err != nil {
 		return core.StartFailed(autoconnect.ErrUnavailable.Error())
 	}

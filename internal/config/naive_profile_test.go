@@ -42,7 +42,7 @@ const servedProfileJSON = `{
   "outbounds": [
     {"tag": "vless-reality", "type": "vless", "server": "h", "server_port": 443, "uuid": ""},
     {"tag": "naive", "type": "naive", "server": "h", "server_port": 443,
-     "username": "", "password": "naivepassword", "insecure_concurrency": 2, "udp_over_tcp": true},
+     "username": "", "password": "shared-naive-password", "insecure_concurrency": 2, "udp_over_tcp": true},
     {"tag": "auto", "type": "urltest", "outbounds": ["vless-reality"]},
     {"tag": "direct", "type": "direct"}
   ],
@@ -95,7 +95,7 @@ func TestBuildRuntimeConfig_NaiveModeKeepsNaiveAlone(t *testing.T) {
 	}
 	// naiveproxy signs in with a username and a password: the username is the
 	// user's UUID, the password the one every user shares.
-	if naive["username"] != uuid || naive["password"] != "naivepassword" {
+	if naive["username"] != uuid || naive["password"] != "shared-naive-password" {
 		t.Errorf("naive signs in as %v / %v, want the UUID and the shared password", naive["username"], naive["password"])
 	}
 	if list := autoMembers(t, cfg); len(list) != 1 || list[0] != "naive" {

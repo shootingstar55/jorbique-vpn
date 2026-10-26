@@ -264,14 +264,17 @@ func (c *statusBarController) buildMenu() applekit.Menu {
 
 // toggleConnection uses the same sing-box connection as the main window.
 func (c *statusBarController) toggleConnection() {
-	if _, busy := c.currentAction(); busy {
+	action, busy := c.currentAction()
+	if busy && action.verb != "Connecting" {
 		return
 	}
 	names := c.singboxVPNNames()
 	if len(names) == 0 {
 		return
 	}
-	if c.menuConnected {
+	// A connect still checking connections stops on a stop: the start polls
+	// for it and gives up before it spawns sing-box.
+	if busy || c.menuConnected {
 		c.runStop(names, append([]string{"stop"}, names...))
 	} else {
 		c.startSelected(names)
@@ -285,11 +288,15 @@ func (c *statusBarController) updateConnectionActions() {
 	if c.menuConnected {
 		title = "Disconnect"
 	}
+	cancellable := busy && action.verb == "Connecting"
 	if busy {
 		title = action.verb + "…"
 	}
+	if cancellable {
+		title = "Cancel"
+	}
 	c.connectItem.SetTitle(title)
-	c.connectItem.SetEnabled(!busy)
+	c.connectItem.SetEnabled(!busy || cancellable)
 	c.restartItem.SetEnabled(c.menuConnected && !busy)
 	c.quitItem.SetEnabled(!c.quitting.busy())
 }

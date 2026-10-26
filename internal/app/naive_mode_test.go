@@ -17,7 +17,7 @@ const naiveModeProfile = `{
   "outbounds": [
     {"type": "vless", "tag": "vless-reality", "server": "192.0.2.1", "server_port": 443, "uuid": ""},
     {"type": "naive", "tag": "naive", "server": "192.0.2.1", "server_port": 443,
-     "username": "", "password": "naivepassword", "insecure_concurrency": 2, "udp_over_tcp": true,
+     "username": "", "password": "shared-naive-password", "insecure_concurrency": 2, "udp_over_tcp": true,
      "tls": {"enabled": true, "server_name": "nvp.example"}},
     {"type": "urltest", "tag": "auto", "outbounds": ["vless-reality"]},
     {"type": "direct", "tag": "direct"}
@@ -110,7 +110,7 @@ func TestApp_NaiveModeBuildsFromNaiveAloneWithTheUUIDAsUsername(t *testing.T) {
 	if naive == nil {
 		t.Fatal("the naive outbound was dropped")
 	}
-	if naive["username"] != appTestUUID || naive["password"] != "naivepassword" {
+	if naive["username"] != appTestUUID || naive["password"] != "shared-naive-password" {
 		t.Errorf("naive signs in as %v / %v, want the UUID and the shared password", naive["username"], naive["password"])
 	}
 }

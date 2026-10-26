@@ -9,9 +9,10 @@ import (
 	"jorbiquevpn/internal/dashboard"
 )
 
-// Activate applies the measured winner after startup as well as in the JSON.
+// Activate applies the configured default after startup as well as in the JSON.
 // sing-box can restore a selector from its persistent DNS/cache database before
-// consulting "default". Keep that useful DNS cache, but override old choices.
+// consulting "default". Keep that useful DNS cache, but override old choices:
+// a selector goes to its urltest (failover) when it has one, else the winner.
 func (r Result) Activate(ctx context.Context, configPath string) error {
 	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
 	defer cancel()
@@ -26,7 +27,14 @@ func (r Result) Activate(ctx context.Context, configPath string) error {
 				if !strings.EqualFold(group.Type, "selector") {
 					continue
 				}
-				if err := client.SelectOutbound(ctx, group.Tag, r.Winner()); err != nil {
+				target := r.Winner()
+				for _, item := range group.Items {
+					if strings.EqualFold(item.Type, "urltest") {
+						target = item.Tag
+						break
+					}
+				}
+				if err := client.SelectOutbound(ctx, group.Tag, target); err != nil {
 					return err
 				}
 			}

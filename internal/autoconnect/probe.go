@@ -211,8 +211,7 @@ func ProbeConfig(profile []byte, uuid, tag string, port int, token string) (*jso
 	route.Set("final", tag)
 	route.Set("auto_detect_interface", true)
 	singboxcfg.PruneDanglingReferences(root)
-	// No background tests competing with the measured transfer.
-	Result{Working: []Measurement{{Tag: tag}}}.ConfigureGroups(root)
+	pinGroups(root, tag)
 	singboxcfg.SortRoot(root)
 	return root, nil
 }

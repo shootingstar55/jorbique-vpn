@@ -118,7 +118,9 @@ func Select(ctx context.Context, profile *jsonorder.Map, probe Probe, logf func(
 			result.Working = append(result.Working, m)
 		}
 	}
-	if err := ctx.Err(); err != nil {
+	// A user's cancel always wins. The scan deadline does not: protocols that
+	// already passed are real, so a slow tail must not throw them away.
+	if err := ctx.Err(); err != nil && (errors.Is(err, context.Canceled) || len(result.Working) == 0) {
 		return Result{}, err
 	}
 	if len(result.Working) == 0 {
@@ -128,29 +130,70 @@ func Select(ctx context.Context, profile *jsonorder.Map, probe Probe, logf func(
 	return result, nil
 }
 
+// FailoverTolerance keeps a urltest on the measured winner while it answers:
+// a rival must be this many ms faster to take over, which a live winner never
+// is. When the winner stops answering it loses its history and the next check
+// moves to the fastest verified alternative. Below 65535 - real delays, so the
+// engine's uint16 sum cannot wrap.
+const FailoverTolerance = 30000
+
 // ConfigureGroups keeps only the verified choices, ordered by the transfer
-// test. Selectors start on the winner; a background latency-only URLTest must
-// not silently override the speed test or resurrect a previous manual choice.
+// test. A urltest starts on the winner (its first member) and only fails over
+// when that stops answering; a selector offers the urltest first, so a
+// restored manual choice cannot pin a protocol that later dies.
 func (r Result) ConfigureGroups(root *jsonorder.Map) {
+	members := make([]any, 0, len(r.Working))
+	for _, item := range r.Working {
+		members = append(members, item.Tag)
+	}
+	var urltests []any
+	for _, group := range groups(root) {
+		if group.GetString("type") == "urltest" {
+			urltests = append(urltests, group.GetString("tag"))
+		}
+	}
+	for _, group := range groups(root) {
+		if group.GetString("type") == "urltest" {
+			group.Set("outbounds", members)
+			group.Set("interval", "1m")
+			group.Set("tolerance", FailoverTolerance)
+			group.Set("interrupt_exist_connections", true)
+			continue
+		}
+		group.Set("outbounds", append(append([]any{}, urltests...), members...))
+		if len(urltests) > 0 {
+			group.Set("default", urltests[0])
+		} else {
+			group.Set("default", r.Winner())
+		}
+	}
+}
+
+// pinGroups turns every group into a selector fixed on tag: a probe measures
+// one protocol, with no background tests competing with the transfer.
+func pinGroups(root *jsonorder.Map, tag string) {
+	for _, group := range groups(root) {
+		group.Set("type", "selector")
+		for _, key := range []string{"url", "interval", "tolerance", "idle_timeout", "interrupt_exist_connections"} {
+			group.Delete(key)
+		}
+		group.Set("outbounds", []any{tag})
+		group.Set("default", tag)
+	}
+}
+
+func groups(root *jsonorder.Map) []*jsonorder.Map {
 	raw, _ := root.Get("outbounds")
 	obs, _ := raw.([]any)
+	var out []*jsonorder.Map
 	for _, raw := range obs {
 		group, ok := raw.(*jsonorder.Map)
 		if !ok {
 			continue
 		}
-		if typ := group.GetString("type"); typ != "selector" && typ != "urltest" {
-			continue
+		if typ := group.GetString("type"); typ == "selector" || typ == "urltest" {
+			out = append(out, group)
 		}
-		group.Set("type", "selector")
-		for _, key := range []string{"url", "interval", "tolerance", "idle_timeout"} {
-			group.Delete(key)
-		}
-		members := make([]any, 0, len(r.Working))
-		for _, item := range r.Working {
-			members = append(members, item.Tag)
-		}
-		group.Set("outbounds", members)
-		group.Set("default", r.Winner())
 	}
+	return out
 }
