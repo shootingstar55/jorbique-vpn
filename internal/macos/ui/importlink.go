@@ -107,7 +107,7 @@ func importLinkError(reason string) string {
 	text := strings.ToLower(reason)
 	switch {
 	case strings.Contains(text, "not registered") || strings.Contains(text, "unknown user uuid"):
-		return "Сервер не знает этот UUID. Проверьте ссылку на странице подписки."
+		return "Такого пользователя не существует. Проверьте ссылку на странице подписки."
 	case strings.Contains(text, "reach the server") || strings.Contains(text, "unreachable"):
 		return "Не удалось связаться с сервером. Проверьте подключение к интернету и откройте ссылку ещё раз."
 	case strings.Contains(text, "daemon") || strings.Contains(text, "service is not running"):

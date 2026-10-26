@@ -4,7 +4,7 @@ import { NAlert, NButton, NInput, NModal, useMessage } from 'naive-ui';
 import { binding } from '../lib/bindings.js';
 import { panelAPI } from '../lib/panel-api.js';
 import { getErrMsg } from '../lib/errors.js';
-import { looksLikeUUID } from '../lib/activation.js';
+import { explainActivationError, looksLikeUUID } from '../lib/activation.js';
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -58,7 +58,7 @@ async function save() {
     saving.value = false;
     await close();
   } catch (e) {
-    error.value = getErrMsg(e, 'Не удалось сохранить UUID');
+    error.value = explainActivationError(getErrMsg(e, 'Не удалось сохранить UUID'));
   } finally {
     saving.value = false;
   }

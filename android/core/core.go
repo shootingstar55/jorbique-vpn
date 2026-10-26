@@ -227,7 +227,7 @@ func setUserUUID(value string) error {
 		switch {
 		case err == nil:
 		case errors.Is(err, telemetry.ErrUnknownUUID):
-			return errors.New("Такого UUID нет на сервере")
+			return errors.New("Такого пользователя не существует")
 		case errors.Is(err, telemetry.ErrVerificationUnavailable):
 			return errors.New("Сервер не умеет проверять UUID")
 		default:

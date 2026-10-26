@@ -111,10 +111,10 @@ See [docs/upgrade-rollback.md](upgrade-rollback.md).
 - Rechecks VPN after sleep and network changes, then restarts tunnels if needed.
 - Configure VPN autostart in the application settings.
 
-**App autostart** (LaunchAgent, no root)
+**Menu bar app** (LaunchAgent, no root)
 
-- Starts the **menu bar app** when the user logs in.
-- **Disable app autostart** only disables the next login launch; the running menu bar icon stays open.
+- There is no switch for it. Opening the app hands the menu bar to the LaunchAgent, whose `KeepAlive` brings it back when macOS ends the process around sleep, a closed lid or a user switch. The tunnel itself comes back after sleep only with VPN autostart on.
+- The bar runs until the user picks **Quit**: Quit removes the plist and unloads the agent, so the bar does not return at the next login either. A bar still open at logout or shutdown comes back at the next login.
 
 Menu bar logs: `~/Library/Logs/JorbiqueVPN/bar.err.log`
 
