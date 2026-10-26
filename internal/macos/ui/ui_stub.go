@@ -55,3 +55,6 @@ func showNoCGODialog() {
 	script := `display dialog "` + esc + `" buttons {"OK"} default button "OK" with title "` + constants.AppDisplayName + `"`
 	_ = sysexec.Command("/usr/bin/osascript", "-e", script).Run()
 }
+
+// ForwardLaunchLink has no AppKit to take a link from off darwin.
+func ForwardLaunchLink() {}

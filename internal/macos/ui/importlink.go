@@ -4,10 +4,52 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"jorbiquevpn/internal/deeplink"
 	"jorbiquevpn/internal/macos/applekit"
+	"jorbiquevpn/internal/macos/core"
 )
+
+// launchLinkWait bounds how long a copy that is about to exit waits for the
+// link it may have been opened with. The URL arrives right after AppKit checks
+// in, so a link launch returns well before it; only a plain launch waits it out.
+const launchLinkWait = 1500 * time.Millisecond
+
+// ForwardLaunchLink is for a menu-bar launch that hands over to another copy
+// and exits — another bar already runs, or the login agent is started in its
+// place. macOS gives a jorbique:// link to the process it launched, so this
+// copy takes it and leaves the UUID in the user's run folder, where the bar
+// that stays picks it up (watchPendingLinks). Main thread, before any other
+// AppKit use.
+func ForwardLaunchLink() {
+	uuid, ok := deeplink.FromArgs(applekit.CollectLaunchURLs(launchLinkWait))
+	if !ok {
+		return
+	}
+	_ = deeplink.SavePending(core.NewPaths().RunDir, uuid)
+}
+
+// pendingLinkPoll is how often the bar looks for a link another copy handed
+// over: one stat of a file that is almost never there.
+const pendingLinkPoll = time.Second
+
+// watchPendingLinks takes the links ForwardLaunchLink leaves behind.
+func (c *statusBarController) watchPendingLinks() {
+	runDir := core.NewPaths().RunDir
+	safeGo(func() {
+		for range time.Tick(pendingLinkPoll) {
+			if !deeplink.HasPending(runDir) {
+				continue
+			}
+			applekit.RunOnMain(func() {
+				if uuid := deeplink.TakePending(runDir); uuid != "" {
+					c.openLinks([]string{deeplink.Scheme + "://import?uuid=" + uuid})
+				}
+			})
+		}
+	})
+}
 
 // openLinks answers a jorbique:// link (the /sub page's «Открыть в Jorbique
 // VPN»): the UUID in it is saved the way the first-run window saves one —

@@ -77,12 +77,19 @@ if [ -f "$DAEMON_PLIST" ] && /bin/launchctl print "system/${DAEMON_LABEL}" >/dev
 	# names the app and draws its icon on the window in Stage Manager and
 	# Mission Control; a bare binary has neither. Falls back to the installed
 	# path when the symlink is missing (a hand-copied .app, an old install).
-	SPAWN_BIN="$UNPRIV_BIN"
+	#
+	# Exec'd in place when the symlink is there: the path stays inside the
+	# bundle, so the bundle identity holds, and the process stays the one macOS
+	# launched. That matters for a jorbique:// link from the /sub page: macOS
+	# hands the link (a GetURL Apple Event) to the process it started, and a
+	# detached child never saw it — the first click only opened the app.
 	if [ -z "${JORBIQUE_VPN_LAUNCHER_BIN:-}" ]; then
 		BUNDLE_BIN="$(/usr/bin/dirname "$0")/JorbiqueVPN"
-		[ -x "$BUNDLE_BIN" ] && SPAWN_BIN="$BUNDLE_BIN"
+		if [ -x "$BUNDLE_BIN" ]; then
+			exec "$BUNDLE_BIN" --menu-bar </dev/null >/dev/null 2>&1
+		fi
 	fi
-	"$SPAWN_BIN" --menu-bar >/dev/null 2>&1 &
+	"$UNPRIV_BIN" --menu-bar >/dev/null 2>&1 &
 	exit 0
 fi
 
