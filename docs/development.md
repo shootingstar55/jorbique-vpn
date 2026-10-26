@@ -13,11 +13,16 @@ route rule that pointed at them.
 
 ## Server
 
+Адреса ниже для примера, у своего сервера подставь свои хост и путь канала.
+
 | What | URL |
 |------|-----|
-| Client profile | `https://jorbique.one/chI6dwCVntNE-extended-v2/singbox_client.json` |
-| sing-box manifest | `https://jorbique.one/chI6dwCVntNE-extended-v2/version.json` |
-| UUID check and metrics (OTLP) | `https://jorbique.one/otlp/v1/metrics` |
+| Client profile | `https://vpn.example.com/<channel>/singbox_client.json` |
+| sing-box manifest | `https://vpn.example.com/<channel>/version.json` |
+| UUID check and metrics (OTLP) | `https://vpn.example.com/otlp/v1/metrics` |
+
+The host and the channel path are set in `internal/constants` (`ServerHost`,
+`ExtendedUpdatePath`).
 
 The profile is shared by every user: it carries no user UUID. The UUID entered
 on first launch is checked against the server. The server marks the exact UUID
@@ -31,11 +36,11 @@ its own Reality `short_id`.
 The host is a build-time variable: `-X jorbiquevpn/internal/constants.ServerHost=<host>`
 (`SERVER_HOST=<host>` for `scripts/build-windows.sh`).
 
-New app builds use the separate `chI6dwCVntNE-extended-v2` channel for
+New app builds use the separate `<channel>-extended-v2` channel for
 [sing-box-extended](https://github.com/shtorm-7/sing-box-extended). Installed
-older apps keep their original `chI6dwCVntNE` URLs, profile, and SagerNet
+older apps keep their original `<channel>` URLs, profile, and SagerNet
 `1.15.0-alpha.12` engine; deploying the extended server does not switch their
-engine channel. Version 1.3.0 keeps its existing `chI6dwCVntNE-extended` channel too. Publish the new channel before releasing the new app.
+engine channel. Version 1.3.0 keeps its existing `<channel>-extended` channel too. Publish the new channel before releasing the new app.
 
 Upgrading the app opts that installation into the extended channel. The new
 app can migrate its installed SagerNet engine even when the fork's upstream
