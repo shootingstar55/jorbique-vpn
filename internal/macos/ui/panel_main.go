@@ -30,8 +30,11 @@ type mainState struct {
 	// glyph animates through, instead of jumping from idle straight to connected.
 	Action             string               `json:"action"`
 	ConnectionProgress autoconnect.Progress `json:"connectionProgress"`
-	VPNAutostart       bool                 `json:"vpnAutostart"`
-	AppAutostart       bool                 `json:"appAutostart"`
+	// Report is the last connection check while a tunnel is up: every
+	// protocol it saw, and which one the tunnel runs on. Null when off.
+	Report       *autoconnect.Report `json:"report"`
+	VPNAutostart bool                `json:"vpnAutostart"`
+	AppAutostart bool                `json:"appAutostart"`
 }
 
 // mainAction is one press in the window: the connect ring, a switch, or a button
@@ -121,6 +124,11 @@ func mainStateOf(cfg *core.AppConfig, paths *core.Paths, ms MenuStatus, running 
 	for _, name := range running {
 		if singbox[name] {
 			state.Running = append(state.Running, name)
+		}
+	}
+	if paths != nil && len(state.Running) > 0 {
+		if report, ok := autoconnect.ReadReport(paths.RunDir); ok {
+			state.Report = &report
 		}
 	}
 	for _, vpn := range availableVPNs(cfg, paths) {
