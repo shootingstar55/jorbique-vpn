@@ -56,6 +56,7 @@ type App struct {
 	cleanupMu  sync.Mutex // Connect/Disconnect full cleanup; Recover uses TryLock to avoid races
 	progressMu sync.Mutex
 	progress   autoconnect.Progress
+	cancelScan context.CancelFunc // set while a connection check runs; guarded by progressMu
 }
 
 func New() *App {
@@ -233,7 +234,13 @@ func (a *App) Connect() (msg string, err error) {
 	defer runner.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), autoconnect.ScanTimeout)
 	defer cancel()
+	a.setCancelScan(cancel)
 	selection, err := autoconnect.Select(ctx, profile, runner.Probe, func(message string) { logFn(message, "INFO") }, a.setConnectionProgress)
+	a.setCancelScan(nil)
+	if errors.Is(err, context.Canceled) {
+		logFn("Connection check cancelled", "INFO")
+		return "Connection cancelled", ErrConnectCancelled
+	}
 	if err != nil {
 		return autoconnect.ErrUnavailable.Error(), ErrStartupFailed
 	}
@@ -321,6 +328,9 @@ func hasSomethingToRouteThrough(enabled map[string]bool, available []string) boo
 }
 
 func (a *App) Disconnect() (string, error) {
+	// A connection check holds cleanupMu for up to the scan timeout; stop it
+	// first so Disconnect does not wait for it.
+	a.CancelConnect()
 	a.cleanupMu.Lock()
 	defer a.cleanupMu.Unlock()
 	// The exit address is about to be a different one.
@@ -668,6 +678,22 @@ func (a *App) GetConnectionProgress() autoconnect.Progress {
 	a.progressMu.Lock()
 	defer a.progressMu.Unlock()
 	return a.progress
+}
+
+// CancelConnect stops a running connection check; Connect then returns
+// ErrConnectCancelled without touching routes. A no-op when nothing runs.
+func (a *App) CancelConnect() {
+	a.progressMu.Lock()
+	defer a.progressMu.Unlock()
+	if a.cancelScan != nil {
+		a.cancelScan()
+	}
+}
+
+func (a *App) setCancelScan(cancel context.CancelFunc) {
+	a.progressMu.Lock()
+	defer a.progressMu.Unlock()
+	a.cancelScan = cancel
 }
 
 func (a *App) setConnectionProgress(progress autoconnect.Progress) {

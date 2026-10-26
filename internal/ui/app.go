@@ -55,6 +55,9 @@ func (a *App) Connect() error {
 	return wrapBackendError(a.backend.Connect())
 }
 
+// CancelConnect stops a connection check in progress; the pending Connect fails with "Connection cancelled".
+func (a *App) CancelConnect() { a.backend.CancelConnect() }
+
 func (a *App) Disconnect() error {
 	return wrapBackendError(a.backend.Disconnect())
 }

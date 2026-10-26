@@ -18,6 +18,7 @@ import (
 	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/config"
 	"jorbiquevpn/internal/dashboard"
+	"jorbiquevpn/internal/jsonorder"
 )
 
 // sampleRemoteProfile mirrors the shape of the profile the update server returns:
@@ -238,5 +239,117 @@ func TestAutomaticWinnerOverridesCachedManualSelection(t *testing.T) {
 	groups, err = client.Groups(context.Background())
 	if err != nil || len(groups) != 1 || groups[0].Selected != "fast" {
 		t.Fatalf("winner not active: %+v %v", groups, err)
+	}
+}
+
+// The verified group stays on the winner while it answers and moves to the
+// next verified protocol once the winner stops answering.
+func TestAutomaticGroupFailsOverOnlyWhenTheWinnerStops(t *testing.T) {
+	bin := strings.TrimSpace(os.Getenv("SINGBOX_BIN"))
+	if bin == "" {
+		t.Skip("SINGBOX_BIN not set")
+	}
+	target, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer target.Close()
+	go func() {
+		for {
+			conn, err := target.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				_, _ = conn.Read(make([]byte, 4096))
+				// A real delay: the engine reads 0 ms as "no result yet".
+				time.Sleep(20 * time.Millisecond)
+				_, _ = conn.Write([]byte("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"))
+			}()
+		}
+	}()
+	freePort := func() int {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer l.Close()
+		return l.Addr().(*net.TCPAddr).Port
+	}
+	run := func(winner map[string]any) string {
+		t.Helper()
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "failover.json")
+		port := freePort()
+		raw, _ := json.Marshal(map[string]any{
+			"log": map[string]any{"disabled": true},
+			"outbounds": []any{
+				winner,
+				map[string]any{"type": "direct", "tag": "backup"},
+				map[string]any{"type": "urltest", "tag": "auto", "outbounds": []string{"backup", "winner"}, "url": "http://" + target.Addr().String() + "/"},
+				map[string]any{"type": "selector", "tag": "proxy", "outbounds": []string{"auto"}},
+			}, "route": map[string]any{"final": "proxy"},
+			"services": []any{map[string]any{"type": "api", "listen": "127.0.0.1", "listen_port": port, "secret": "test-secret"}},
+		})
+		root := jsonorder.New()
+		if err := jsonorder.Unmarshal(raw, root); err != nil {
+			t.Fatal(err)
+		}
+		selection := autoconnect.Result{Working: []autoconnect.Measurement{{Tag: "winner"}, {Tag: "backup"}}}
+		selection.ConfigureGroups(root)
+		body, err := jsonorder.MarshalIndent(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(configPath, body, 0600); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(bin, "run", "-c", configPath)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
+		if err := selection.Activate(context.Background(), configPath); err != nil {
+			t.Fatalf("%v\n%s", err, stderr.String())
+		}
+		client, err := dashboard.NewClient(configPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// The first check runs right after startup; give it time to finish.
+		deadline := time.Now().Add(8 * time.Second)
+		var last []dashboard.Group
+		for time.Now().Before(deadline) {
+			groups, err := client.Groups(context.Background())
+			if err == nil {
+				last = groups
+				tested := false
+				selected := map[string]string{}
+				for _, g := range groups {
+					selected[g.Tag] = g.Selected
+					if g.Tag == "auto" {
+						for _, item := range g.Items {
+							tested = tested || item.URLTestTime > 0
+						}
+					}
+				}
+				if tested && selected["proxy"] == "auto" {
+					return selected["auto"]
+				}
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		t.Fatalf("no urltest result: %+v\n%s", last, stderr.String())
+		return ""
+	}
+	if got := run(map[string]any{"type": "direct", "tag": "winner"}); got != "winner" {
+		t.Fatalf("live winner replaced by %q", got)
+	}
+	dead := map[string]any{"type": "socks", "tag": "winner", "server": "127.0.0.1", "server_port": freePort()}
+	if got := run(dead); got != "backup" {
+		t.Fatalf("dead winner kept: %q", got)
 	}
 }

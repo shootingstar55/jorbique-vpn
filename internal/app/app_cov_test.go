@@ -107,7 +107,7 @@ func TestApp_AutomaticBuildUsesSavedUUIDAndMeasuredChoices(t *testing.T) {
 		t.Fatal(err)
 	}
 	obs := builtOutbounds(t, path)
-	if obs["proxy"]["uuid"] != appTestUUID || obs["auto"]["default"] != "proxy" || obs["auto"]["type"] != "selector" {
+	if obs["proxy"]["uuid"] != appTestUUID || obs["auto"]["type"] != "urltest" || !reflect.DeepEqual(obs["auto"]["outbounds"], []any{"proxy"}) {
 		t.Fatal(obs)
 	}
 }

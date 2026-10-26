@@ -10,4 +10,5 @@ var (
 	ErrConfigUpdate      = errors.New("config update failed")
 	ErrUnknownUUID       = errors.New("unknown user UUID")
 	ErrServerUnreachable = errors.New("server unreachable")
+	ErrConnectCancelled  = errors.New("connect cancelled")
 )

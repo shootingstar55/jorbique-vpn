@@ -132,7 +132,7 @@ func TestNaiveModeBuildsFromTheMainProfile(t *testing.T) {
 	base := filepath.Join(t.TempDir(), "config.json")
 	profile := `{"outbounds":[{"type":"vless","tag":"vless-reality","uuid":""},
 	  {"type":"naive","tag":"naive","server":"192.0.2.1","server_port":443,
-	  "username":"","password":"naivepassword","insecure_concurrency":2,"udp_over_tcp":true},
+	  "username":"","password":"shared-naive-password","insecure_concurrency":2,"udp_over_tcp":true},
 	  {"type":"urltest","tag":"auto","outbounds":["vless-reality"]},{"type":"direct","tag":"direct"}],
 	  "route":{"final":"auto"}}`
 	if err := os.WriteFile(remoteTemplateCachePath(base), []byte(profile), 0o644); err != nil {
@@ -153,7 +153,7 @@ func TestNaiveModeBuildsFromTheMainProfile(t *testing.T) {
 	if strings.Contains(built, `"vless-reality"`) {
 		t.Errorf("the NaiveProxy mode kept another protocol:\n%s", built)
 	}
-	if !strings.Contains(built, `"username":"`+uuid+`"`) || !strings.Contains(built, `"password":"naivepassword"`) {
+	if !strings.Contains(built, `"username":"`+uuid+`"`) || !strings.Contains(built, `"password":"shared-naive-password"`) {
 		t.Errorf("naive must sign in with the UUID and the shared password:\n%s", built)
 	}
 	if deps := urltestDeps(t, root); !reflect.DeepEqual(deps, []string{"naive"}) {

@@ -74,13 +74,17 @@ func TestFallbackRanksTransfersAndRetestsOnEveryConnect(t *testing.T) {
 		raw, _ := root.Get("outbounds")
 		for _, raw := range raw.([]any) {
 			ob := raw.(*jsonorder.Map)
-			if ob.GetString("tag") == "auto" || ob.GetString("tag") == "proxy" {
-				if ob.GetString("type") != "selector" || ob.GetString("default") != "fast" {
+			members, _ := ob.Get("outbounds")
+			switch ob.GetString("tag") {
+			case "auto":
+				// Starts on the winner and fails over only when it stops answering.
+				tolerance, _ := ob.Get("tolerance")
+				if ob.GetString("type") != "urltest" || tolerance != FailoverTolerance || !reflect.DeepEqual(members, []any{"fast", "slow"}) {
 					t.Fatal(ob)
 				}
-				members, _ := ob.Get("outbounds")
-				if !reflect.DeepEqual(members, []any{"fast", "slow"}) {
-					t.Fatal(members)
+			case "proxy":
+				if ob.GetString("type") != "selector" || ob.GetString("default") != "auto" || !reflect.DeepEqual(members, []any{"auto", "fast", "slow"}) {
+					t.Fatal(ob)
 				}
 			}
 		}
@@ -105,6 +109,30 @@ func TestNoWorkingConnectionAndCancellationFailClosed(t *testing.T) {
 	_, err = Select(ctx, profile(t), func(context.Context, string) (Measurement, error) { calls++; return Measurement{}, nil }, nil, nil)
 	if !errors.Is(err, context.Canceled) || calls != 0 {
 		t.Fatalf("calls=%d err=%v", calls, err)
+	}
+}
+
+func TestScanDeadlineKeepsProtocolsThatAlreadyPassedButCancelDoesNot(t *testing.T) {
+	probe := func(wait func()) Probe {
+		return func(_ context.Context, tag string) (Measurement, error) {
+			if tag == "slow" {
+				// The scan ends while this protocol is still being measured.
+				wait()
+				return Measurement{Elapsed: time.Second, Bytes: PayloadBytes}, nil
+			}
+			return Measurement{}, errors.New("blocked")
+		}
+	}
+	deadline, stop := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer stop()
+	result, err := Select(deadline, profile(t), probe(func() { <-deadline.Done() }), nil, nil)
+	if err != nil || result.Winner() != "slow" || len(result.Working) != 1 {
+		t.Fatalf("%+v %v", result, err)
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	_, err = Select(cancelled, profile(t), probe(cancel), nil, nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
 	}
 }
 

@@ -98,6 +98,11 @@ const bootstrapPercent = ref(0);
 let bootstrapInFlight = false;
 
 const busy = computed(() => transition.value !== null);
+// Until the tunnel starts, Connect only runs connection checks: those can stop.
+let cancelRequested = false;
+const cancellable = computed(() => transition.value?.phase === 'connecting'
+  && ['preparing', 'preferred', 'alternatives'].includes(connectionProgress.value?.phase)
+  && Boolean(binding('CancelConnect')));
 
 const headline = computed(() => transition.value?.text ?? (connected.value ? 'Connected' : 'Disconnected'));
 const subline = computed(() => {
@@ -114,6 +119,7 @@ const ringState = computed(() => {
 
 
 const primaryLabel = computed(() => {
+  if (cancellable.value) return 'Cancel';
   if (transition.value) return transition.value.phase === 'disconnecting' ? 'Disconnecting…' : 'Connecting…';
   return connected.value ? 'Disconnect' : 'Connect';
 });
@@ -332,6 +338,7 @@ async function runConnect() {
     text: 'Finding the best connection',
   };
 
+  cancelRequested = false;
   try {
     connectionProgress.value = { phase: 'preparing' };
     progressTimer = setInterval(refreshConnectionProgress, 250);
@@ -346,6 +353,7 @@ async function runConnect() {
     clearInterval(progressTimer);
     transition.value = null;
     refreshStatus(true);
+    if (cancelRequested) return;
     const msg = getErrMsg(e, 'Connect failed');
     let hasConfig = true;
     try {
@@ -397,6 +405,11 @@ async function onDisconnect() {
 
 /** The one primary action: what it does depends on where the tunnel currently is. */
 function onPrimaryAction() {
+  if (cancellable.value) {
+    cancelRequested = true;
+    binding('CancelConnect')();
+    return;
+  }
   if (busy.value) return;
   if (connected.value) void onDisconnect();
   else void onConnect();
@@ -531,7 +544,7 @@ onBeforeUnmount(() => {
             type="button"
             class="ring"
             :class="ringState"
-            :disabled="busy"
+            :disabled="busy && !cancellable"
             :aria-label="primaryLabel"
             @click="onPrimaryAction"
           >
