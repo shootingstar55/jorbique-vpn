@@ -16,15 +16,15 @@ func TestParseVlessGrpc(t *testing.T) {
 }
 
 func TestParseAnyTLS(t *testing.T) {
-	u := "anytls://e97a0972-0ca0-43b9-ba24-5f52f1c63f4f@tls.edge-nl-01.jorbique.one:443?sni=tls.edge-nl-01.jorbique.one#anytls"
+	u := "anytls://11111111-2222-3333-4444-555555555555@tls.example.com:443?sni=tls.example.com#anytls"
 	p, err := ParseAnyTLS(u)
 	if err != nil || p == nil {
 		t.Fatal("Valid AnyTLS URL should parse", err)
 	}
-	if p.Password != "e97a0972-0ca0-43b9-ba24-5f52f1c63f4f" || p.Server != "tls.edge-nl-01.jorbique.one" || p.ServerPort != 443 {
+	if p.Password != "11111111-2222-3333-4444-555555555555" || p.Server != "tls.example.com" || p.ServerPort != 443 {
 		t.Error("Parsed host/password incorrect", p)
 	}
-	if p.ServerName != "tls.edge-nl-01.jorbique.one" {
+	if p.ServerName != "tls.example.com" {
 		t.Error("SNI / server_name incorrect", p.ServerName)
 	}
 	if _, err := ParseAnyTLS("vless://x@y:443"); err == nil {

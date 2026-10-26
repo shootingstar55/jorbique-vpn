@@ -1,6 +1,6 @@
 # The outbound list comes from the server
 
-Since 1.5.0, the GUI has only a UUID field and automatic connection checks. The historical toggle/selector interfaces documented below remain for legacy API compatibility; the Connect path ignores those stored choices and uses `internal/autoconnect` instead. See [Automatic connections](../README.md#automatic-connections).
+Since 1.5.0, the GUI has only a UUID field and automatic connection checks. The historical toggle/selector interfaces documented below remain for legacy API compatibility; the Connect path ignores those stored choices and uses `internal/autoconnect` instead. See [Automatic connections](automatic-connections.md).
 
 Which proxy outbounds exist — `vless-reality`, `anytls`, whatever replaces them —
 is the sing-box profile's answer, not the client's. Both clients read the tags
