@@ -237,10 +237,85 @@ jobs:
           compression-level: 0
           retention-days: 28
 
+  android:
+    name: Android package
+    needs: [frontend, test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      # gomobile links the engine with cgo against the NDK.
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: android/core/go.mod
+          cache: true
+          cache-dependency-path: android/core/go.sum
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: frontend-dist
+          path: frontend/dist
+      - name: Vet the engine
+        working-directory: android/core
+        env:
+          CGO_ENABLED: '0'
+          GOOS: android
+          GOARCH: arm64
+        run: go vet -tags with_gvisor,with_quic,with_grpc,with_utls,with_sudoku,with_wireguard,with_clash_api,badlinkname,tfogo_checklinkname0 .
+      - name: Build the engine (gomobile)
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_CHANNEL: ${{ secrets.SERVER_CHANNEL }}
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME"
+          bash android/build-core.sh
+          unzip -l android/app/libs/core.aar | grep -F jni/arm64-v8a/libgojni.so
+      - name: Build and validate the APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RELEASE_TAG: ${{ needs.frontend.outputs.release_tag }}
+        working-directory: android
+        run: |
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" ]]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+            export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          elif [[ -n "$RELEASE_TAG" ]]; then
+            # A release signed with the throwaway debug key could never be updated
+            # by a properly signed one.
+            echo 'The ANDROID_KEYSTORE_* secrets are required to release the APK.' >&2
+            exit 1
+          else
+            echo '::warning::No ANDROID_KEYSTORE_BASE64 secret: the APK is signed with a debug key.'
+          fi
+          ./gradlew --no-daemon assembleRelease
+          apk=app/build/outputs/apk/release/app-release.apk
+          unzip -l "$apk" | grep -F lib/arm64-v8a/libgojni.so
+          unzip -l "$apk" | grep -F assets/web/index.html
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "$apk" | head -n 3
+          mkdir -p ../release/binaries
+          cp "$apk" ../release/binaries/Jorbique-VPN-Extended-android.apk
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: android-package
+          path: release/binaries/Jorbique-VPN-Extended-android.apk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 28
+
   release:
     name: Publish version tag
     if: needs.frontend.outputs.release_tag != ''
-    needs: [frontend, test, windows, macos]
+    needs: [frontend, test, windows, macos, android]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -260,13 +335,16 @@ jobs:
         run: |
           test -s Jorbique-VPN-Extended-windows.zip
           test -s Jorbique-VPN-Extended-macOS.pkg
+          test -s Jorbique-VPN-Extended-android.apk
           win="Jorbique-VPN-Extended-windows-$APP_VERSION.zip"
           mac="Jorbique-VPN-Extended-macOS-$APP_VERSION.pkg"
           mv Jorbique-VPN-Extended-windows.zip "$win"
+          apk="Jorbique-VPN-Extended-android-$APP_VERSION.apk"
           mv Jorbique-VPN-Extended-macOS.pkg "$mac"
-          sha256sum "$win" "$mac" > SHA256SUMS
+          mv Jorbique-VPN-Extended-android.apk "$apk"
+          sha256sum "$win" "$mac" "$apk" > SHA256SUMS
           sha256sum --check SHA256SUMS
-          printf 'WIN_ASSET=%s\nMAC_ASSET=%s\n' "$win" "$mac" >> "$GITHUB_ENV"
+          printf 'WIN_ASSET=%s\nMAC_ASSET=%s\nAPK_ASSET=%s\n' "$win" "$mac" "$apk" >> "$GITHUB_ENV"
       - name: Publish complete release
         working-directory: release
         env:
@@ -291,5 +369,5 @@ jobs:
               --title "Jorbique VPN Extended $RELEASE_TAG" --generate-notes
           fi
           gh release upload "$RELEASE_TAG" --clobber \
-            "$WIN_ASSET" "$MAC_ASSET" SHA256SUMS
+            "$WIN_ASSET" "$MAC_ASSET" "$APK_ASSET" SHA256SUMS
           gh release edit "$RELEASE_TAG" --draft=false

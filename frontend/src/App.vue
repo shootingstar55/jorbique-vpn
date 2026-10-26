@@ -7,6 +7,7 @@ import UuidModal from './components/UuidModal.vue';
 import ActivationScreen from './components/ActivationScreen.vue';
 import { watchEffect } from 'vue';
 import { isDark, naiveTheme, naiveThemeOverrides } from './lib/theme.js';
+import { reportTheme } from './lib/android.js';
 
 const search = new URLSearchParams(window.location.search);
 const standaloneVpnConfig = search.has('set-uuid');
@@ -19,6 +20,7 @@ const standaloneActivate = search.has('activate');
 // follow.
 watchEffect(() => {
   document.documentElement.dataset.theme = isDark.value ? 'dark' : 'light';
+  reportTheme(isDark.value);
 });
 </script>
 

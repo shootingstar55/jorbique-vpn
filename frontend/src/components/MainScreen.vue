@@ -10,6 +10,7 @@ import { binding } from '../lib/bindings.js';
 import { loadProfileProtocols } from '../lib/outbounds.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
+import { isAndroid } from '../lib/android.js';
 
 const emit = defineEmits([
   'error', 'toast', 'openVpnConfig', 'openIgnoreApps', 'openLogs',
@@ -119,6 +120,8 @@ const primaryLabel = computed(() => {
 });
 
 const autostartDisabled = computed(() => busy.value || autostartSwitching.value);
+/** On a phone there is no login to start with: the switch connects after the phone boots. */
+const autostartTitle = isAndroid ? 'Подключаться при включении телефона' : 'Запускать вместе с Windows';
 
 // --- Status ------------------------------------------------------------------------
 
@@ -550,7 +553,7 @@ onBeforeUnmount(() => {
     <NCard class="pane" :bordered="false">
       <div v-if="autostartSupported" class="setting">
         <div class="setting__text">
-          <p class="setting__title">Запускать вместе с Windows</p>
+          <p class="setting__title">{{ autostartTitle }}</p>
         </div>
         <NSwitch
           :value="autostartEnabled"
