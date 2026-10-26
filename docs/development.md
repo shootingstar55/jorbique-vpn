@@ -123,7 +123,10 @@ Menu bar logs: `~/Library/Logs/JorbiqueVPN/bar.err.log`
 ## Version
 
 `VERSION` holds the version both clients build with. Bump it to release a new
-version; `APP_VERSION=x.y.z` overrides it for one build.
+version: once the bump is on `main`, CI tags `vX.Y.Z` on that commit and
+publishes the release, provided the version is newer than every existing tag.
+Pushing a `vX.Y.Z` tag by hand still works. `APP_VERSION=x.y.z` overrides the
+version for one build.
 
 ## CI
 
@@ -131,7 +134,7 @@ GitHub Actions runs [the build workflow](../.github/workflows/ci.yml) for pull
 requests, pushes to `main`, version tags, and manual dispatches. It checks and
 builds the frontend, runs Go vet/unit/integration checks on Linux, and produces
 `Jorbique-VPN-Extended-windows.zip` and `Jorbique-VPN-Extended-macOS.pkg` as downloadable workflow
-artifacts. A `vX.Y.Z` tag publishes them to the release with the version in the
+artifacts. A new `VERSION` on `main` (or a `vX.Y.Z` tag) publishes them to the release with the version in the
 name (`Jorbique-VPN-Extended-windows-X.Y.Z.zip`, `Jorbique-VPN-Extended-macOS-X.Y.Z.pkg`)
 plus `SHA256SUMS`, so `releases/latest/download/...` links need the exact name. Windows is cross-built on Linux; the universal macOS installer
 (Apple Silicon and Intel) is built on a macOS runner, which also runs the
