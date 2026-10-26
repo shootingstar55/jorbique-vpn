@@ -8,10 +8,12 @@ import android.graphics.Color
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -44,9 +46,15 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         webView = WebView(this)
-        setContentView(webView)
-        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
+        // WebView draws its page under its own padding, so the system bars and
+        // the camera cutout are kept clear by padding a frame around it instead.
+        val frame = FrameLayout(this)
+        frame.addView(webView, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        setContentView(frame)
+        ViewCompat.setOnApplyWindowInsetsListener(frame) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime(),
+            )
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
         }
