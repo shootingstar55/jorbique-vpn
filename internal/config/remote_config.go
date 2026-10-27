@@ -126,8 +126,23 @@ func fetchSingboxClientJSON(timeout time.Duration, warnf func(string)) ([]byte, 
 	if resp.StatusCode != http.StatusOK || len(body) == 0 || !json.Valid(body) {
 		return loadRemoteCacheOrErr(fmt.Errorf("remote sing-box profile: HTTP %d", resp.StatusCode), warnf)
 	}
+	// A profile no build can get past must not replace the last good copy:
+	// the build and the window would have nothing until the server is fixed.
+	if err := checkRemoteProfile(body); err != nil {
+		return loadRemoteCacheOrErr(fmt.Errorf("remote sing-box profile cannot be built: %w", err), warnf)
+	}
 	_ = os.WriteFile(RemoteSingboxCachePath(), body, 0644)
 	return body, nil
+}
+
+// checkRemoteProfile runs the build's checks on the profile itself; see
+// singboxcfg.CheckProfile.
+func checkRemoteProfile(body []byte) error {
+	cfg := jsonorder.New()
+	if err := jsonorder.Unmarshal(body, cfg); err != nil {
+		return err
+	}
+	return singboxcfg.CheckProfile(cfg)
 }
 
 func loadRemoteCacheOrErr(cause error, warnf func(string)) ([]byte, error) {

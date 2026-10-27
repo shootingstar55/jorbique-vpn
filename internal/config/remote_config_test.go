@@ -72,3 +72,20 @@ func TestMergeRemoteWithTunShell_takesTheWholeProfile(t *testing.T) {
 		t.Errorf("inbound stack = %v, want none", stack)
 	}
 }
+
+// A profile no build can get past must not replace the cached one.
+func TestCheckRemoteProfile(t *testing.T) {
+	good := `{"outbounds":[{"type":"vless","tag":"a","uuid":""},{"type":"urltest","tag":"auto","outbounds":["a"]}],"route":{"final":"auto"}}`
+	if err := checkRemoteProfile([]byte(good)); err != nil {
+		t.Errorf("good profile refused: %v", err)
+	}
+	for _, bad := range []string{
+		`{"outbounds":[]}`,
+		`{"outbounds":[null]}`,
+		`{"outbounds":[{"type":"vless","tag":"a","uuid":""},{"type":"vless","tag":"a","uuid":""}]}`,
+	} {
+		if err := checkRemoteProfile([]byte(bad)); err == nil {
+			t.Errorf("%s was accepted", bad)
+		}
+	}
+}

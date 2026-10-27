@@ -2,7 +2,7 @@ package singbox
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -226,25 +226,57 @@ func remoteTemplateCachePath(baseConfigPath string) string {
 // the update host meant the VPN would not start at all, even though the profile
 // that started it an hour ago was still perfectly good.
 func fetchTemplateOrCache(cachePath string, timeout time.Duration, warnf func(string)) ([]byte, error) {
-	body, err := downloadURL(constants.SingboxClientURL, timeout)
-	if err == nil && json.Valid(body) {
+	body, err := downloadProfile(timeout)
+	if err == nil {
 		// In one step: the menu bar and set-singbox-config read this file from
 		// other processes, and a half-written one reads as no profile at all.
-		_ = fsatomic.WriteFile(cachePath, body, 0o644)
+		// A cache that will not take it does not stop the build, but those
+		// readers keep the old profile, so it is reported.
+		if werr := fsatomic.WriteFile(cachePath, body, 0o644); werr != nil && warnf != nil {
+			warnf("sing-box profile: downloaded, but not saved to " + cachePath + ": " + werr.Error())
+		}
 		return body, nil
 	}
-	reason := "the downloaded profile is not valid JSON"
-	if err != nil {
-		reason = err.Error()
-	}
+	// The cache is held to the rule a download is: a copy an older client
+	// saved without that check can be JSON with nothing to connect through.
 	cached, cerr := os.ReadFile(cachePath)
-	if cerr != nil || len(cached) == 0 || !json.Valid(cached) {
-		return nil, core.BadConfig("template download: " + reason + " (no usable cache at " + cachePath + ")")
+	if cerr != nil || len(cached) == 0 || profileProblem(cached) != "" {
+		return nil, core.BadConfig("template download: " + err.Error() + " (no usable cache at " + cachePath + ")")
 	}
 	if warnf != nil {
-		warnf("sing-box profile: " + reason + " — starting from the cached copy at " + cachePath)
+		warnf("sing-box profile: " + err.Error() + " — starting from the cached copy at " + cachePath)
 	}
 	return cached, nil
+}
+
+// downloadProfile fetches the profile and checks it the way a build would
+// (profileProblem); the error says why there is no new one. A variable so
+// tests can stand in for the server.
+var downloadProfile = func(timeout time.Duration) ([]byte, error) {
+	body, err := downloadURL(constants.SingboxClientURL, timeout)
+	if err != nil {
+		return nil, err
+	}
+	if reason := profileProblem(body); reason != "" {
+		return nil, errors.New(reason)
+	}
+	return body, nil
+}
+
+// profileProblem says why a downloaded profile may not replace the cached one,
+// or returns "" when it may. One that is not JSON, or that no build can get
+// past (see singboxcfg.CheckProfile), would leave the build and the menu with
+// nothing until the server is fixed, while the last good copy was still on
+// disk.
+func profileProblem(body []byte) string {
+	root := NewOrderedMap()
+	if err := unmarshalToOrderedMap(body, root); err != nil {
+		return "the downloaded profile is not valid JSON"
+	}
+	if err := singboxcfg.CheckProfile(root); err != nil {
+		return "the downloaded profile cannot be built: " + err.Error()
+	}
+	return ""
 }
 
 // RefreshRemoteTemplate downloads the profile into the cache beside the config,

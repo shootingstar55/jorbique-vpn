@@ -209,17 +209,122 @@ func FilterOutbounds(outbounds []any, root *jsonorder.Map, enabled map[string]bo
 			active = append(active, tag)
 		}
 	}
+	original := map[string][]string{}
+	for _, m := range obs {
+		if list, group := members(m); group {
+			original[stringField(m, "tag")] = list
+		}
+	}
 	processed, visiting := map[string]bool{}, map[string]bool{}
 
 	for _, m := range obs {
 		filterOutboundGroup(stringField(m, "tag"), index, retained, processed, visiting, active)
 	}
+	revived := reviveDetourTransports(obs, index, retained, original)
+	for _, tag := range RouteEntries(root) {
+		if revived[tag] {
+			return nil, fmt.Errorf("the route sends traffic to %q, which is turned off", tag)
+		}
+	}
 	pruneUnusedDetours(obs, index, selectable, retained, root)
-	return retainedOutbounds(outbounds, retained)
+	filtered, err := retainedOutbounds(outbounds, retained, revived)
+	if err != nil {
+		return nil, err
+	}
+	if on := detourCycle(outboundMaps(filtered)); on != "" {
+		return nil, fmt.Errorf("outbound %q is on a detour cycle", on)
+	}
+	return filtered, nil
 }
 
-func retainedOutbounds(outbounds []any, retained map[string]bool) ([]any, error) {
-	filtered := []any{}
+// reviveDetourTransports brings back an outbound the user turned off that a
+// kept outbound still detours through, directly or through a group, and
+// returns what it brought back. It comes back as that transport only: in no
+// group, so it is never picked on its own. A group the detour goes through
+// that turning it off emptied comes back with all its members, this one
+// included, and can pick it again. Failing the build instead stopped every
+// start over an ordinary toggle, and the user had no way to see which
+// outbound was behind it.
+//
+// The walk runs in profile order: which edge counts as the back one depends on
+// where it starts, and the same profile must always build the same config.
+func reviveDetourTransports(obs []*jsonorder.Map, index map[string]*jsonorder.Map, retained map[string]bool, original map[string][]string) map[string]bool {
+	revived, walking := map[string]bool{}, map[string]bool{}
+	var revive func(string)
+	revive = func(tag string) {
+		m := index[tag]
+		if m == nil || retained[tag] || walking[tag] {
+			return
+		}
+		retained[tag], revived[tag], walking[tag] = true, true, true
+		defer delete(walking, tag)
+		revive(stringField(m, "detour"))
+		list, group := original[tag]
+		if !group {
+			return
+		}
+		for _, member := range list {
+			revive(member)
+		}
+		// A member still being walked is a back edge: the cycle
+		// filterOutboundGroup dropped, which sing-box refuses to start on.
+		kept := keptMembers(list, retained, walking)
+		setGroupMembers(m, kept)
+		retained[tag] = len(kept) > 0
+	}
+	for _, m := range obs {
+		if retained[stringField(m, "tag")] {
+			revive(stringField(m, "detour"))
+		}
+	}
+	return revived
+}
+
+// keptMembers is list without the members turned off, the ones still being
+// walked, and the repeats.
+func keptMembers(list []string, retained, walking map[string]bool) []string {
+	var kept []string
+	for _, member := range list {
+		if retained[member] && !walking[member] && !slices.Contains(kept, member) {
+			kept = append(kept, member)
+		}
+	}
+	return kept
+}
+
+// detourCycle names an outbound on a dependency cycle, through detours and
+// group members, or returns "". sing-box refuses to start on one; saying so
+// here names the outbound instead of leaving sing-box to fail later.
+func detourCycle(obs []*jsonorder.Map) string {
+	index, state := indexOutbounds(obs), map[string]int{}
+	var walk func(string) string
+	walk = func(tag string) string {
+		if state[tag] == 1 {
+			return tag
+		}
+		if state[tag] == 2 || index[tag] == nil {
+			return ""
+		}
+		state[tag] = 1
+		deps, _ := members(index[tag])
+		for _, dep := range append(deps, stringField(index[tag], "detour")) {
+			if on := walk(dep); on != "" {
+				return on
+			}
+		}
+		state[tag] = 2
+		return ""
+	}
+	for _, m := range obs {
+		if on := walk(stringField(m, "tag")); on != "" {
+			return on
+		}
+	}
+	return ""
+}
+
+func retainedOutbounds(outbounds []any, retained, revived map[string]bool) ([]any, error) {
+	filtered, transports := []any{}, []any{}
 	emitted := map[string]bool{}
 	for _, o := range outbounds {
 		m, ok := o.(*jsonorder.Map)
@@ -238,9 +343,14 @@ func retainedOutbounds(outbounds []any, retained map[string]bool) ([]any, error)
 		if detour := stringField(m, "detour"); detour != "" && !retained[detour] {
 			return nil, fmt.Errorf("outbound %q detour references missing, disabled or empty outbound %q", tag, detour)
 		}
+		if revived[tag] {
+			// Last, so a profile without route.final cannot default to it.
+			transports = append(transports, o)
+			continue
+		}
 		filtered = append(filtered, o)
 	}
-	return filtered, nil
+	return append(filtered, transports...), nil
 }
 
 func pruneUnusedDetours(obs []*jsonorder.Map, index map[string]*jsonorder.Map, selectable, retained map[string]bool, root *jsonorder.Map) {
@@ -421,6 +531,18 @@ func RouteEntries(root *jsonorder.Map) []string { return references(root, false)
 // An empty nested TLS field is never treated as a credential.
 const CredentialPlaceholder = "__JORBIQUE_USER_UUID__"
 
+// notCredential names the outbound fields that are never the credential but
+// can be shipped empty: empty there asks for sing-box's default (no flow, both
+// networks, no detour), and the user's credential in its place breaks the
+// outbound with no build error to say so. Only the fallback for unmarked
+// profiles reads it.
+var notCredential = map[string]struct{}{
+	"type": {}, "tag": {}, "server": {}, "detour": {}, "bind_interface": {},
+	"domain_strategy": {}, "domain_resolver": {}, "network": {}, "flow": {},
+	"packet_encoding": {}, "security": {}, "method": {}, "plugin": {},
+	"plugin_opts": {}, "congestion_control": {}, "udp_relay_mode": {},
+}
+
 func ApplyCredential(m *jsonorder.Map, value string) int {
 	_, filled := applyExplicitCredential(m, value)
 	if filled > 0 {
@@ -429,6 +551,9 @@ func ApplyCredential(m *jsonorder.Map, value string) int {
 		return filled
 	}
 	for _, key := range m.Keys() {
+		if _, skip := notCredential[key]; skip {
+			continue
+		}
 		if v, _ := m.Get(key); v == "" {
 			m.Set(key, value)
 			filled++
@@ -459,4 +584,36 @@ func applyExplicitCredential(raw any, credential string) (any, int) {
 		}
 	}
 	return raw, filled
+}
+
+// CheckProfile runs the checks a build runs on the profile itself, with
+// nothing turned off: a proxy outbound to connect through, unique tags, valid
+// detours, no detour cycle, and somewhere in the proxies to put the user's
+// credential. It returns the first problem, or nil. A profile that fails here
+// fails every build, whatever the user chose, so it must not replace a cached
+// copy that builds. FilterOutbounds and ApplyCredential rewrite what they are
+// given, so root must come from a parse of its own.
+func CheckProfile(root *jsonorder.Map) error {
+	outbounds, _ := getSlice(root, "outbounds")
+	for i, outbound := range outbounds {
+		if m, ok := outbound.(*jsonorder.Map); !ok || m == nil {
+			return fmt.Errorf("outbound %d is not an object", i)
+		}
+	}
+	proxies := ProxyTags(outbounds, RouteEntries(root))
+	if len(proxies) == 0 {
+		return fmt.Errorf("the profile has no proxy outbounds")
+	}
+	if _, err := FilterOutbounds(outbounds, root, nil); err != nil {
+		return err
+	}
+	index := indexOutbounds(outboundMaps(outbounds))
+	filled := 0
+	for _, tag := range proxies {
+		filled += ApplyCredential(index[tag], "profile-check")
+	}
+	if filled == 0 {
+		return fmt.Errorf("the profile leaves no field in any outbound to put the user's credential in")
+	}
+	return nil
 }
