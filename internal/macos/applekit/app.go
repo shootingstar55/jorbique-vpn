@@ -77,8 +77,10 @@ var (
 	// keeps the ones that arrive before it is registered. Both under appReopenMu.
 	appOpenURLsFn    func([]string)
 	appOpenURLsQueue []string
-	appDelegID       ID
-	appDelgOnce      sync.Once
+	// appShouldTerminateFn decides every quit AppKit is asked for, under appReopenMu.
+	appShouldTerminateFn func(sessionEnd bool) bool
+	appDelegID           ID
+	appDelgOnce          sync.Once
 )
 
 // OnReopen registers fn to run when the app is reopened — a click on the Dock
@@ -108,6 +110,54 @@ func (a App) OnOpenURLs(fn func([]string)) {
 	if len(queued) > 0 && fn != nil {
 		fn(queued)
 	}
+}
+
+// NSApplicationTerminateReply values.
+const (
+	terminateCancel uint = 0
+	terminateNow    uint = 1
+)
+
+// kAEQuitReason ('why?') is the attribute loginwindow puts on the quit Apple
+// Event it sends at logout, restart and shutdown. A Quit from the Dock, the app
+// menu or Activity Monitor comes without it.
+const kAEQuitReason uint32 = 'w'<<24 | 'h'<<16 | 'y'<<8 | '?'
+
+// OnShouldTerminate registers fn to decide whether the app may quit now. AppKit
+// asks on every terminate: — the Dock's Quit, Cmd-Q, logout, Terminate itself.
+// sessionEnd is true when the quit comes from logout, restart or shutdown. fn
+// returns true to quit at once, false to keep running (it is then fn's job to
+// quit later through Terminate). fn runs on the main thread.
+func (a App) OnShouldTerminate(fn func(sessionEnd bool) bool) {
+	appReopenMu.Lock()
+	appShouldTerminateFn = fn
+	appReopenMu.Unlock()
+	a.id.Send(Sel("setDelegate:"), appDelegate())
+}
+
+// quitIsSessionEnd reports whether the Apple Event being handled is the quit
+// loginwindow sends when the session ends.
+func quitIsSessionEnd() bool {
+	ev := send(cls("NSAppleEventManager", "sharedAppleEventManager"), "currentAppleEvent")
+	if ev == nilID {
+		return false
+	}
+	return ev.Send(Sel("attributeDescriptorForKeyword:"), kAEQuitReason) != nilID
+}
+
+// shouldTerminate is the delegate's answer to applicationShouldTerminate:. A
+// panic in fn, or no fn at all, lets the quit through: an app that cannot be
+// quit is worse than one that skips its cleanup.
+func shouldTerminate() (reply uint) {
+	reply = terminateNow
+	defer recoverPanic()
+	appReopenMu.Lock()
+	fn := appShouldTerminateFn
+	appReopenMu.Unlock()
+	if fn != nil && !fn(quitIsSessionEnd()) {
+		reply = terminateCancel
+	}
+	return reply
 }
 
 // deliverOpenURLs hands urls to the registered handler, or queues them.
@@ -164,6 +214,11 @@ func appDelegate() ID {
 				// NO: the window was opened or raised just now, and the default
 				// handling has nothing left to add.
 				return false
+			},
+		}, {
+			cmd: Sel("applicationShouldTerminate:"),
+			fn: func(_ ID, _ SEL, _ ID) uint {
+				return shouldTerminate()
 			},
 		}})
 		if err != nil {

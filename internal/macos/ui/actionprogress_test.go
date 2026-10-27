@@ -257,3 +257,28 @@ func TestStopDuringAccountCheckCancelsStart(t *testing.T) {
 		t.Fatal("an ended action is not active")
 	}
 }
+
+// Quit from the Dock reaches shouldTerminate, which holds the app until the
+// menu's Quit has stopped the tunnels and unloaded the agent — an exit before
+// that left the tunnel up and KeepAlive brought the bar back.
+func TestShouldTerminateWaitsForQuit(t *testing.T) {
+	c := &statusBarController{}
+
+	// Logout, restart and shutdown go straight through and keep the agent, so
+	// a bar left open comes back at login.
+	if !c.shouldTerminate(true) {
+		t.Error("session end was held back")
+	}
+
+	// A quit already under way is not started twice, and holds the exit.
+	c.quitting.begin(nil)
+	if c.shouldTerminate(false) {
+		t.Error("app quit before its Quit finished")
+	}
+
+	// Quit's own Terminate, once the work is done, goes through.
+	c.quitDone.Store(true)
+	if !c.shouldTerminate(false) {
+		t.Error("Quit's own Terminate was held back")
+	}
+}
