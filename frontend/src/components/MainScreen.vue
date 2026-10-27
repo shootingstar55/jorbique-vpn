@@ -549,7 +549,7 @@ onBeforeUnmount(() => {
           @click="onPrimaryAction"
         >
           <span class="ring__pulse" aria-hidden="true"></span>
-          <NIcon :size="isAndroid ? 54 : 38" class="ring__icon"><AppIcon name="power" /></NIcon>
+          <NIcon :size="isAndroid ? 44 : 38" class="ring__icon"><AppIcon name="power" /></NIcon>
         </button>
 
         <ConnectionCheck v-if="transition?.phase === 'connecting'" :progress="connectionProgress" />
@@ -860,7 +860,7 @@ onBeforeUnmount(() => {
  */
 .screen--phone {
   flex: 1 0 auto;
-  gap: 10px;
+  gap: 8px;
 }
 
 .screen--phone .pane--hero {
@@ -872,25 +872,27 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 24px 14px;
+  padding: 8px 14px;
 }
 
+/* Sized so the whole screen fits a phone without scrolling: the ring is still
+   a thumb-sized button, the air around it is what gave way. */
 .screen--phone .hero {
-  gap: 16px;
+  gap: 8px;
 }
 
 .screen--phone .ring {
-  width: 120px;
-  height: 120px;
+  width: 92px;
+  height: 92px;
 }
 
 .screen--phone .hero__headline {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .screen--phone .hero__subline {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .screen--phone .brand__text h1 {
@@ -901,6 +903,13 @@ onBeforeUnmount(() => {
 .screen--phone .actions {
   grid-template-columns: repeat(3, auto);
   justify-content: space-between;
+  gap: 2px;
+}
+
+/* At 360px the three labels only fit with the pills' side padding cut. */
+.screen--phone .actions :deep(.n-button) {
+  padding: 3px 4px;
+  font-size: 12.5px;
 }
 
 .screen--phone .brand__logo {
