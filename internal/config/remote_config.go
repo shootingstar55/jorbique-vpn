@@ -203,7 +203,36 @@ func MergeRemoteWithTunShell(remoteJSON []byte) (*jsonorder.Map, error) {
 		v, _ := shell.Get(k)
 		cfg.Set(k, v)
 	}
+	// log and experimental carry this machine's settings: where sing-box writes
+	// the log the Logs window and the support zip read, the DNS cache file and
+	// the API the window polls. A profile that sends its own section (a log
+	// level, say) replaces the whole section above, so those keys are filled
+	// back in from the template wherever the profile does not set them.
+	for _, k := range machineLocalSections {
+		fillMissingKeys(cfg, shell, k)
+	}
 	return cfg, nil
+}
+
+var machineLocalSections = []string{"log", "experimental"}
+
+// fillMissingKeys copies into cfg[section] each key of shell[section] that
+// cfg[section] lacks, when both are objects.
+func fillMissingKeys(cfg, shell *jsonorder.Map, section string) {
+	got, ok := getMap(cfg, section)
+	if !ok {
+		return
+	}
+	defaults, ok := getMap(shell, section)
+	if !ok || got == defaults {
+		return
+	}
+	for _, k := range defaults.Keys() {
+		if !got.Has(k) {
+			v, _ := defaults.Get(k)
+			got.Set(k, v)
+		}
+	}
 }
 
 func fixPathsInConfig(cfg *jsonorder.Map) {
