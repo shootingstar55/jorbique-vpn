@@ -118,3 +118,15 @@ func TestNothingIsSentWithoutAValidUUIDOrID(t *testing.T) {
 		t.Fatalf("sent %d requests", len(*seen))
 	}
 }
+
+func TestOpenShowsAFullAccountWithoutAnError(t *testing.T) {
+	seen, done := fakeServer(t, 403, `{"error":"limit","account":{"name":"egor","devices_limit":1}}`)
+	defer done()
+	profile, err := Open(context.Background(), testUUID)
+	if err != nil || profile == nil || profile.Name != "egor" {
+		t.Fatalf("profile %+v err %v", profile, err)
+	}
+	if r := (*seen)[0]; r.Method != http.MethodPost || r.URL.Path != "/account/v1/devices/current" {
+		t.Fatalf("Open must check this device in, got %s %s", r.Method, r.URL.Path)
+	}
+}

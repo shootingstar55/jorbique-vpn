@@ -937,9 +937,10 @@ func progressLogFn(base func(string, string), onProgress func(int)) func(string,
 	}
 }
 
-// GetAccount reads the personal account: name, UUID, expiry and the bound devices.
+// GetAccount opens the personal account: name, UUID, expiry and the bound devices,
+// binding this device first while a slot is free.
 func (a *App) GetAccount() (*account.Profile, error) {
-	return account.Get(context.Background(), a.store.GetUserUUID())
+	return account.Open(context.Background(), a.store.GetUserUUID())
 }
 
 // BindThisDevice binds this device from the account screen, a device the user

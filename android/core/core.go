@@ -178,7 +178,7 @@ func dispatch(method string, args []json.RawMessage) (any, error) {
 		logging.ClearAll(dataDir)
 		return nil, nil
 	case "GetAccount":
-		return account.Get(context.Background(), store.GetUserUUID())
+		return account.Open(context.Background(), store.GetUserUUID())
 	case "BindThisDevice":
 		return account.CheckIn(context.Background(), store.GetUserUUID(), true)
 	case "UnbindDevice":

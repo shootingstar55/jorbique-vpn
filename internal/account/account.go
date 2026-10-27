@@ -87,6 +87,18 @@ func Get(ctx context.Context, uuid string) (*Profile, error) {
 	return call(ctx, uuid, http.MethodGet, "me", nil)
 }
 
+// Open is what the account screen loads: it checks this device in first, so
+// a new device is bound as soon as the screen is opened while a slot is free,
+// not only on its first connect. A full account or an unbound device is not
+// an error here: the screen shows it.
+func Open(ctx context.Context, uuid string) (*Profile, error) {
+	profile, err := CheckIn(ctx, uuid, false)
+	if (errors.Is(err, ErrLimit) || errors.Is(err, ErrUnbound)) && profile != nil {
+		return profile, nil
+	}
+	return profile, err
+}
+
 // CheckIn reports this device to the server. A new device is bound while a
 // slot is free; bind is the account screen's button, the only way back for a
 // device the user unbound. On ErrLimit and ErrUnbound the profile is returned

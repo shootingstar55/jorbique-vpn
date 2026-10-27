@@ -791,7 +791,7 @@ func (c *statusBarController) accountAction(body json.RawMessage) (any, error) {
 	ctx := context.Background()
 	switch request.Action {
 	case "get":
-		return account.Get(ctx, uuid)
+		return account.Open(ctx, uuid)
 	case "bind":
 		return account.CheckIn(ctx, uuid, true)
 	case "unbind":

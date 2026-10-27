@@ -66,6 +66,7 @@ async function run(action, task, done) {
   }
 }
 
+/** Opening the screen already checks this device in: a new one is bound there while a slot is free. */
 function bind() {
   run('bind', () => accountAPI.bindThisDevice(), 'Устройство привязано');
 }
@@ -105,12 +106,6 @@ function close() {
     title="Личный кабинет"
     @update:show="$event || close()"
   >
-    <template #header-extra>
-      <NButton quaternary size="small" :disabled="loading" aria-label="Обновить" @click="load">
-        <template #icon><NIcon><AppIcon name="refresh" /></NIcon></template>
-      </NButton>
-    </template>
-
     <NSpin :show="loading && !profile">
       <NAlert v-if="error" type="error" :show-icon="false" class="block">{{ error }}</NAlert>
 
@@ -170,12 +165,16 @@ function close() {
             </NButton>
           </li>
         </ul>
-        <p v-else class="devices__empty">Пока ни одного. Устройство привязывается при первом подключении.</p>
+        <p v-else class="devices__empty">Пока ни одного.</p>
       </template>
     </NSpin>
 
     <template #footer>
       <div class="footer">
+        <NButton quaternary :disabled="loading" class="footer__refresh" @click="load">
+          <template #icon><NIcon><AppIcon name="refresh" /></NIcon></template>
+          Обновить
+        </NButton>
         <NButton
           v-if="profile && !current.bound"
           type="primary"
@@ -308,6 +307,10 @@ function close() {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.footer__refresh {
+  margin-right: auto;
 }
 
 @media (max-width: 420px) {
