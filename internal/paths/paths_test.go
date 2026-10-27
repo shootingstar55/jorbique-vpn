@@ -102,7 +102,10 @@ func TestWriteInstallVersionAndReset(t *testing.T) {
 	if _, err := os.Stat(cacheDir); err == nil {
 		t.Error("version mismatch should wipe the cache the old release wrote")
 	}
-	for _, f := range []string{store, draft, instance} {
+	if _, err := os.Stat(draft); err == nil {
+		t.Error("version mismatch should drop the unsaved VPN Config draft an older release left")
+	}
+	for _, f := range []string{store, instance} {
 		b, err := os.ReadFile(f)
 		if err != nil {
 			t.Errorf("upgrade lost %s: %v", filepath.Base(f), err)

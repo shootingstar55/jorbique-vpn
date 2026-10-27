@@ -31,6 +31,9 @@ const TUNNEL_SETTLE_MS = 2500;
 const BOOTSTRAP_ERROR_MS = 2500;
 /** OnStartup runs RefreshAutostartIfEnabled, so autostart is re-read once after launch. */
 const AUTOSTART_RECHECK_MS = 1500;
+/** How long a saved change waits for a connect in flight before giving up on applying it. */
+const SETTLE_WAIT_MS = 180000;
+const SETTLE_POLL_MS = 500;
 
 
 const connected = ref(false);
@@ -422,6 +425,10 @@ async function resumeConnect() {
  */
 async function reconnectIfConnected() {
   try {
+    // A change saved while a connect or disconnect is under way waits for it: a connect
+    // already building its config would come up without the change, and dropping the
+    // reconnect left it unapplied until the user thought to reconnect.
+    if (!(await settled())) return;
     const isConnected = binding('IsConnected');
     const conn = !!(isConnected && (await isConnected()));
     if (!conn || !binding('Disconnect') || !binding('Connect') || connectOpInFlight) return;
@@ -436,6 +443,16 @@ async function reconnectIfConnected() {
     // Only the status reads can throw here (runConnect reports its own failures);
     // the list is already saved, so the tunnel picks it up on the next connect.
   }
+}
+
+/** Resolves true once nothing is connecting or disconnecting, false if that takes too long. */
+async function settled() {
+  const deadline = Date.now() + SETTLE_WAIT_MS;
+  while (connectOpInFlight || transition.value) {
+    if (Date.now() > deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, SETTLE_POLL_MS));
+  }
+  return true;
 }
 
 defineExpose({ resumeConnect, reconnectIfConnected });
