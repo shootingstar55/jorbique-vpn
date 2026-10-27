@@ -13,6 +13,7 @@ import ConnectionCheck from './ConnectionCheck.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ProtocolList from './ProtocolList.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
+import AccountModal from './AccountModal.vue';
 import { panelAPI } from '../lib/panel-api.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
@@ -86,6 +87,7 @@ const subline = computed(() => {
  * window should not be labelled differently on the two platforms.
  */
 const ACTIONS = [
+  { id: 'account', label: 'Личный кабинет', icon: 'user' },
   { id: 'set-uuid', label: 'Изменить UUID', icon: 'settings' },
   { id: 'route-rules', label: 'Исключения', icon: 'apps' },
   { id: 'logs', label: labels.logs, icon: 'logs' },
@@ -130,9 +132,16 @@ watch(pending, (busy) => {
  * The Logs window opens whatever the tunnel is doing: a connect that hangs is when
  * someone wants to read them. The other panels change settings, so they wait.
  */
-const ALWAYS_OPEN = new Set(['logs']);
+const ALWAYS_OPEN = new Set(['logs', 'account']);
+
+/** «Личный кабинет» opens inside this window, not as a panel of its own. */
+const accountOpen = ref(false);
 
 function openPanel(id) {
+  if (id === 'account') {
+    accountOpen.value = true;
+    return;
+  }
   if (!ALWAYS_OPEN.has(id)) {
     act('open', id);
     return;
@@ -226,6 +235,8 @@ onBeforeUnmount(() => clearInterval(timer));
 
       <p class="daemon">{{ state.daemon || 'Служба: —' }}</p>
     </NCard>
+
+    <AccountModal v-model:visible="accountOpen" @error="message.error($event)" @toast="message.success($event)" />
   </div>
 </template>
 
