@@ -56,6 +56,7 @@ var operations = map[string]struct{}{
 	"-autostart-check":    {},
 	"update-singbox":      {},
 	"clear-singbox-cache": {},
+	"clear-logs":          {},
 	"set-route-rules":     {},
 	"set-singbox-config":  {},
 	"refresh-profile":     {},

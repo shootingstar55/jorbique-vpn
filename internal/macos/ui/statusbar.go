@@ -57,6 +57,7 @@ type statusBarController struct {
 
 	singboxP       *webPanel // the open sing-box config panel, if any
 	routeP         *webPanel // the open route-rules panel, if any
+	logsP          *webPanel // the log viewer, if open
 	mainP          *webPanel // the main window, if open
 	gateP          *webPanel // the first-run UUID window, while no UUID is stored
 	gateAccepted   bool      // the gate's UUID was saved; closing it no longer quits
@@ -1120,6 +1121,8 @@ func (c *statusBarController) mainWindowAction(action mainAction) error {
 			applekit.RunOnMain(c.cmdSetSingboxConfig)
 		case "route-rules":
 			applekit.RunOnMain(c.cmdRouteRules)
+		case "logs":
+			applekit.RunOnMain(c.cmdOpenLogs)
 		default:
 			return fmt.Errorf("unknown panel")
 		}

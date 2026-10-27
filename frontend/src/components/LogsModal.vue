@@ -1,53 +1,77 @@
 <script setup>
-import { ref, watch } from 'vue';
-import { NButton, NIcon, NModal, NScrollbar, NSelect, NSpin, useDialog } from 'naive-ui';
+import { onMounted, ref, watch } from 'vue';
+import { NButton, NIcon, NModal, NScrollbar, NSelect, NSpin, useDialog, useMessage } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
-import { binding } from '../lib/bindings.js';
+import { copyText, logsAPI } from '../lib/logs-api.js';
+import { panelAPI } from '../lib/panel-api.js';
 import { getErrMsg } from '../lib/errors.js';
 import { labels } from '../lib/labels.js';
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
+  /** The macOS Logs window: the page is the whole window, and closing it closes the window. */
+  standalone: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['error', 'toast', 'update:visible']);
 
 const dialog = useDialog();
+const message = useMessage();
 
 const DEFAULT_LOG = 'controller.log';
-const files = ref([{ label: DEFAULT_LOG, value: DEFAULT_LOG }]);
-const selected = ref(DEFAULT_LOG);
+const files = ref([]);
+const selected = ref('');
 const content = ref('');
 const loading = ref(false);
+/** Bumped by every load, so an answer that arrives after a newer request is dropped. */
+let epoch = 0;
+
+function toast(text) {
+  if (props.standalone) message.success(text);
+  else emit('toast', text);
+}
+
+function fail(text) {
+  if (props.standalone) message.error(text);
+  else emit('error', text);
+}
 
 async function loadFiles() {
-  const list = binding('ListLogFiles');
-  if (!list) return;
+  let names = [];
   try {
-    const names = await list();
-    if (Array.isArray(names) && names.length) {
-      files.value = names.map((name) => ({ label: name, value: name }));
-      // Keep the current choice if it still exists, so a refresh does not jump the viewer
-      // back to the first file.
-      if (!names.includes(selected.value)) selected.value = names[0];
-    }
+    names = await logsAPI.files();
   } catch {
-    // The default file stays listed, so the viewer still opens on it.
+    // An empty list still opens the viewer; the default file is tried below.
+  }
+  if (!Array.isArray(names)) names = [];
+  files.value = names.map((name) => ({ label: name, value: name }));
+  // Keep the current choice if it still exists, so a refresh does not jump the viewer
+  // back to the first file.
+  if (!names.includes(selected.value)) {
+    selected.value = names.includes(DEFAULT_LOG) ? DEFAULT_LOG : names[0] || '';
   }
 }
 
 async function loadContent() {
-  const get = binding('GetLogContent');
-  if (!get) return;
+  const current = ++epoch;
+  if (!selected.value) {
+    content.value = '(пусто)';
+    return;
+  }
   loading.value = true;
   try {
-    const text = await get(selected.value || DEFAULT_LOG);
-    content.value = text || '(пусто)';
+    const text = await logsAPI.content(selected.value);
+    if (current === epoch) content.value = text || '(пусто)';
   } catch (e) {
-    content.value = `Ошибка: ${getErrMsg(e, 'Не удалось загрузить')}`;
+    if (current === epoch) content.value = `Ошибка: ${getErrMsg(e, 'Не удалось загрузить')}`;
   } finally {
-    loading.value = false;
+    if (current === epoch) loading.value = false;
   }
+}
+
+async function open() {
+  await loadFiles();
+  await loadContent();
 }
 
 watch(selected, () => {
@@ -56,44 +80,48 @@ watch(selected, () => {
 
 watch(
   () => props.visible,
-  async (visible) => {
-    if (!visible) return;
-    await loadFiles();
-    await loadContent();
+  (visible) => {
+    if (visible) void open();
+    else ++epoch;
   },
 );
+
+onMounted(() => {
+  if (props.visible) void open();
+});
 
 async function copy() {
   if (!content.value) return;
   try {
-    await navigator.clipboard.writeText(content.value);
-    emit('toast', 'Скопировано в буфер обмена');
+    await copyText(content.value);
+    toast('Скопировано в буфер обмена');
   } catch {
-    emit('error', 'Не удалось скопировать');
+    fail('Не удалось скопировать');
   }
 }
 
 function clear() {
-  const clearLogs = binding('ClearLogs');
-  if (!clearLogs) return;
   dialog.warning({
     title: 'Очистить логи',
-    content: 'Удалить все файлы логов? Это действие нельзя отменить.',
+    content: 'Очистить все файлы логов? Это действие нельзя отменить.',
     positiveText: labels.clear,
     negativeText: labels.cancel,
     onPositiveClick: async () => {
       try {
-        await clearLogs();
-        await loadContent();
+        await logsAPI.clear();
       } catch (e) {
-        emit('error', getErrMsg(e, 'Не удалось очистить'));
+        fail(getErrMsg(e, 'Не удалось очистить'));
       }
+      // Cleared or not, the list and the text are re-read: a log can go away with Clear.
+      await open();
     },
   });
 }
 
 function close() {
-  emit('update:visible', false);
+  ++epoch;
+  if (props.standalone) void panelAPI.close();
+  else emit('update:visible', false);
 }
 </script>
 

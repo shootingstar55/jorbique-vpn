@@ -12,7 +12,7 @@ func TestOnlyStateChangingCommandsAskForRoot(t *testing.T) {
 	for _, cmd := range []string{
 		"start", "stop", "restart", "update-singbox",
 		"install-autostart", "uninstall-autostart", "set-route-rules",
-		"set-singbox-config", "clear-singbox-cache",
+		"set-singbox-config", "clear-singbox-cache", "clear-logs",
 	} {
 		if !needsRoot(cmd) {
 			t.Errorf("%s changes system state but does not ask for root", cmd)
