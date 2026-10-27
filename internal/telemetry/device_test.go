@@ -118,3 +118,18 @@ func TestWindowsNamesUseNativeBuildAndProductType(t *testing.T) {
 		}
 	}
 }
+
+func TestSetDeviceOverridesThePlatform(t *testing.T) {
+	t.Cleanup(func() { SetDevice("", "", "", "") })
+	SetDevice(" Pixel 9 ", "Android", "15", "AP3A.241005.015")
+	if got := deviceName(context.Background()); got != "Pixel 9" {
+		t.Fatalf("deviceName = %q", got)
+	}
+	if name, version, build := deviceOS(); name != "Android" || version != "15" || build != "AP3A.241005.015" {
+		t.Fatalf("deviceOS = %q %q %q", name, version, build)
+	}
+	SetDevice("", "", "", "")
+	if got, want := deviceName(context.Background()), computerName(context.Background()); got != want {
+		t.Fatalf("deviceName without an override = %q, want the platform's %q", got, want)
+	}
+}

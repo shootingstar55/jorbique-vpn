@@ -847,9 +847,6 @@ func (m *Manager) tunnelStates() map[string]bool {
 	return up
 }
 
-// SetSingboxConfig sets UUID + enabled outbounds, then downloads template.
-// splitTagList reads one of the panel's tag lines: comma, space or semicolon
-// separated, empties dropped.
 // splitTagList splits the outbounds line on commas, the separator the menu bar
 // sends, and splits a piece on spaces and semicolons as well only when it is
 // not a tag the profile offers as it stands. A profile may name a tag "eu west";
@@ -882,6 +879,7 @@ func trimmedInputLines(lines []string) []string {
 	return cleaned
 }
 
+// SetSingboxConfig sets UUID + enabled outbounds, then downloads template.
 func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 	cleaned := trimmedInputLines(stdinLines)
 	uuid, uuidToSave, err := m.validatedConfigUUID(cleaned)

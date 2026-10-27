@@ -22,6 +22,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * The window: the desktop client's Vue interface in a WebView, with Bridge
@@ -35,12 +37,9 @@ class MainActivity : AppCompatActivity() {
     @Volatile
     private var pendingImportUUID: String? = null
 
-    private var vpnPermission: CompletableFuture<Boolean>? = null
-
     private val vpnPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            vpnPermission?.complete(result.resultCode == RESULT_OK)
-            vpnPermission = null
+            vpnPermission.getAndSet(null)?.complete(result.resultCode == RESULT_OK)
         }
 
     private val notificationPermissionLauncher =
@@ -121,11 +120,14 @@ class MainActivity : AppCompatActivity() {
     fun ensureVpnPermission(): Boolean {
         val intent = VpnService.prepare(this) ?: return true
         val answer = CompletableFuture<Boolean>()
-        runOnUiThread {
-            vpnPermission = answer
-            vpnPermissionLauncher.launch(intent)
-        }
-        return answer.get()
+        // A question still open from an earlier tap is answered "no": only one
+        // dialog shows, and its answer settles this one.
+        vpnPermission.getAndSet(answer)?.complete(false)
+        runOnUiThread { vpnPermissionLauncher.launch(intent) }
+        // Kept outside the activity: a window recreated while the dialog is up
+        // (a theme or language change) gets the answer in its own launcher,
+        // and this thread would otherwise wait forever.
+        return runCatching { answer.get(PERMISSION_WAIT_MINUTES, TimeUnit.MINUTES) }.getOrDefault(false)
     }
 
     /** The connection notification needs this from Android 13 on; asked once, never required. */
@@ -149,6 +151,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val PERMISSION_WAIT_MINUTES = 5L
+        private val vpnPermission = AtomicReference<CompletableFuture<Boolean>?>()
+
         const val APP_HOST = "appassets.androidplatform.net"
 
         private val UUID_PATTERN =

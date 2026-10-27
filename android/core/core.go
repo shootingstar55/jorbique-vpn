@@ -48,6 +48,14 @@ func Setup(filesDir, cacheDir string, fixAndroidStack bool) error {
 	return initErr
 }
 
+// SetDeviceInfo is what the metrics call this phone: its name in Settings
+// (or maker and model) and the Android release and build. Go reads neither
+// on Android, where the hostname is "localhost" on every phone. Call it
+// before Setup.
+func SetDeviceInfo(name, androidVersion, buildID string) {
+	telemetry.SetDevice(name, "Android", androidVersion, buildID)
+}
+
 func initialize(filesDir, cacheDir string, fixAndroidStack bool) error {
 	// The desktop packages find their directories through these: APPDATA for
 	// the data directory, the temp directory for the profile cache.
