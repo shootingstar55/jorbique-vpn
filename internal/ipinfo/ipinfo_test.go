@@ -2,9 +2,11 @@ package ipinfo
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -96,8 +98,17 @@ func TestCacheAsksOncePerTTLAndKeepsTheLastGoodAnswer(t *testing.T) {
 	t.Cleanup(func() { Sources = previous })
 
 	cache := NewCache(time.Minute, nil)
+	if _, _, ok := cache.Peek(); ok {
+		t.Error("Peek answered before anything was fetched")
+	}
 	if _, err := cache.Get(context.Background(), false); err != nil {
 		t.Fatal(err)
+	}
+	// Peek reads what Get stored and never asks the service itself.
+	if info, fetched, ok := cache.Peek(); !ok || info.IP != "104.28.219.140" || calls != 1 {
+		t.Errorf("Peek = %+v, %v after %d calls", info, ok, calls)
+	} else if !fetched.Equal(cache.fetched) {
+		t.Errorf("Peek's time %v is not the one the ttl runs on, %v", fetched, cache.fetched)
 	}
 	if _, err := cache.Get(context.Background(), false); err != nil {
 		t.Fatal(err)
@@ -174,5 +185,105 @@ func TestLookupsDoNotReuseAConnection(t *testing.T) {
 	}
 	if connections != 3 {
 		t.Errorf("3 lookups opened %d connections; they are being pooled", connections)
+	}
+}
+
+// blockingServer answers ipwhoBody once release closes, and counts requests.
+// A request whose client went away returns at once, so Close never hangs.
+func blockingServer(t *testing.T) (release chan struct{}, hits *atomic.Int32) {
+	t.Helper()
+	release, hits = make(chan struct{}), &atomic.Int32{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		select {
+		case <-release:
+			_, _ = w.Write([]byte(ipwhoBody))
+		case <-r.Context().Done():
+		}
+	}))
+	t.Cleanup(server.Close)
+	previous := Sources
+	Sources = []string{server.URL}
+	t.Cleanup(func() { Sources = previous })
+	return release, hits
+}
+
+// The menu, the window card and a settle asking at once send one request
+// between them, and each gets its answer.
+func TestCacheSharesOneLookupBetweenCallers(t *testing.T) {
+	release, hits := blockingServer(t)
+	cache := NewCache(time.Minute, nil)
+	answers := make(chan string, 3)
+	for _, force := range []bool{false, true, true} {
+		go func() {
+			info, err := cache.Get(context.Background(), force)
+			if err != nil {
+				t.Error(err)
+			}
+			answers <- info.IP
+		}()
+	}
+	time.Sleep(100 * time.Millisecond)
+	close(release)
+	for range 3 {
+		if ip := <-answers; ip != "104.28.219.140" {
+			t.Errorf("a caller got %q", ip)
+		}
+	}
+	if n := hits.Load(); n != 1 {
+		t.Errorf("3 callers at once sent %d requests, want 1", n)
+	}
+}
+
+// A lookup asked before the route changed answers for the old route: the
+// change cancels it and nothing of it is kept. Its caller is not handed the
+// cancellation — the window's card showed it as an error — but asked again,
+// once: a second change during that lookup is passed on rather than chased.
+func TestInvalidateCancelsTheLookupInFlight(t *testing.T) {
+	release, hits := blockingServer(t)
+	cache := NewCache(time.Minute, nil)
+	type answer struct {
+		info Info
+		err  error
+	}
+	ask := func() <-chan answer {
+		out := make(chan answer, 1)
+		go func() {
+			info, err := cache.Get(context.Background(), true)
+			out <- answer{info, err}
+		}()
+		return out
+	}
+	requests := func(n int32) {
+		t.Helper()
+		for deadline := time.Now().Add(5 * time.Second); hits.Load() < n; time.Sleep(5 * time.Millisecond) {
+			if time.Now().After(deadline) {
+				t.Fatalf("%d requests sent, want %d", hits.Load(), n)
+			}
+		}
+	}
+
+	twice := ask()
+	requests(1)
+	cache.Invalidate()
+	requests(2) // asked again for the new route
+	cache.Invalidate()
+	if got := <-twice; !errors.Is(got.err, ErrRouteChanged) {
+		t.Fatalf("a lookup the route changed under twice answered %+v, %v; want ErrRouteChanged", got.info, got.err)
+	}
+
+	once := ask()
+	requests(3)
+	cache.Invalidate()
+	requests(4)
+	if info, _, ok := cache.Peek(); ok {
+		t.Errorf("the old route's answer was kept: %+v", info)
+	}
+	close(release)
+	if got := <-once; got.err != nil || got.info.IP != "104.28.219.140" {
+		t.Fatalf("Get across a route change = %+v, %v; want the new route's answer", got.info, got.err)
+	}
+	if n := hits.Load(); n != 4 {
+		t.Errorf("sent %d requests, want 4: two per Get, the one a change cancelled and its single retry", n)
 	}
 }
