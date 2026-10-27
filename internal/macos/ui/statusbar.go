@@ -762,12 +762,25 @@ func (c *statusBarController) startSelected(selected []string) {
 	}
 	// The device limit: the server binds this Mac or refuses it. Asked off the
 	// main thread; any answer but a refusal, no answer included, connects.
+	// The check can take up to account.GateTimeout, so it already counts as
+	// connecting: the window and the menu show it, a second click is a stop,
+	// and a stop during the check means no start after it.
 	cfg, _ := c.loadConfig()
 	uuid := singboxUUID(cfg)
+	token := c.starting.begin(selected)
+	c.startSpinner()
+	applekit.RunOnMain(c.updateConnectionActions)
 	safeGo(func() {
 		err := account.Gate(context.Background(), uuid, nil)
 		applekit.RunOnMain(func() {
+			stillWanted := c.starting.active(token)
+			c.starting.end(token)
+			if !stillWanted {
+				return
+			}
 			if err != nil {
+				c.updateConnectionActions()
+				c.refresh()
 				applekit.PresentAlert("Устройство не подключено", err.Error(), applekit.AlertWarning)
 				return
 			}
