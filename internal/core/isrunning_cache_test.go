@@ -111,3 +111,25 @@ func TestIsRunningConcurrentInvalidate(t *testing.T) {
 		t.Error("expected not running on the stub platform")
 	}
 }
+
+// TestUntrackedTunnelNeedsTun: with no PID file, a sing-box.exe counts as the
+// tunnel only while our TUN is up — the version check after a download runs one too.
+func TestUntrackedTunnelNeedsTun(t *testing.T) {
+	origProc, origTun := singboxProcessAnywhere, tunInterfaceUp
+	t.Cleanup(func() { singboxProcessAnywhere, tunInterfaceUp = origProc, origTun })
+
+	for _, tc := range []struct {
+		proc, tun, want bool
+	}{
+		{proc: true, tun: false, want: false}, // `sing-box version` right after the download
+		{proc: true, tun: true, want: true},   // a tunnel whose PID file was lost
+		{proc: false, tun: true, want: false}, // an adapter left behind by a dead core
+		{proc: false, tun: false, want: false},
+	} {
+		singboxProcessAnywhere = func() bool { return tc.proc }
+		tunInterfaceUp = func() bool { return tc.tun }
+		if got := untrackedTunnelRunning(); got != tc.want {
+			t.Errorf("process=%v tun=%v: got %v, want %v", tc.proc, tc.tun, got, tc.want)
+		}
+	}
+}
