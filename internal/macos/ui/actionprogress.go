@@ -107,6 +107,15 @@ func (t *opTracker) end(token int) {
 	delete(t.inFlight, token)
 }
 
+// active reports whether an action is still in flight: not ended, not settled
+// and not cleared by a stop.
+func (t *opTracker) active(token int) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	_, ok := t.inFlight[token]
+	return ok
+}
+
 // settled drops the names that have reached the state the action was working
 // towards, and retires an action once none of its own are left.
 //

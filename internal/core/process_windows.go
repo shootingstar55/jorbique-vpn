@@ -84,7 +84,12 @@ func findSingboxPIDBySnapshot() (int, bool) {
 }
 
 // ResyncSingboxIfAlive restores .singbox_pid when sing-box is running but tracking was lost.
+// Only a sing-box with our TUN up is adopted: a short-lived one such as the version
+// check must not become the tracked tunnel.
 func ResyncSingboxIfAlive(dataDir string) bool {
+	if !tunInterfaceUp() {
+		return false
+	}
 	if pid, ok := findSingboxPIDBySnapshot(); ok && pidProcessIsOurSingbox(pid) {
 		writeSingboxPIDFile(dataDir, pid)
 		invalidateIsRunningCache()

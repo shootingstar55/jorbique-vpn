@@ -237,3 +237,23 @@ func TestStopClearsRestartSpinner(t *testing.T) {
 		t.Error("the restart tracker still animates after being cleared")
 	}
 }
+
+// TestStopDuringAccountCheckCancelsStart: the account check before a connect
+// counts as connecting, and a stop clicked during it means no start after it.
+func TestStopDuringAccountCheckCancelsStart(t *testing.T) {
+	var starting opTracker
+	token := starting.begin([]string{"vpn"})
+	if !starting.busy() || !starting.active(token) {
+		t.Fatal("the account check should count as connecting")
+	}
+	starting.clear() // runStop
+	if starting.active(token) {
+		t.Fatal("a stop during the check should cancel the start")
+	}
+
+	token = starting.begin([]string{"vpn"})
+	starting.end(token)
+	if starting.active(token) {
+		t.Fatal("an ended action is not active")
+	}
+}

@@ -144,11 +144,29 @@ func removeSingboxPIDFile(dataDir string) {
 	_ = os.Remove(singboxPidPath(dataDir))
 }
 
+// singboxProcessAnywhere and tunInterfaceUp are the two halves of
+// untrackedTunnelRunning; tests swap them.
+var (
+	singboxProcessAnywhere = singboxProcessExistsByImageName
+	tunInterfaceUp         = func() bool {
+		_, _, ok := network.FindTunInterface("", constants.TunIPRange)
+		return ok
+	}
+)
+
+// untrackedTunnelRunning is the fallback for a tunnel whose PID file was lost: some
+// sing-box.exe runs and our TUN is up. A sing-box.exe alone is not a tunnel — the
+// `sing-box version` check right after a download is one too, and counting it put a
+// false "Подключено" on screen for the second or two it lived.
+func untrackedTunnelRunning() bool {
+	return singboxProcessAnywhere() && tunInterfaceUp()
+}
+
 func isRunningRaw() bool {
 	dataDir := paths.DataDir()
 	pid, ok := readSingboxPID(dataDir)
 	if !ok {
-		return singboxProcessExistsByImageName()
+		return untrackedTunnelRunning()
 	}
 	if pidProcessIsOurSingbox(pid) {
 		return true
@@ -165,7 +183,7 @@ func isRunningRaw() bool {
 		return true
 	}
 	removeSingboxPIDFile(dataDir)
-	return singboxProcessExistsByImageName()
+	return untrackedTunnelRunning()
 }
 
 func waitForTunInterface(tunConfigPath string) bool {
