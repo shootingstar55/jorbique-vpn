@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -60,5 +61,17 @@ func TestRelocatePath(t *testing.T) {
 				t.Errorf("RelocatePath(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestRelocatePathStaysInsideDir(t *testing.T) {
+	for _, p := range []string{"logs/../../etc/passwd", "../../x", "cache/../../../y"} {
+		got := RelocatePath(p, "logs/", "/data/logs")
+		if got != "/data/logs" && !strings.HasPrefix(got, "/data/logs/") || strings.Contains(got, "..") {
+			t.Errorf("RelocatePath(%q) = %q, left the directory", p, got)
+		}
+	}
+	if got := RelocatePath("logs/a/b.log", "logs/", "/d"); got != "/d/a/b.log" {
+		t.Errorf("RelocatePath kept shape = %q", got)
 	}
 }

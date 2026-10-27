@@ -363,7 +363,7 @@ func (c *statusBarController) applyRefresh(running []string, ms MenuStatus, avai
 	}
 	c.starting.settled(done)
 
-	_, inProgress := c.currentAction()
+	action, inProgress := c.currentAction()
 	c.menuConnected = hasSingboxTypeRunning(running, avail)
 	c.updateConnectionActions()
 	// A different tunnel is a different exit address: drop the old one before
@@ -377,6 +377,11 @@ func (c *statusBarController) applyRefresh(running []string, ms MenuStatus, avai
 	detail := connectionDetail(ms, c.menuConnected, exitIP, confirmedFails)
 	if c.menuConnected && len(confirmedFails) == 0 && active != "" {
 		detail += "  ·  " + protocolLabel(active)
+	}
+	if inProgress {
+		// The line under an item that is already connecting names what runs,
+		// not "connect to secure your traffic".
+		detail = action.label() + "…"
 	}
 	c.detailItem.SetSubtitle(detail)
 
