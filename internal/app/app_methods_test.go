@@ -220,8 +220,8 @@ func TestApp_LogFileOperations(t *testing.T) {
 	if err := a.ClearLogs(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(logsDir, "controller.log")); err == nil {
-		t.Error("ClearLogs should remove log files")
+	if info, err := os.Stat(filepath.Join(logsDir, "controller.log")); err != nil || info.Size() != 0 {
+		t.Errorf("ClearLogs should empty the log files: %v", err)
 	}
 }
 

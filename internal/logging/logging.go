@@ -71,6 +71,9 @@ func Write(message, level string) {
 	_ = f.Close()
 }
 
+// ClearAll empties every log under projectRoot/logs. It truncates rather than
+// removes: sing-box keeps its log open, and a removed file it goes on writing
+// to is gone from the list until the next connect.
 func ClearAll(projectRoot string) {
 	logsDir := filepath.Join(projectRoot, "logs")
 	entries, err := os.ReadDir(logsDir)
@@ -78,8 +81,8 @@ func ClearAll(projectRoot string) {
 		return
 	}
 	for _, e := range entries {
-		if !e.IsDir() {
-			_ = os.Remove(filepath.Join(logsDir, e.Name()))
+		if e.Type().IsRegular() {
+			_ = os.Truncate(filepath.Join(logsDir, e.Name()), 0)
 		}
 	}
 }

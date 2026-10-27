@@ -70,8 +70,8 @@ func TestInitializeWriteAndClear(t *testing.T) {
 	}
 
 	ClearAll(dir)
-	if _, err := os.Stat(logPath); err == nil {
-		t.Error("ClearAll did not remove log file")
+	if info, err := os.Stat(logPath); err != nil || info.Size() != 0 {
+		t.Errorf("ClearAll should leave the log in place and empty: %v", err)
 	}
 
 	// ClearAll on a missing logs dir is a no-op.
