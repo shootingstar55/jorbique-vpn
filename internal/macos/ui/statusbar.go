@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"jorbiquevpn/internal/account"
@@ -56,6 +57,9 @@ type statusBarController struct {
 	starting opTracker
 	stopping opTracker
 	quitting opTracker
+	// quitDone: Quit has stopped the tunnels and unloaded the agent, and its
+	// own Terminate may go through (shouldTerminate).
+	quitDone atomic.Bool
 
 	singboxP       *webPanel // the open sing-box config panel, if any
 	routeP         *webPanel // the open route-rules panel, if any
@@ -105,6 +109,9 @@ func RunStatusBarAppPurego(exePath, displayName string) error {
 	app.OnReopen(c.reopen)
 	// jorbique:// links from the /sub page bring the user's UUID (importlink.go).
 	app.OnOpenURLs(c.openLinks)
+	// Quit from the Dock (or Cmd-Q) is the menu's Quit, not a bare exit that
+	// the LaunchAgent's KeepAlive would answer with a fresh bar.
+	app.OnShouldTerminate(c.shouldTerminate)
 	c.watchPendingLinks()
 	app.InstallEditMenu()
 	// Use the installed app icon for alerts/Dock (staged next to the binary).
@@ -914,8 +921,25 @@ func (c *statusBarController) quit() {
 				c.run.runNoSudoAndWait(c.exePath, []string{subcmd})
 			}
 		}
+		c.quitDone.Store(true)
 		applekit.RunOnMain(func() { c.app.Terminate() })
 	})
+}
+
+// shouldTerminate answers every quit AppKit is asked for. Quit from the Dock
+// used to end the process on the spot: the tunnel stayed up and the agent's
+// KeepAlive brought the bar straight back, so only the menu's Quit really
+// closed the client. Now any quit runs the menu's Quit and the process ends
+// when that is done. Logout, restart and shutdown still go straight through:
+// they end the session anyway, and a bar left open then comes back at login.
+func (c *statusBarController) shouldTerminate(sessionEnd bool) bool {
+	if sessionEnd || c.quitDone.Load() {
+		return true
+	}
+	if !c.quitting.busy() {
+		c.quit()
+	}
+	return false
 }
 
 // cmdSetSingboxConfig opens the sing-box config panel and applies it via the
