@@ -4,6 +4,7 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"jorbiquevpn/internal/account"
 	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/ipinfo"
 	"jorbiquevpn/internal/macos/applekit"
@@ -758,7 +760,44 @@ func (c *statusBarController) startSelected(selected []string) {
 	if !c.preflightStart(selected, func() { c.startSelected(selected) }) {
 		return
 	}
-	c.runStart(selected, append([]string{"start"}, selected...))
+	// The device limit: the server binds this Mac or refuses it. Asked off the
+	// main thread; any answer but a refusal, no answer included, connects.
+	cfg, _ := c.loadConfig()
+	uuid := singboxUUID(cfg)
+	safeGo(func() {
+		err := account.Gate(context.Background(), uuid, nil)
+		applekit.RunOnMain(func() {
+			if err != nil {
+				applekit.PresentAlert("Устройство не подключено", err.Error(), applekit.AlertWarning)
+				return
+			}
+			c.runStart(selected, append([]string{"start"}, selected...))
+		})
+	})
+}
+
+// accountAction answers the main window's «Личный кабинет»: get, bind (this
+// Mac) and unbind (any device of the account).
+func (c *statusBarController) accountAction(body json.RawMessage) (any, error) {
+	var request struct {
+		Action string `json:"action"`
+		ID     string `json:"id"`
+	}
+	if err := json.Unmarshal(body, &request); err != nil {
+		return nil, fmt.Errorf("invalid request")
+	}
+	cfg, _ := c.loadConfig()
+	uuid := singboxUUID(cfg)
+	ctx := context.Background()
+	switch request.Action {
+	case "get":
+		return account.Get(ctx, uuid)
+	case "bind":
+		return account.CheckIn(ctx, uuid, true)
+	case "unbind":
+		return account.Unbind(ctx, uuid, request.ID)
+	}
+	return nil, fmt.Errorf("unknown action")
 }
 
 // preflightStart opens the config panel when a launch still needs a UUID and
@@ -970,7 +1009,7 @@ func (c *statusBarController) cmdOpenMainWindow() {
 		c.mainP.Show()
 		return
 	}
-	panel, err := showMainPanel(c.mainWindowState, c.mainWindowAction, c.ipInfo, func() { c.mainP = nil })
+	panel, err := showMainPanel(c.mainWindowState, c.mainWindowAction, c.ipInfo, c.accountAction, func() { c.mainP = nil })
 	if err != nil {
 		applekit.PresentAlert("Не удалось открыть окно", err.Error(), applekit.AlertWarning)
 		return

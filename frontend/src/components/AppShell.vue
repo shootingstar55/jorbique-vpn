@@ -8,6 +8,7 @@ import ActivationScreen from './ActivationScreen.vue';
 import MainScreen from './MainScreen.vue';
 import IgnoreAppsModal from './IgnoreAppsModal.vue';
 import LogsModal from './LogsModal.vue';
+import AccountModal from './AccountModal.vue';
 import UuidModal from './UuidModal.vue';
 
 /**
@@ -94,6 +95,7 @@ const vpnConfigOpen = ref(false);
 const vpnConfigResumesConnect = ref(false);
 const ignoreAppsOpen = ref(false);
 const logsOpen = ref(false);
+const accountOpen = ref(false);
 
 function openVpnConfig(options = {}) {
   vpnConfigResumesConnect.value = !!options.resumeConnect;
@@ -122,6 +124,7 @@ function onIgnoreListSaved() {
         @open-vpn-config="openVpnConfig"
         @open-ignore-apps="ignoreAppsOpen = true"
         @open-logs="logsOpen = true"
+        @open-account="accountOpen = true"
       />
 
       <UuidModal
@@ -140,6 +143,8 @@ function onIgnoreListSaved() {
       />
 
       <LogsModal v-model:visible="logsOpen" @error="message.error($event)" @toast="message.success($event)" />
+
+      <AccountModal v-model:visible="accountOpen" @error="message.error($event)" @toast="message.success($event)" />
     </template>
   </div>
 </template>

@@ -44,7 +44,7 @@ type mainAction struct {
 }
 
 // showMainPanel opens the main window.
-func showMainPanel(state func() mainState, act func(mainAction) error, ipInfo func(force bool) (ipinfo.Info, error), onClosed func()) (*webPanel, error) {
+func showMainPanel(state func() mainState, act func(mainAction) error, ipInfo func(force bool) (ipinfo.Info, error), accountCall func(json.RawMessage) (any, error), onClosed func()) (*webPanel, error) {
 	assets, err := frontendAssets()
 	if err != nil {
 		return nil, err
@@ -77,6 +77,14 @@ func showMainPanel(state func() mainState, act func(mainAction) error, ipInfo fu
 							return ipinfo.Info{}, nil
 						}
 						return ipInfo(request.Force)
+					},
+					// «Личный кабинет»: the menu bar asks the server itself, as the
+					// user, with the UUID from the shared config.
+					"account": func(body json.RawMessage) (any, error) {
+						if accountCall == nil {
+							return nil, fmt.Errorf("unavailable")
+						}
+						return accountCall(body)
 					},
 				},
 				closeWindow)

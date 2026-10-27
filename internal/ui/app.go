@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"jorbiquevpn/internal/account"
 	"sync"
 
 	"jorbiquevpn/internal/app"
@@ -84,6 +85,13 @@ func (a *App) TakePendingImportUUID() string {
 }
 
 func (a *App) GetUserUUID() string { return a.backend.GetUserUUID() }
+
+// GetAccount, BindThisDevice and UnbindDevice back the «Личный кабинет» window.
+func (a *App) GetAccount() (*account.Profile, error) { return a.backend.GetAccount() }
+
+func (a *App) BindThisDevice() (*account.Profile, error) { return a.backend.BindThisDevice() }
+
+func (a *App) UnbindDevice(id string) (*account.Profile, error) { return a.backend.UnbindDevice(id) }
 
 func (a *App) GetConnectionProgress() autoconnect.Progress { return a.backend.GetConnectionProgress() }
 

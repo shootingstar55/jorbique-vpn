@@ -13,7 +13,7 @@ import { labels } from '../lib/labels.js';
 import { isAndroid } from '../lib/android.js';
 
 const emit = defineEmits([
-  'error', 'toast', 'openVpnConfig', 'openIgnoreApps', 'openLogs',
+  'error', 'toast', 'openVpnConfig', 'openIgnoreApps', 'openLogs', 'openAccount',
 ]);
 
 /**
@@ -579,6 +579,10 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="actions">
+        <NButton quaternary @click="emit('openAccount')">
+          <template #icon><NIcon><AppIcon name="user" /></NIcon></template>
+          Личный кабинет
+        </NButton>
         <NButton quaternary :disabled="busy" @click="emit('openVpnConfig')">
           <template #icon><NIcon><AppIcon name="settings" /></NIcon></template>
           Изменить UUID

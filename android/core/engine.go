@@ -13,6 +13,7 @@ import (
 
 	"github.com/sagernet/sing-box/experimental/libbox"
 
+	"jorbiquevpn/internal/account"
 	"jorbiquevpn/internal/autoconnect"
 	"jorbiquevpn/internal/config"
 	"jorbiquevpn/internal/jsonorder"
@@ -52,6 +53,11 @@ func Connect() error {
 	uuid := strings.TrimSpace(store.GetUserUUID())
 	if !security.ValidUUID(uuid, false) {
 		return errNoUUID
+	}
+	// The device limit: the server binds this phone or refuses it. Any other
+	// answer, no answer included, lets the connect go ahead.
+	if err := account.Gate(context.Background(), uuid, func(msg string) { logf(msg, "WARN") }); err != nil {
+		return err
 	}
 	lifecycleMu.Lock()
 	defer lifecycleMu.Unlock()

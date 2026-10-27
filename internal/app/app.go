@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"jorbiquevpn/internal/account"
 	"maps"
 	"net/http"
 	"os"
@@ -181,6 +182,13 @@ func (a *App) Connect() (msg string, err error) {
 	// this is what keeps the app closed until the first-run screen has a UUID.
 	if !a.HasUserUUID() {
 		return "Enter your user UUID first", ErrVlessRequired
+	}
+	// The device limit: the server binds this device or refuses it. Any other
+	// answer, no answer included, lets the connect go ahead.
+	if err := account.Gate(context.Background(), a.store.GetUserUUID(), func(msg string) {
+		controllerLog(a.GetDataDir(), true)(msg, "WARN")
+	}); err != nil {
+		return "", err
 	}
 	a.cleanupMu.Lock()
 	defer a.cleanupMu.Unlock()
@@ -927,4 +935,20 @@ func progressLogFn(base func(string, string), onProgress func(int)) func(string,
 		}
 		base(msg, level)
 	}
+}
+
+// GetAccount reads the personal account: name, UUID, expiry and the bound devices.
+func (a *App) GetAccount() (*account.Profile, error) {
+	return account.Get(context.Background(), a.store.GetUserUUID())
+}
+
+// BindThisDevice binds this device from the account screen, a device the user
+// unbound before included.
+func (a *App) BindThisDevice() (*account.Profile, error) {
+	return account.CheckIn(context.Background(), a.store.GetUserUUID(), true)
+}
+
+// UnbindDevice removes a device from the account.
+func (a *App) UnbindDevice(id string) (*account.Profile, error) {
+	return account.Unbind(context.Background(), a.store.GetUserUUID(), id)
 }

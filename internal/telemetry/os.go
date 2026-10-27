@@ -76,3 +76,15 @@ func windowsName(major, minor, build uint32, workstation bool) string {
 		return fmt.Sprintf("Windows %d.%d", major, minor)
 	}
 }
+
+// Device is the name and OS the metrics report for this machine: the
+// computer name (on Android the phone's name from Settings) and the OS with
+// its version. The account service binds devices by the same name.
+func Device(ctx context.Context) (name, osName string) {
+	n, version, _ := deviceOS()
+	osName = n
+	if version != "" && version != "unknown" {
+		osName += " " + version
+	}
+	return deviceName(ctx), osName
+}
