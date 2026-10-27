@@ -30,6 +30,12 @@ var (
 )
 
 func singboxSectionHasUUIDKey(data []byte) bool {
+	return singboxSectionHasKey(data, "uuid")
+}
+
+// singboxSectionHasKey reports whether the singbox section names key; false for
+// a file it cannot read.
+func singboxSectionHasKey(data []byte, key string) bool {
 	var raw map[string]any
 	if err := json.Unmarshal(core.StripTrailingCommas(data), &raw); err != nil {
 		return false
@@ -38,7 +44,7 @@ func singboxSectionHasUUIDKey(data []byte) bool {
 	if !ok {
 		return false
 	}
-	_, has := sb["uuid"]
+	_, has := sb[key]
 	return has
 }
 
@@ -721,8 +727,16 @@ func ensureSingboxChoiceKeys(content string, data []byte) string {
 	if m := singboxObjectBraceRe.FindStringSubmatchIndex(content); m != nil {
 		r2start := m[4]
 		r2end := m[5]
-		insert := "\n    \"uuid\": \"\",\n    \"enabled_outbounds\": [],\n    \"disabled_outbounds\": []," + content[r2start:r2end]
-		content = content[:r2start] + insert + content[r2end:]
+		// Only the keys the section lacks: one already there and added again
+		// left the object with two of it, and the reader takes the last — the
+		// old value — while the edit replaced the first.
+		insert := "\n    \"uuid\": \"\","
+		for _, key := range []string{"enabled_outbounds", "disabled_outbounds"} {
+			if !singboxSectionHasKey(data, key) {
+				insert += "\n    \"" + key + "\": [],"
+			}
+		}
+		content = content[:r2start] + insert + content[r2start:r2end] + content[r2end:]
 	}
 	return content
 }
