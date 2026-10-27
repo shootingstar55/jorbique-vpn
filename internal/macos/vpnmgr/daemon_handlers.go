@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"jorbiquevpn/internal/logging"
 	"jorbiquevpn/internal/macos/core"
 	"jorbiquevpn/internal/telemetry"
 )
@@ -151,4 +152,8 @@ func (m *Manager) startDaemonTickers() {
 		}
 		return cfg.Singbox.UUID
 	}, m.tunnelStates, m.localSingboxVersion, m.Logger.Log)
+	// Root's logs — this daemon's, the commands it runs, launchd's capture of
+	// its output and sing-box's — start over at logging.MaxLogBytes. sing-box
+	// keeps writing to its emptied file: nothing is restarted for this.
+	logging.CapLogsEvery(m.Paths.SystemLogDir)
 }

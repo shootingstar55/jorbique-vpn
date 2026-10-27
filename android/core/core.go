@@ -48,6 +48,14 @@ func Setup(filesDir, cacheDir string, fixAndroidStack bool) error {
 	return initErr
 }
 
+// SetDeviceInfo is what the metrics call this phone: its name in Settings
+// (or maker and model) and the Android release and build. Go reads neither
+// on Android, where the hostname is "localhost" on every phone. Call it
+// before Setup.
+func SetDeviceInfo(name, androidVersion, buildID string) {
+	telemetry.SetDevice(name, "Android", androidVersion, buildID)
+}
+
 func initialize(filesDir, cacheDir string, fixAndroidStack bool) error {
 	// The desktop packages find their directories through these: APPDATA for
 	// the data directory, the temp directory for the profile cache.
@@ -58,6 +66,8 @@ func initialize(filesDir, cacheDir string, fixAndroidStack bool) error {
 		return err
 	}
 	logging.Initialize(controllerLogFile, dataDir)
+	// Logs are capped by size here as on the desktop: nothing else trims them.
+	logging.CapLogsEvery(filepath.Join(dataDir, "logs"))
 	loaded, err := server.Load(dataDir)
 	if err != nil {
 		logf(err.Error()+" — starting with empty settings", logging.LevelWarn)
@@ -309,11 +319,9 @@ func logContent(name string) (string, error) {
 	if base == "." || base == ".." || strings.Contains(base, "..") {
 		return "", errors.New("invalid log file name")
 	}
-	data, err := os.ReadFile(logPath(base))
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	// Only the tail: a whole log sent over the bridge and into a text view
+	// could take megabytes of memory.
+	return logging.ReadTail(logPath(base), logging.ViewerMaxBytes)
 }
 
 // The exit-address card, as on the desktop: keep-alive off so no connection

@@ -88,6 +88,7 @@ const subline = computed(() => {
 const ACTIONS = [
   { id: 'set-uuid', label: 'Изменить UUID', icon: 'settings' },
   { id: 'route-rules', label: 'Исключения', icon: 'apps' },
+  { id: 'logs', label: labels.logs, icon: 'logs' },
 ];
 
 async function refresh() {
@@ -124,6 +125,22 @@ watch(pending, (busy) => {
   clearInterval(timer);
   timer = setInterval(refresh, busy ? BUSY_MS : IDLE_MS);
 });
+
+/**
+ * The Logs window opens whatever the tunnel is doing: a connect that hangs is when
+ * someone wants to read them. The other panels change settings, so they wait.
+ */
+const ALWAYS_OPEN = new Set(['logs']);
+
+function openPanel(id) {
+  if (!ALWAYS_OPEN.has(id)) {
+    act('open', id);
+    return;
+  }
+  panelAPI.save('main', { action: 'open', value: id }).catch((e) => {
+    message.error(getErrMsg(e, 'Не удалось открыть окно'));
+  });
+}
 
 function toggleConnection() {
   if (pending.value) return;
@@ -199,8 +216,8 @@ onBeforeUnmount(() => clearInterval(timer));
           v-for="action in ACTIONS"
           :key="action.id"
           tertiary
-          :disabled="!!acting || !!pending"
-          @click="act('open', action.id)"
+          :disabled="!ALWAYS_OPEN.has(action.id) && (!!acting || !!pending)"
+          @click="openPanel(action.id)"
         >
           <template #icon><NIcon><AppIcon :name="action.icon" /></NIcon></template>
           {{ action.label }}

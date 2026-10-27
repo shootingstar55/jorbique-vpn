@@ -366,6 +366,40 @@ func writeRawExe(data []byte, dataDir string) (string, error) {
 	return destPath, nil
 }
 
+// executableMagics are the leading bytes of the binaries sing-box ships as:
+// ELF, PE, and thin or universal Mach-O.
+var executableMagics = [][]byte{
+	{0x7f, 'E', 'L', 'F'},
+	{'M', 'Z'},
+	{0xfe, 0xed, 0xfa, 0xce}, {0xfe, 0xed, 0xfa, 0xcf},
+	{0xce, 0xfa, 0xed, 0xfe}, {0xcf, 0xfa, 0xed, 0xfe},
+	{0xca, 0xfe, 0xba, 0xbe}, {0xca, 0xfe, 0xba, 0xbf},
+}
+
+// gzipHoldsBareExecutable reports whether a gzip payload decompresses to the
+// binary itself rather than to a tar archive. Anything else, including a broken
+// tar, goes through the tar extractor and fails there instead of being installed.
+func gzipHoldsBareExecutable(data []byte) bool {
+	gr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return false
+	}
+	defer gr.Close()
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(gr, head)
+	head = head[:n]
+	// USTAR, PAX and GNU headers all carry "ustar" at offset 257.
+	if n >= 262 && string(head[257:262]) == "ustar" {
+		return false
+	}
+	for _, magic := range executableMagics {
+		if bytes.HasPrefix(head, magic) {
+			return true
+		}
+	}
+	return false
+}
+
 func extractSingboxFromGzipRaw(data []byte, dataDir string) (string, error) {
 	gr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
@@ -523,11 +557,10 @@ func extractSingboxPayload(body []byte, dataDir, format string) (string, error) 
 		exeFound, err = extractSingboxExeFromZip(body, dataDir)
 	case f == "tar.gz" || f == "tgz":
 		exeFound, err = extractSingboxFromTarGz(body, dataDir)
+	case isGzipPayload(body) && gzipHoldsBareExecutable(body):
+		exeFound, err = extractSingboxFromGzipRaw(body, dataDir)
 	case isGzipPayload(body):
 		exeFound, err = extractSingboxFromTarGz(body, dataDir)
-		if err != nil && errors.Is(err, errSingboxNotInTar) {
-			exeFound, err = extractSingboxFromGzipRaw(body, dataDir)
-		}
 	default:
 		exeFound, err = writeRawExe(body, dataDir)
 	}

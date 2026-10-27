@@ -77,6 +77,7 @@ func main() {
 
 	backend := app.New()
 	backend.StartTelemetry()
+	backend.StartLogCap()
 	uiApp := ui.New(backend)
 
 	startRecoveryLoops(backend)

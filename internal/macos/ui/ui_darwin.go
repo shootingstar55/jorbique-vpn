@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"jorbiquevpn/internal/constants"
+	"jorbiquevpn/internal/logging"
 	"jorbiquevpn/internal/macos/core"
 	"jorbiquevpn/internal/macos/launchd"
 	"jorbiquevpn/internal/macos/procutil"
@@ -71,6 +72,11 @@ func RunStatusBarApp() {
 
 	procutil.WritePID(os.Getpid(), pidFile)
 	defer func() { _ = os.Remove(pidFile) }()
+
+	// The menu bar's own logs, in the user's Library; root's are the daemon's.
+	if paths.LogDir != paths.SystemLogDir {
+		logging.CapLogsEvery(paths.LogDir)
+	}
 
 	if err := RunStatusBarAppPurego(exePath, constants.AppDisplayName); err != nil {
 		p := core.NewPaths()

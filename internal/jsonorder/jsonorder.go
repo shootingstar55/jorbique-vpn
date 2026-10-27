@@ -98,6 +98,13 @@ func (m *Map) Len() int { return len(m.keys) }
 // UnmarshalJSON decodes an object, keeping the order of its keys and decoding
 // numbers as json.Number so an integer port does not come back as 49211.0.
 func (m *Map) UnmarshalJSON(data []byte) error {
+	// The token walk below is not depth-limited on every Go release, so a deep
+	// enough document can overflow the stack, which is fatal rather than an
+	// error, and it stops at the closing brace whatever follows. The standard
+	// decoder checks both first, and says where the document goes wrong.
+	if err := json.Unmarshal(data, new(json.RawMessage)); err != nil {
+		return err
+	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
 	tok, err := dec.Token()

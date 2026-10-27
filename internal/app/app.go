@@ -552,8 +552,11 @@ func (a *App) GetLogContent(logName string) (string, error) {
 	if logName == "" {
 		logName = controllerLogFile
 	}
-	base := filepath.Base(strings.ReplaceAll(logName, "\\", "/"))
-	if base == "." || base == ".." || strings.Contains(base, "..") {
+	name := strings.ReplaceAll(logName, "\\", "/")
+	base := filepath.Base(name)
+	// A plain name only: "../secret" used to be refused because logs/secret did
+	// not exist, and a missing log now reads as empty.
+	if base != name || base == "." || base == ".." || strings.Contains(base, "..") {
 		return "", errors.New("invalid log file name")
 	}
 	logsDir := filepath.Join(a.GetDataDir(), "logs")
@@ -561,11 +564,13 @@ func (a *App) GetLogContent(logName string) (string, error) {
 	if !security.SecurePath(logPath, logsDir, false) {
 		return "", errors.New("invalid log path")
 	}
-	data, err := os.ReadFile(logPath)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return logging.ReadTail(logPath, logging.ViewerMaxBytes)
+}
+
+// StartLogCap keeps every log in the logs directory — the client's own and
+// sing-box's — below logging.MaxLogBytes, without restarting anything.
+func (a *App) StartLogCap() {
+	logging.CapLogsEvery(filepath.Join(a.GetDataDir(), "logs"))
 }
 
 func (a *App) ListLogFiles() ([]string, error) {

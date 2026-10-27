@@ -126,7 +126,7 @@ func newExporter(tr *authTransport, singboxVersion func() string) (sdkmetric.Exp
 	if err != nil {
 		return nil, err
 	}
-	return &deviceMetadataExporter{Exporter: exp, version: singboxVersion, name: computerName}, nil
+	return &deviceMetadataExporter{Exporter: exp, version: singboxVersion, name: deviceName}, nil
 }
 
 // The core can be updated and the computer renamed after Start. Keep these on
@@ -154,7 +154,7 @@ func (e *deviceMetadataExporter) Export(ctx context.Context, data *metricdata.Re
 // only jorbique_vpn.* metrics, and Prometheus turns target_info from
 // service.name jorbique-vpn into the device list. Renamed, every push is dropped.
 func observeTunnels(stateDir string, reader sdkmetric.Reader, tunnels func() map[string]bool) error {
-	osName, osVersion, osBuild := operatingSystem()
+	osName, osVersion, osBuild := deviceOS()
 	provider := sdkmetric.NewMeterProvider(
 		sdkmetric.WithResource(resource.NewSchemaless(
 			attribute.String("service.name", "jorbique-vpn"),

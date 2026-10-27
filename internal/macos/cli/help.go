@@ -26,6 +26,7 @@ SYNOPSIS
      %[1]s refresh-profile
      %[1]s update-singbox
      %[1]s singbox-versions
+     %[1]s clear-logs
      %[1]s -restart
      %[1]s -autostart-check
      %[1]s install-autostart
@@ -90,6 +91,10 @@ COMMANDS
 
      singbox-versions
              Print JSON {"local","remote"}: the installed sing-box version and the version advertised by the update server (used by the menu-bar UI).
+
+     clear-logs
+             Empty the daemon's, the commands' and sing-box's logs (root). Emptied
+             in place, not removed: launchd and sing-box keep them open.
 
      -restart
              Stop all, then start the last list.

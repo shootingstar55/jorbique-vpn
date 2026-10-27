@@ -126,8 +126,23 @@ func fetchSingboxClientJSON(timeout time.Duration, warnf func(string)) ([]byte, 
 	if resp.StatusCode != http.StatusOK || len(body) == 0 || !json.Valid(body) {
 		return loadRemoteCacheOrErr(fmt.Errorf("remote sing-box profile: HTTP %d", resp.StatusCode), warnf)
 	}
+	// A profile no build can get past must not replace the last good copy:
+	// the build and the window would have nothing until the server is fixed.
+	if err := checkRemoteProfile(body); err != nil {
+		return loadRemoteCacheOrErr(fmt.Errorf("remote sing-box profile cannot be built: %w", err), warnf)
+	}
 	_ = os.WriteFile(RemoteSingboxCachePath(), body, 0644)
 	return body, nil
+}
+
+// checkRemoteProfile runs the build's checks on the profile itself; see
+// singboxcfg.CheckProfile.
+func checkRemoteProfile(body []byte) error {
+	cfg := jsonorder.New()
+	if err := jsonorder.Unmarshal(body, cfg); err != nil {
+		return err
+	}
+	return singboxcfg.CheckProfile(cfg)
 }
 
 func loadRemoteCacheOrErr(cause error, warnf func(string)) ([]byte, error) {
@@ -188,7 +203,36 @@ func MergeRemoteWithTunShell(remoteJSON []byte) (*jsonorder.Map, error) {
 		v, _ := shell.Get(k)
 		cfg.Set(k, v)
 	}
+	// log and experimental carry this machine's settings: where sing-box writes
+	// the log the Logs window and the support zip read, the DNS cache file and
+	// the API the window polls. A profile that sends its own section (a log
+	// level, say) replaces the whole section above, so those keys are filled
+	// back in from the template wherever the profile does not set them.
+	for _, k := range machineLocalSections {
+		fillMissingKeys(cfg, shell, k)
+	}
 	return cfg, nil
+}
+
+var machineLocalSections = []string{"log", "experimental"}
+
+// fillMissingKeys copies into cfg[section] each key of shell[section] that
+// cfg[section] lacks, when both are objects.
+func fillMissingKeys(cfg, shell *jsonorder.Map, section string) {
+	got, ok := getMap(cfg, section)
+	if !ok {
+		return
+	}
+	defaults, ok := getMap(shell, section)
+	if !ok || got == defaults {
+		return
+	}
+	for _, k := range defaults.Keys() {
+		if !got.Has(k) {
+			v, _ := defaults.Get(k)
+			got.Set(k, v)
+		}
+	}
 }
 
 func fixPathsInConfig(cfg *jsonorder.Map) {

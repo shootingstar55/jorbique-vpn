@@ -358,6 +358,8 @@ func runManagerCommand(mgr *vpnmgr.Manager, cmd string, args []string) error {
 		return mgr.UpdateSingboxBinary()
 	case "singbox-versions":
 		return mgr.PrintSingboxVersions()
+	case "clear-logs":
+		return mgr.ClearLogs()
 	case "clear-singbox-cache":
 		// Internal (menu-bar Quit): drop sing-box's persistent DNS cache at full
 		// app shutdown. Not in help, like bootout-app-launchagent.

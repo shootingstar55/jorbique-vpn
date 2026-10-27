@@ -103,7 +103,7 @@ func TestRemoteTemplateKeepsOutboundTopology(t *testing.T) {
 // update host must not be the reason the VPN will not come up.
 func TestFetchTemplateFallsBackToCache(t *testing.T) {
 	cache := filepath.Join(t.TempDir(), "singbox_client.json")
-	profile := []byte(`{"outbounds":[{"type":"direct","tag":"direct"}]}`)
+	profile := []byte(`{"outbounds":[{"type":"vless","tag":"a","uuid":""},{"type":"urltest","tag":"auto","outbounds":["a"]}],"route":{"final":"auto"}}`)
 	if err := os.WriteFile(cache, profile, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestFetchTemplateWithoutCacheReports(t *testing.T) {
 func TestFetchTemplateKeepsCacheOnGarbage(t *testing.T) {
 	dir := t.TempDir()
 	cache := filepath.Join(dir, "singbox_client.json")
-	good := []byte(`{"outbounds":[]}`)
+	good := []byte(`{"outbounds":[{"type":"vless","tag":"a","uuid":""},{"type":"urltest","tag":"auto","outbounds":["a"]}],"route":{"final":"auto"}}`)
 	if err := os.WriteFile(cache, good, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -355,5 +355,30 @@ func TestBuildConfigFromRemoteTemplateWithoutAUUID(t *testing.T) {
 	}
 	if _, err := BuildConfigFromRemoteTemplate(core.SingboxSection{DisabledOutbounds: []string{"vless-reality"}}, base, time.Nanosecond, nil); err == nil || !strings.Contains(err.Error(), "enable at least one protocol") {
 		t.Errorf("err = %v, want every protocol off refused", err)
+	}
+}
+
+// The cache is held to the rule a download is: a profile with nothing to
+// connect through, which an older client cached, is no fallback.
+func TestFetchTemplateRefusesAnUnbuildableCache(t *testing.T) {
+	cache := filepath.Join(t.TempDir(), "singbox_client.json")
+	if err := os.WriteFile(cache, []byte(`{"outbounds":[{"type":"direct","tag":"direct"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fetchTemplateOrCache(cache, time.Nanosecond, nil); err == nil {
+		t.Fatal("a cached profile with no proxy outbounds was used")
+	}
+}
+
+func TestProfileProblem(t *testing.T) {
+	for body, bad := range map[string]bool{
+		`not json`:         true,
+		`{"outbounds":[]}`: true,
+		`{"outbounds":[{"type":"vless","tag":"a","uuid":"","detour":"gone"}]}`:                                                            true,
+		`{"outbounds":[{"type":"vless","tag":"a","uuid":""},{"type":"urltest","tag":"auto","outbounds":["a"]}],"route":{"final":"auto"}}`: false,
+	} {
+		if got := profileProblem([]byte(body)) != ""; got != bad {
+			t.Errorf("%s: problem = %v, want %v", body, got, bad)
+		}
 	}
 }

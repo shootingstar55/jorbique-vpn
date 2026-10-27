@@ -60,7 +60,9 @@ func RelocatePath(p, prefix, dir string) string {
 	if strings.HasPrefix(p, prefix) {
 		rest = strings.TrimPrefix(p, prefix)
 	}
-	rest = strings.Trim(rest, "/")
+	// The profile is downloaded: cleaned as a rooted path, every leading ".."
+	// stops at the root and cannot climb out of dir.
+	rest = strings.Trim(path.Clean("/"+rest), "/")
 	if rest == "" {
 		return dir
 	}

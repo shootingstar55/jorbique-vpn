@@ -51,6 +51,7 @@ var rootCommands = map[string]struct{}{
 	"uninstall-autostart": {},
 	"update-singbox":      {},
 	"clear-singbox-cache": {},
+	"clear-logs":          {},
 }
 
 // needsRoot reports whether a subcommand has to run as root.

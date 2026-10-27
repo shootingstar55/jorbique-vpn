@@ -1,8 +1,10 @@
 package singboxcfg
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -212,10 +214,20 @@ func TestFilterDetourDependenciesAndConflicts(t *testing.T) {
 	if got := ProxyTags(filtered, nil); !reflect.DeepEqual(got, []string{"b"}) {
 		t.Fatalf("post-filter selectable tags = %v", got)
 	}
+	// Turning off an outbound an active proxy detours through keeps it, and
+	// its own detours, as that proxy's transport, out of every group.
 	objects := parseOutbounds(t, body)
 	objects[1].(*jsonorder.Map).Set("detour", "a")
-	if _, err := FilterOutbounds(objects, nil, map[string]bool{"a": false}); err == nil || !strings.Contains(err.Error(), `"a"`) {
-		t.Fatalf("disabled selectable detour should report a conflict: %v", err)
+	filtered, err = FilterOutbounds(objects, nil, map[string]bool{"a": false})
+	if err != nil {
+		t.Fatalf("turning off a transport of an active proxy: %v", err)
+	}
+	index = indexOf(filtered)
+	if index["a"] == nil || index["helper"] == nil || index["helper-2"] == nil {
+		t.Fatalf("transport chain of the active proxy dropped: %v", index)
+	}
+	if got, _ := members(index["auto"]); !reflect.DeepEqual(got, []string{"b"}) {
+		t.Errorf("auto = %v, want the turned-off outbound out of it", got)
 	}
 	// Every protocol off is not an error here: nothing selectable and no
 	// helper is left, the emptied group is the pruner's, and a config with no
@@ -296,6 +308,21 @@ func TestFilterNestedGroupsStayLinear(t *testing.T) {
 	}
 }
 
+// An empty flow, network or detour asks for sing-box's default; the user's
+// credential there breaks the outbound with no build error to say so.
+func TestApplyCredentialLeavesEmptyNonCredentialFieldsAlone(t *testing.T) {
+	m := outboundMaps(parseOutbounds(t, `[
+		{"type":"vless","tag":"v","uuid":"","flow":"","network":"","packet_encoding":"","detour":""}
+	]`))[0]
+	if got := ApplyCredential(m, "user"); got != 1 {
+		t.Errorf("filled %d fields, want 1", got)
+	}
+	out, _ := m.MarshalJSON()
+	if want := `{"type":"vless","tag":"v","uuid":"user","flow":"","network":"","packet_encoding":"","detour":""}`; string(out) != want {
+		t.Errorf("outbound = %s, want %s", out, want)
+	}
+}
+
 func TestApplyCredentialFillsOnlyEmptyFields(t *testing.T) {
 	maps := outboundMaps(parseOutbounds(t, `[
 		{"type":"tuic","tag":"tuic","uuid":"","password":"server-shared"},
@@ -340,5 +367,133 @@ func TestExplicitCredentialMarkersPreserveSudokuKeyAndTLS(t *testing.T) {
 	reality, _ := tls.(*jsonorder.Map).Get("reality")
 	if reality.(*jsonorder.Map).GetString("short_id") != "" || tls.(*jsonorder.Map).GetString("server_name") != "media.example.test" {
 		t.Fatal("nested TLS settings were rewritten")
+	}
+}
+
+// Bringing an outbound back walks the profile; the same profile must build the
+// same config every time, whatever the map order.
+func TestFilterIsDeterministic(t *testing.T) {
+	const body = `[
+		{"type":"vless","tag":"l1"},
+		{"type":"vless","tag":"l2","detour":"g0"},
+		{"type":"direct","tag":"direct"},
+		{"type":"vless","tag":"l0"},
+		{"type":"urltest","tag":"g2","outbounds":["l0","l2","g0"]},
+		{"type":"urltest","tag":"g1","outbounds":["g0","g2"]},
+		{"type":"urltest","tag":"g0","outbounds":["g2","g0","g1"]},
+		{"type":"urltest","tag":"auto","outbounds":["l0","l1","l2"]}
+	]`
+	var first string
+	for i := 0; i < 50; i++ {
+		filtered, err := FilterOutbounds(parseOutbounds(t, body), nil, map[string]bool{"l0": false})
+		got := fmt.Sprint(err)
+		if err == nil {
+			data, _ := json.Marshal(filtered)
+			got = string(data)
+		}
+		if i == 0 {
+			first = got
+		} else if got != first {
+			t.Fatalf("run %d built %s, first run built %s", i, got, first)
+		}
+	}
+}
+
+// What the user turned off is never picked on its own, but a proxy still in use
+// that detours through it keeps it as a transport, directly or through a group.
+// The route naming it is still the profile's mistake, as for any outbound
+// turned off.
+func TestFilterKeepsATurnedOffTransport(t *testing.T) {
+	for _, tc := range []struct {
+		name, group, detour, route string
+		kept, want                 []string
+		err                        string
+	}{
+		{name: "direct detour", detour: "x", kept: []string{"x"}},
+		{name: "detour through a group", group: `,{"type":"selector","tag":"g","outbounds":["x","gone","g"],"default":"gone"}`,
+			detour: "g", kept: []string{"x", "g"}, want: []string{"g:x"}},
+		{name: "routed directly", detour: "x", route: `,"route":{"rules":[{"outbound":"x"}]}`, err: `"x", which is turned off`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := jsonorder.New()
+			if err := jsonorder.Unmarshal([]byte(`{"outbounds":[
+				{"type":"vless","tag":"x"},
+				{"type":"tuic","tag":"y"}`+tc.group+`,
+				{"type":"vless","tag":"p","detour":"`+tc.detour+`"},
+				{"type":"urltest","tag":"auto","outbounds":["x","y","p"]}
+			]`+tc.route+`}`), root); err != nil {
+				t.Fatal(err)
+			}
+			outbounds, _ := getSlice(root, "outbounds")
+			filtered, err := FilterOutbounds(outbounds, root, map[string]bool{"x": false})
+			if tc.err != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.err) {
+					t.Fatalf("error = %v, want %q", err, tc.err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			index := indexOf(filtered)
+			if got, _ := members(index["auto"]); slices.Contains(got, "x") {
+				t.Errorf("auto = %v, the turned-off outbound picked on its own", got)
+			}
+			// Transports go last, so a route without final cannot default to one.
+			var tail []string
+			for _, m := range outboundMaps(filtered[len(filtered)-len(tc.kept):]) {
+				tail = append(tail, stringField(m, "tag"))
+			}
+			if !reflect.DeepEqual(tail, tc.kept) {
+				t.Errorf("last outbounds = %v, want %v", tail, tc.kept)
+			}
+			for _, w := range tc.want {
+				group, member, _ := strings.Cut(w, ":")
+				got, _ := members(index[group])
+				if d := stringField(index[group], "default"); !reflect.DeepEqual(got, []string{member}) || d != "" && d != member {
+					t.Errorf("%s = %v default %q, want only %s", group, got, d, member)
+				}
+			}
+		})
+	}
+}
+
+// sing-box will not start on a detour cycle; the build says so, by name.
+func TestFilterRejectsADetourCycle(t *testing.T) {
+	_, err := FilterOutbounds(parseOutbounds(t, `[
+		{"type":"vless","tag":"a","detour":"b"},
+		{"type":"vless","tag":"b","detour":"a"},
+		{"type":"urltest","tag":"auto","outbounds":["a"]}
+	]`), nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "detour cycle") {
+		t.Fatalf("error = %v, want a detour cycle named", err)
+	}
+}
+
+// What no build of a profile can get past is reported before the profile is
+// trusted, whatever the user turned off.
+func TestCheckProfile(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{`{"outbounds":[{"type":"vless","tag":"a","uuid":""},{"type":"urltest","tag":"auto","outbounds":["a"]}],"route":{"final":"auto"}}`, ""},
+		{`{"outbounds":[{"type":"snell","tag":"s","userkey":""},{"type":"hysteria","tag":"h","auth":"shared"}]}`, ""},
+		{`{"outbounds":[{"type":"hysteria","tag":"h","auth":"shared"}]}`, "no field"},
+		{`{"outbounds":[{"type":"hysteria","tag":"h","auth":""}]}`, ""},
+		{`{"outbounds":[{"type":"direct","tag":"direct"}]}`, "no proxy outbounds"},
+		{`{"outbounds":[null,{"type":"vless","tag":"a","uuid":""}]}`, "outbound 0 is not an object"},
+		{`{"outbounds":[{"type":"vless","tag":"a","uuid":""},{"type":"tuic","tag":"a"}]}`, "more than once"},
+		{`{"outbounds":[{"type":"vless","tag":"a","uuid":"","detour":"gone"}]}`, `"gone"`},
+		{`{"outbounds":[{"type":"vless","tag":"a","uuid":"","detour":"b"},{"type":"vless","tag":"b","detour":"a"},{"type":"urltest","tag":"auto","outbounds":["a","b"]}]}`, "detour cycle"},
+	} {
+		root := jsonorder.New()
+		if err := jsonorder.Unmarshal([]byte(tc.body), root); err != nil {
+			t.Fatal(err)
+		}
+		err := CheckProfile(root)
+		if tc.want == "" && err != nil {
+			t.Errorf("%s: %v", tc.body, err)
+		}
+		if tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)) {
+			t.Errorf("%s: error = %v, want %q", tc.body, err, tc.want)
+		}
 	}
 }

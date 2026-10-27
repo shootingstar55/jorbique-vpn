@@ -1,9 +1,52 @@
 package telemetry
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"sync"
 )
+
+// device is what the app said about the machine, for a platform this package
+// cannot ask itself. On Android the hostname is "localhost" on every phone and
+// the OS version is not readable from Go, so the dashboard's Device and OS
+// columns came out as "localhost" and "android unknown".
+var device struct {
+	sync.Mutex
+	name, osName, osVersion, osBuild string
+}
+
+// SetDevice names the device and its OS. Call it before Start: the OS goes on
+// the resource once, the name is read on every push. Empty values leave the
+// platform's own answer.
+func SetDevice(name, osName, osVersion, osBuild string) {
+	device.Lock()
+	defer device.Unlock()
+	device.name = strings.TrimSpace(name)
+	device.osName = strings.TrimSpace(osName)
+	device.osVersion = strings.TrimSpace(osVersion)
+	device.osBuild = strings.TrimSpace(osBuild)
+}
+
+func deviceName(ctx context.Context) string {
+	device.Lock()
+	name := device.name
+	device.Unlock()
+	if name != "" {
+		return name
+	}
+	return computerName(ctx)
+}
+
+func deviceOS() (name, version, build string) {
+	device.Lock()
+	name, version, build = device.osName, device.osVersion, device.osBuild
+	device.Unlock()
+	if name != "" {
+		return name, version, build
+	}
+	return operatingSystem()
+}
 
 func knownVersion(value string) string {
 	if value = strings.TrimSpace(value); value != "" {

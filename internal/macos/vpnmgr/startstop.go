@@ -594,3 +594,36 @@ func (m *Manager) ClearSingboxCache() error {
 	m.Logger.Log("sing-box cache cleared (" + dir + ")")
 	return nil
 }
+
+// ClearLogs empties the logs root writes: the daemon's, the commands it runs
+// and sing-box's. Emptied rather than removed — launchd and a running sing-box
+// keep them open, and a removed file would take their writes with it. Only
+// regular *.log files in the system log directory are touched.
+func (m *Manager) ClearLogs() error {
+	dir := m.Paths.SystemLogDir
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	var failed []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".log") {
+			continue
+		}
+		info, err := e.Info()
+		if err != nil {
+			failed = append(failed, e.Name()+": "+err.Error())
+			continue
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if err := os.Truncate(filepath.Join(dir, e.Name()), 0); err != nil {
+			failed = append(failed, e.Name()+": "+err.Error())
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("could not clear %s", strings.Join(failed, "; "))
+	}
+	return nil
+}

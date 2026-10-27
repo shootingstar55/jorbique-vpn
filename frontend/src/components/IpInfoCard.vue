@@ -12,6 +12,7 @@ import { NButton, NCard, NIcon, NSpin, NTooltip } from 'naive-ui';
 import { binding } from '../lib/bindings.js';
 import { panelAPI } from '../lib/panel-api.js';
 import { getErrMsg } from '../lib/errors.js';
+import { isAndroid } from '../lib/android.js';
 
 const props = defineProps({
   /** Re-checked whenever this changes: a connect or a disconnect is a new address. */
@@ -71,6 +72,8 @@ watch(countryCode, () => {
 const flagSrc = computed(() => (countryCode.value ? `flags/${countryCode.value.toLowerCase()}.svg` : ''));
 
 const country = computed(() => info.value?.country || info.value?.countryCode || '—');
+/** On a phone the card is one short column: the city alone, no region. */
+const city = computed(() => info.value?.city || info.value?.region || '—');
 const location = computed(() => [info.value?.city, info.value?.region].filter(Boolean).join(', ') || '—');
 const coordinates = computed(() => {
   const item = info.value;
@@ -168,6 +171,44 @@ onBeforeUnmount(() => {
 
     <NSpin :show="loading && !info">
       <p v-if="error" class="ipinfo__error">{{ error }}</p>
+      <div v-else-if="isAndroid" class="ipinfo__compact">
+        <p class="ipinfo__country">
+          <img
+            v-if="flagSrc && !flagMissing"
+            class="ipinfo__flag"
+            width="30"
+            height="22"
+            :src="flagSrc"
+            :alt="countryCode"
+            @error="flagMissing = true"
+          />
+          <span v-else-if="countryCode" class="ipinfo__code">{{ countryCode }}</span>
+          <span class="ipinfo__name">{{ country }}</span>
+          <span class="ipinfo__value mono ipinfo__ip">{{ revealed ? (info?.ip || '—') : maskedIP }}</span>
+          <button type="button" class="ipinfo__eye" :title="revealed ? 'Скрыть адрес' : 'Показать адрес'"
+                  @click="revealed = !revealed">
+            <NIcon :size="16">
+              <svg viewBox="0 0 24 24">
+                <path fill="currentColor"
+                      d="M12 5c-5 0-9 4.5-10 7c1 2.5 5 7 10 7s9-4.5 10-7c-1-2.5-5-7-10-7m0 12a5 5 0 1 1
+                         0-10a5 5 0 0 1 0 10m0-8a3 3 0 1 0 0 6a3 3 0 0 0 0-6" />
+              </svg>
+            </NIcon>
+          </button>
+        </p>
+        <p class="ipinfo__row">
+          <span class="ipinfo__key">Провайдер:</span>
+          <span class="ipinfo__value ipinfo__one-line">{{ info?.isp || info?.org || '—' }}</span>
+        </p>
+        <p class="ipinfo__row">
+          <span class="ipinfo__key">Город:</span>
+          <span class="ipinfo__value ipinfo__one-line">{{ city }}</span>
+        </p>
+        <p class="ipinfo__row">
+          <span class="ipinfo__key">Часовой пояс:</span>
+          <span class="ipinfo__value ipinfo__one-line">{{ info?.timezone || '—' }}</span>
+        </p>
+      </div>
       <div v-else class="ipinfo__grid">
         <div class="ipinfo__left">
           <p class="ipinfo__country">
@@ -212,10 +253,6 @@ onBeforeUnmount(() => {
             <span class="ipinfo__value">{{ info?.isp || '—' }}</span>
           </p>
           <p class="ipinfo__row">
-            <span class="ipinfo__key">Организация:</span>
-            <span class="ipinfo__value">{{ info?.org || '—' }}</span>
-          </p>
-          <p class="ipinfo__row">
             <span class="ipinfo__key">Место:</span>
             <span class="ipinfo__value">{{ location }}</span>
           </p>
@@ -227,7 +264,7 @@ onBeforeUnmount(() => {
       </div>
     </NSpin>
 
-    <div class="ipinfo__foot">
+    <div v-if="!isAndroid" class="ipinfo__foot">
       <span>Обновление через {{ countdown }}</span>
       <span>{{ coordinates }}</span>
     </div>
@@ -360,6 +397,38 @@ onBeforeUnmount(() => {
   border-top: 1px solid var(--border);
   font-size: 12px;
   color: var(--text-dim);
+}
+
+/* --- Phone: one short column --- */
+
+.ipinfo__compact .ipinfo__country {
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.ipinfo__compact .ipinfo__name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ipinfo__compact .ipinfo__ip {
+  margin-left: auto;
+  font-size: 12.5px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.ipinfo__compact .ipinfo__row {
+  margin-bottom: 2px;
+}
+
+.ipinfo__one-line {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Same short-window case as the main screen: the card gives up its own air

@@ -847,17 +847,26 @@ func (m *Manager) tunnelStates() map[string]bool {
 	return up
 }
 
-// SetSingboxConfig sets UUID + enabled outbounds, then downloads template.
-// splitTagList reads one of the panel's tag lines: comma, space or semicolon
-// separated, empties dropped.
-func splitTagList(raw string) []string {
-	raw = strings.ReplaceAll(raw, ";", ",")
-	raw = strings.ReplaceAll(raw, " ", ",")
+// splitTagList splits the outbounds line on commas, the separator the menu bar
+// sends, and splits a piece on spaces and semicolons as well only when it is
+// not a tag the profile offers as it stands. A profile may name a tag "eu west";
+// splitting it as well made a tag the panel showed impossible to save.
+func splitTagList(raw string, available []string) []string {
+	known := make(map[string]struct{}, len(available))
+	for _, tag := range available {
+		known[strings.ToLower(tag)] = struct{}{}
+	}
 	out := []string{}
-	for _, t := range strings.Split(raw, ",") {
-		if t = strings.TrimSpace(t); t != "" {
-			out = append(out, t)
+	for _, piece := range strings.Split(raw, ",") {
+		piece = strings.TrimSpace(piece)
+		if piece == "" {
+			continue
 		}
+		if _, ok := known[strings.ToLower(piece)]; ok {
+			out = append(out, piece)
+			continue
+		}
+		out = append(out, strings.FieldsFunc(piece, func(r rune) bool { return r == ' ' || r == ';' })...)
 	}
 	return out
 }
@@ -870,6 +879,7 @@ func trimmedInputLines(lines []string) []string {
 	return cleaned
 }
 
+// SetSingboxConfig sets UUID + enabled outbounds, then downloads template.
 func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 	cleaned := trimmedInputLines(stdinLines)
 	uuid, uuidToSave, err := m.validatedConfigUUID(cleaned)
@@ -897,14 +907,13 @@ func (m *Manager) SetSingboxConfig(stdinLines []string) error {
 		}
 		naiveMode = &on
 	}
-	tokens := splitTagList(enabledRaw)
-
 	// A tag the profile does not offer is refused rather than stored: kept, it
 	// would match nothing at build time and the choice would be lost silently.
 	// Tags are saved as the profile spells them. With no profile downloaded yet
 	// there is nothing to check against, and the choice is stored as given —
 	// the UUID gate sends the stored answer on a first run.
 	available := m.availableSingboxOutbounds()
+	tokens := splitTagList(enabledRaw, available)
 	enabled, err := validateOutboundChoice(tokens, available)
 	if err != nil {
 		return err

@@ -219,3 +219,26 @@ func TestPatchNaiveModeRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// A singbox section with a refusal list but no uuid used to get a second
+// disabled_outbounds key on save; the reader took the last one, the old list.
+func TestPatchVpnCfgSingboxDoesNotDuplicateChoiceKeys(t *testing.T) {
+	cfgFile := filepath.Join(t.TempDir(), "vpn_cfg.json")
+	if err := os.WriteFile(cfgFile, []byte("{\n  \"singbox\": {\n    \"disabled_outbounds\": [\"old\"]\n  }\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	uuid := "00000000-0000-0000-0000-000000000000"
+	if err := PatchVpnCfgSingboxUUIDAndOutbounds(cfgFile, &uuid, []string{"a"}, []string{"new"}, nil); err != nil {
+		t.Fatalf("PatchVpnCfgSingboxUUIDAndOutbounds: %v", err)
+	}
+	data, err := os.ReadFile(cfgFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(string(data), `"disabled_outbounds"`); n != 1 {
+		t.Fatalf("disabled_outbounds appears %d times:\n%s", n, data)
+	}
+	if !strings.Contains(string(data), `"new"`) || strings.Contains(string(data), `"old"`) {
+		t.Fatalf("the new refusal list did not replace the old one:\n%s", data)
+	}
+}
