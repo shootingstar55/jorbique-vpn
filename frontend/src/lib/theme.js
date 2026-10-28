@@ -142,7 +142,7 @@ const overrides = {
 };
 
 /**
- * Which theme the window paints in: the system's, or one the user pinned.
+ * The light or dark theme the user picked.
  *
  * The dark overrides above are the client's identity — translucent slate
  * surfaces over a radial gradient — and none of that reads on a light
@@ -150,7 +150,7 @@ const overrides = {
  * the rose danger) and lets Naive supply its own surfaces.
  */
 const MODE_KEY = 'jorbiquevpn.theme';
-const MODES = ['system', 'dark', 'light'];
+const MODES = ['dark', 'light'];
 
 function storedMode() {
   // macOS serves every window from its own loopback port — a separate origin
@@ -164,18 +164,12 @@ function storedMode() {
   } catch {
     /* private windows and file:// origins throw on access; the default covers it */
   }
-  return 'system';
+  return 'dark';
 }
 
 export const themeMode = ref(storedMode());
 
-const media = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-const systemDark = ref(media ? media.matches : true);
-media?.addEventListener('change', (event) => {
-  systemDark.value = event.matches;
-});
-
-export const isDark = computed(() => themeMode.value === 'dark' || (themeMode.value === 'system' && systemDark.value));
+export const isDark = computed(() => themeMode.value === 'dark');
 
 export function setThemeMode(mode) {
   if (!MODES.includes(mode)) return;
