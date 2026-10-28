@@ -22,7 +22,7 @@ func newStageDir() (string, error) {
 	path := filepath.Join(root, "Temp", "jorbique-client-update-"+hex.EncodeToString(nonce))
 	// A normal user token must not replace a verified package/helper before an
 	// elevated launch. Apply the protected, inherited ACL atomically at creation.
-	sd, err := windows.SecurityDescriptorFromString("O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)")
+	sd, err := windows.SecurityDescriptorFromString("O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;RC;;;OW)")
 	if err != nil {
 		return "", err
 	}

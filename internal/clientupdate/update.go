@@ -52,8 +52,8 @@ type release struct {
 	Assets     []asset `json:"assets"`
 }
 type packageInfo struct {
-	version string
-	asset   asset
+	Version string
+	Asset   asset
 }
 
 func newClient() *http.Client {
@@ -141,26 +141,32 @@ func Check(ctx context.Context) (Status, error) {
 	if err != nil {
 		return status, err
 	}
-	status.Version = p.version
-	status.Available = semver.Compare(p.version, constants.AppVersion) > 0
+	status.Version = p.Version
+	status.Available = semver.Compare(p.Version, constants.AppVersion) > 0
 	return status, nil
 }
 
 // DownloadLatest resolves the release again: the UI cannot supply a URL, a hash,
 // a destination or an older version to install.
 func DownloadLatest(ctx context.Context) (string, error) {
+	path, _, err := prepareLatest(ctx)
+	return path, err
+}
+
+func prepareLatest(ctx context.Context) (string, packageInfo, error) {
 	if !installMu.TryLock() {
-		return "", errors.New("обновление уже выполняется")
+		return "", packageInfo{}, errors.New("обновление уже выполняется")
 	}
 	defer installMu.Unlock()
 	p, err := latest(ctx)
 	if err != nil {
-		return "", err
+		return "", p, err
 	}
-	if !versionPattern.MatchString(constants.AppVersion) || semver.Compare(p.version, constants.AppVersion) <= 0 {
-		return "", errors.New("новой версии клиента нет")
+	if !versionPattern.MatchString(constants.AppVersion) || semver.Compare(p.Version, constants.AppVersion) <= 0 {
+		return "", p, errors.New("новой версии клиента нет")
 	}
-	return download(ctx, p)
+	path, err := download(ctx, p)
+	return path, p, err
 }
 
 func download(ctx context.Context, p packageInfo) (string, error) {
@@ -174,8 +180,8 @@ func download(ctx context.Context, p packageInfo) (string, error) {
 			_ = os.RemoveAll(dir)
 		}
 	}()
-	path := filepath.Join(dir, p.asset.Name)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, repository+"/releases/download/v"+p.version+"/"+p.asset.Name, nil)
+	path := filepath.Join(dir, p.Asset.Name)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, repository+"/releases/download/v"+p.Version+"/"+p.Asset.Name, nil)
 	if err != nil {
 		return "", err
 	}
@@ -192,7 +198,7 @@ func download(ctx context.Context, p packageInfo) (string, error) {
 		return "", err
 	}
 	hash := sha256.New()
-	size, copyErr := io.Copy(io.MultiWriter(file, hash), io.LimitReader(resp.Body, p.asset.Size+1))
+	size, copyErr := io.Copy(io.MultiWriter(file, hash), io.LimitReader(resp.Body, p.Asset.Size+1))
 	if copyErr == nil {
 		copyErr = file.Sync()
 	}
@@ -203,7 +209,7 @@ func download(ctx context.Context, p packageInfo) (string, error) {
 	if closeErr != nil {
 		return "", closeErr
 	}
-	if size != p.asset.Size || !strings.EqualFold("sha256:"+hex.EncodeToString(hash.Sum(nil)), p.asset.Digest) {
+	if size != p.Asset.Size || !strings.EqualFold("sha256:"+hex.EncodeToString(hash.Sum(nil)), p.Asset.Digest) {
 		return "", errors.New("проверка обновления не пройдена: размер или SHA-256 не совпали")
 	}
 	ok = true

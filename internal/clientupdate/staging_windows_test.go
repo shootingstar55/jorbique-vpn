@@ -33,11 +33,13 @@ func TestWindowsStagingUsesProtectedAdminACL(t *testing.T) {
 	if control&windows.SE_DACL_PROTECTED == 0 {
 		t.Fatal("untrusted parent permissions were inherited")
 	}
-	if got := sd.String(); got != "O:BAD:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)" && got != "O:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)" {
-		// The owner/control assertions above are stable; ACE identities must remain
-		// exactly SYSTEM and Administrators across Windows' canonical formatting.
-		if !strings.Contains(got, ";;;SY)") || !strings.Contains(got, ";;;BA)") || strings.Count(got, "(A;") != 2 {
-			t.Fatalf("unexpected staging ACL: %s", got)
-		}
+	if got := sd.String(); !strings.Contains(got, ";;;SY)") || !strings.Contains(got, ";;;BA)") || !strings.Contains(got, ";RC;;;OW)") || strings.Count(got, "(A;") != 3 {
+		t.Fatalf("unexpected staging ACL: %s", got)
+	}
+}
+
+func TestRejectForgedUpdateParent(t *testing.T) {
+	if err := ApplyWindows(uint32(os.Getpid())); err == nil {
+		t.Fatal("accepted a caller-controlled parent PID")
 	}
 }

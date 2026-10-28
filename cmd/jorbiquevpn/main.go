@@ -33,6 +33,7 @@ import (
 func main() {
 	if handled, err := applyClientUpdate(os.Args[1:]); handled {
 		if err != nil {
+			fmt.Fprintln(os.Stdout, "error")
 			showErrorBox("Не удалось обновить клиент: " + err.Error())
 		}
 		return

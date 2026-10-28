@@ -8,15 +8,15 @@ import androidx.core.content.FileProvider
 import com.jorbique.vpn.core.Core
 import org.json.JSONTokener
 import java.io.File
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 
 /** A verified APK still passes Android's package identity and signature checks. */
 @Suppress("DEPRECATION")
 internal fun installClientUpdate(activity: MainActivity) {
     if (!activity.packageManager.canRequestPackageInstalls()) {
-        activity.runOnUiThread {
-            activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                Uri.parse("package:${activity.packageName}")))
-        }
+        launchInstaller(activity, Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+            Uri.parse("package:${activity.packageName}")))
         error("Разрешите установку обновлений для Jorbique VPN и нажмите «Обновить» ещё раз")
     }
     val path = JSONTokener(Core.call("DownloadClientUpdate", "[]")).nextValue() as? String
@@ -35,10 +35,19 @@ internal fun installClientUpdate(activity: MainActivity) {
         "Имя пакета, версия или подпись обновления не совпадают с установленным приложением"
     }
     val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.updates", file)
+    launchInstaller(activity, Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, "application/vnd.android.package-archive")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    })
+}
+
+private fun launchInstaller(activity: MainActivity, intent: Intent) {
+    val result = CompletableFuture<Unit>()
     activity.runOnUiThread {
-        activity.startActivity(Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        })
+        runCatching {
+            check(!activity.isDestroyed && !activity.isFinishing) { "Откройте приложение для установки обновления" }
+            activity.startActivity(intent)
+        }.fold({ result.complete(Unit) }, { result.completeExceptionally(it) })
     }
+    result.get(15, TimeUnit.SECONDS)
 }

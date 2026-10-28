@@ -13,7 +13,7 @@ import (
 
 // Install stages the complete, verified package before stopping a running VPN.
 func Install(ctx context.Context, beforeInstall func() error) error {
-	path, err := DownloadLatest(ctx)
+	path, pkg, err := prepareLatest(ctx)
 	if err != nil {
 		return err
 	}
@@ -23,7 +23,7 @@ func Install(ctx context.Context, beforeInstall func() error) error {
 			return err
 		}
 	}
-	if err := installPackage(path); err != nil {
+	if err := installPackage(path, pkg); err != nil {
 		_ = os.RemoveAll(filepath.Dir(path))
 		return err
 	}
