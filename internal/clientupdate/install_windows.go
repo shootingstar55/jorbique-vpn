@@ -130,6 +130,8 @@ func ApplyWindows(parentPID uint32) error {
 	if err != nil {
 		return err
 	}
+	line, closeDialog := showRestartProgress()
+	defer closeDialog()
 	if _, err := fmt.Fprintln(os.Stdout, "ready"); err != nil {
 		return err
 	}
@@ -141,9 +143,15 @@ func ApplyWindows(parentPID uint32) error {
 		return fmt.Errorf("клиент не завершился для обновления")
 	}
 	err = replaceClient(target, source, ownHash, func(path string) error {
+		line("Запускаем обновлённый клиент…")
 		cmd := sysexec.Command(path)
 		if err := cmd.Start(); err != nil {
 			return err
+		}
+		if process, e := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION|windows.SYNCHRONIZE, false, uint32(cmd.Process.Pid)); e == nil {
+			// Keep the shell feedback visible while WebView2 creates the new window.
+			windows.NewLazySystemDLL("user32.dll").NewProc("WaitForInputIdle").Call(uintptr(process), 20000)
+			windows.CloseHandle(process)
 		}
 		return cmd.Process.Release()
 	})

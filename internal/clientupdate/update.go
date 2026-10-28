@@ -150,6 +150,9 @@ func Check(ctx context.Context) (Status, error) {
 // a destination or an older version to install.
 func DownloadLatest(ctx context.Context) (string, error) {
 	path, _, err := prepareLatest(ctx)
+	if err == nil {
+		setStage("ready")
+	}
 	return path, err
 }
 
@@ -158,6 +161,9 @@ func prepareLatest(ctx context.Context) (string, packageInfo, error) {
 		return "", packageInfo{}, errors.New("обновление уже выполняется")
 	}
 	defer installMu.Unlock()
+	progressMu.Lock()
+	progress = Progress{Stage: "checking"}
+	progressMu.Unlock()
 	p, err := latest(ctx)
 	if err != nil {
 		return "", p, err
@@ -198,7 +204,11 @@ func download(ctx context.Context, p packageInfo) (string, error) {
 		return "", err
 	}
 	hash := sha256.New()
-	size, copyErr := io.Copy(io.MultiWriter(file, hash), io.LimitReader(resp.Body, p.Asset.Size+1))
+	progressMu.Lock()
+	progress = Progress{Stage: "downloading", Total: p.Asset.Size}
+	progressMu.Unlock()
+	size, copyErr := io.Copy(io.MultiWriter(file, hash, downloadProgress{}), io.LimitReader(resp.Body, p.Asset.Size+1))
+	setStage("verifying")
 	if copyErr == nil {
 		copyErr = file.Sync()
 	}

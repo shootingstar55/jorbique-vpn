@@ -80,7 +80,7 @@ func TestWriteInstallVersionAndReset(t *testing.T) {
 		t.Error("matching version should not wipe data dir")
 	}
 
-	// Mismatched version -> everything the release owns is removed.
+	// An application upgrade keeps the independently updated core and browser profile.
 	cacheDir := filepath.Join(DataDir(), "cache")
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		t.Fatal(err)
@@ -89,7 +89,14 @@ func TestWriteInstallVersionAndReset(t *testing.T) {
 	store := filepath.Join(DataDir(), StoreFileName)
 	draft := filepath.Join(DataDir(), VpnFormDraftFileName)
 	instance := filepath.Join(DataDir(), TelemetryInstanceIDFileName)
-	for _, f := range []string{store, draft, instance} {
+	engine := filepath.Join(DataDir(), constants.ProcessExeName)
+	cronet := filepath.Join(DataDir(), "libcronet.dll")
+	cronetVersion := filepath.Join(DataDir(), "libcronet.version")
+	webview := filepath.Join(DataDir(), "webview", "profile")
+	if err := os.MkdirAll(filepath.Dir(webview), 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{store, draft, instance, engine, cronet, cronetVersion, webview} {
 		if err := os.WriteFile(f, []byte(`{"user_uuid":"mine"}`), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -105,7 +112,7 @@ func TestWriteInstallVersionAndReset(t *testing.T) {
 	if _, err := os.Stat(draft); err == nil {
 		t.Error("version mismatch should drop the unsaved VPN Config draft an older release left")
 	}
-	for _, f := range []string{store, instance} {
+	for _, f := range []string{store, instance, engine, cronet, cronetVersion, webview} {
 		b, err := os.ReadFile(f)
 		if err != nil {
 			t.Errorf("upgrade lost %s: %v", filepath.Base(f), err)

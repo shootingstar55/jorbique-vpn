@@ -60,6 +60,9 @@ func TestCheckAndVerifiedDownload(t *testing.T) {
 	if !bytes.Equal(got, payload) {
 		t.Fatal("wrong payload")
 	}
+	if got := GetProgress(); got.Stage != "ready" || got.Downloaded != int64(len(payload)) || got.Total != int64(len(payload)) {
+		t.Fatalf("verified download progress: %+v", got)
+	}
 	constants.AppVersion = "1.1.0"
 	if _, err := DownloadLatest(context.Background()); err == nil {
 		t.Fatal("must not install the same version")
@@ -67,6 +70,25 @@ func TestCheckAndVerifiedDownload(t *testing.T) {
 	constants.AppVersion = "2.0.0"
 	if _, err := DownloadLatest(context.Background()); err == nil {
 		t.Fatal("downgrade accepted")
+	}
+}
+
+func TestDownloadProgressCountsWrittenBytes(t *testing.T) {
+	progressMu.Lock()
+	progress = Progress{Stage: "downloading", Total: 10}
+	progressMu.Unlock()
+	w := downloadProgress{}
+	for _, part := range []string{"abc", "de"} {
+		if n, err := w.Write([]byte(part)); err != nil || n != len(part) {
+			t.Fatal(n, err)
+		}
+	}
+	if got := GetProgress(); got.Stage != "downloading" || got.Downloaded != 5 || got.Total != 10 {
+		t.Fatalf("mid-download progress: %+v", got)
+	}
+	setStage("verifying")
+	if got := GetProgress(); got.Stage != "verifying" || got.Downloaded != 5 {
+		t.Fatalf("verification lost byte count: %+v", got)
 	}
 }
 

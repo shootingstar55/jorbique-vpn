@@ -180,6 +180,8 @@ func dispatch(method string, args []json.RawMessage) (any, error) {
 		return nil, nil
 	case "CheckClientUpdate":
 		return clientupdate.Check(context.Background())
+	case "GetClientUpdateProgress":
+		return clientupdate.GetProgress(), nil
 	case "DownloadClientUpdate":
 		return clientupdate.DownloadLatest(context.Background())
 	case "GetAccount":

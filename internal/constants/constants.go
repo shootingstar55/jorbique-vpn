@@ -18,7 +18,7 @@ const (
 	TempDirName    = "JorbiqueVPN"
 )
 
-// AppVersion is the release id for bundled data (AppData/temp wipe + reinstall when this changes).
+// AppVersion is the client release id and generated-state migration marker.
 // Not maintained by hand: the build scripts resolve the version from git and
 // inject it with -ldflags "-X jorbiquevpn/internal/constants.AppVersion=<x.y.z>".
 // The literal below is only what an unflagged `go build`/`go test` sees.
@@ -26,7 +26,7 @@ var AppVersion = "0.0.0-dev"
 
 // Application constants
 const (
-	// InstallVersionFileName is written under DataDir after a successful layout; mismatch => full reset.
+	// InstallVersionFileName is written after a successful generated-state migration.
 	InstallVersionFileName = "jorbique_vpn_install_version.txt"
 
 	// Default route next-hop (virtual peer on the TUN link); TUN address is 172.31.255.1/30 in tun_*.json
