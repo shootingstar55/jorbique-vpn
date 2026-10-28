@@ -5,6 +5,7 @@ package ui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -788,7 +789,11 @@ func (c *statusBarController) startSelected(selected []string) {
 			if err != nil {
 				c.updateConnectionActions()
 				c.refresh()
-				applekit.PresentAlert("Устройство не подключено", err.Error(), applekit.AlertWarning)
+				title := "Устройство не подключено"
+				if errors.Is(err, account.ErrOutdated) {
+					title = "Обновите Jorbique VPN"
+				}
+				applekit.PresentAlert(title, err.Error(), applekit.AlertWarning)
 				return
 			}
 			c.runStart(selected, append([]string{"start"}, selected...))
