@@ -18,15 +18,13 @@ function call(action) {
   return native ? native() : panelAPI.ask('client-update', { action });
 }
 
-async function check(manual = false) {
+async function check() {
   if (checking.value || installing.value) return;
   checking.value = true;
   try {
     status.value = await call('check');
-    if (manual && status.value?.version && !status.value.available) message.info('Установлена актуальная версия клиента');
-  } catch (e) {
+  } catch {
     status.value = { ...status.value, version: '', available: false };
-    if (manual) message.error(getErrMsg(e, 'Не удалось проверить обновления'));
   } finally {
     checking.value = false;
   }
@@ -67,11 +65,8 @@ onBeforeUnmount(() => clearInterval(timer));
       <span>Текущая версия <b>{{ status.currentVersion }}</b></span>
       <span>Последняя версия <b>{{ checking ? 'Проверяем…' : (status.version || 'Не удалось узнать') }}</b></span>
     </div>
-    <div class="client-update__actions">
-      <NButton quaternary size="small" :loading="checking" :disabled="installing" @click="check(true)">
-        Проверить обновления
-      </NButton>
-      <NButton v-if="status.available" type="primary" size="small" :loading="installing" :disabled="checking" @click="confirmInstall">
+    <div v-if="status.available" class="client-update__actions">
+      <NButton type="primary" size="small" :loading="installing" :disabled="checking" @click="confirmInstall">
         {{ installing ? 'Скачиваем и проверяем…' : 'Обновиться' }}
       </NButton>
     </div>
