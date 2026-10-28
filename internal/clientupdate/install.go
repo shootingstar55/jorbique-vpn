@@ -18,15 +18,18 @@ func Install(ctx context.Context, beforeInstall func() error) error {
 		return err
 	}
 	if beforeInstall != nil {
+		setStage("disconnecting")
 		if err := beforeInstall(); err != nil {
 			_ = os.RemoveAll(filepath.Dir(path))
 			return err
 		}
 	}
+	setStage("preparing")
 	if err := installPackage(path, pkg); err != nil {
 		_ = os.RemoveAll(filepath.Dir(path))
 		return err
 	}
+	setStage("ready")
 	return nil
 }
 

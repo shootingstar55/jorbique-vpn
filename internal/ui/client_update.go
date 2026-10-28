@@ -12,13 +12,17 @@ func (a *App) CheckClientUpdate() (clientupdate.Status, error) {
 	return clientupdate.Check(context.Background())
 }
 
-func (a *App) InstallClientUpdate() error {
+func (a *App) GetClientUpdateProgress() clientupdate.Progress {
+	return clientupdate.GetProgress()
+}
+
+func (a *App) InstallClientUpdate() (bool, error) {
 	err := clientupdate.Install(context.Background(), func() error {
 		_, err := a.backend.Disconnect()
 		return err
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 	if runtime.GOOS == "windows" {
 		a.backend.CleanupSingboxCacheOnExit()
@@ -26,5 +30,5 @@ func (a *App) InstallClientUpdate() error {
 		// process termination, which also releases the Windows single-instance mutex.
 		go func() { time.Sleep(500 * time.Millisecond); os.Exit(0) }()
 	}
-	return nil
+	return runtime.GOOS == "windows", nil
 }

@@ -30,15 +30,9 @@ func TempAppDir() string {
 	return filepath.Join(os.TempDir(), constants.TempDirName)
 }
 
-// ResetDataDirsIfVersionMismatch clears DataDir and TempAppDir when the install marker
-// is missing or does not match wantVersion (new binary or first run after old builds without marker).
-//
-// Everything a release owns is thrown away, because that is what the reset is
-// for: the extracted sing-box, the generated runtime config, the caches and the
-// logs all belong to the version that wrote them. What the person configured is
-// not part of the install and stays — this used to remove the whole directory,
-// so every upgrade handed the user a client with no UUID, no direct domains and
-// no ignored applications, and they had to type it all in again.
+// ResetDataDirsIfVersionMismatch clears generated state on a client upgrade.
+// The core has its own authenticated update channel; a new client version must
+// not uninstall it or force WebView2 to create its browser profile again.
 func ResetDataDirsIfVersionMismatch(wantVersion string) {
 	wantVersion = strings.TrimSpace(wantVersion)
 	if wantVersion == "" {
@@ -49,7 +43,8 @@ func ResetDataDirsIfVersionMismatch(wantVersion string) {
 	if err == nil && strings.TrimSpace(string(b)) == wantVersion {
 		return
 	}
-	clearExcept(dataDir, StoreFileName, TelemetryInstanceIDFileName)
+	clearExcept(dataDir, StoreFileName, TelemetryInstanceIDFileName,
+		constants.ProcessExeName, "libcronet.dll", "libcronet.version", "webview")
 	_ = os.RemoveAll(TempAppDir())
 }
 

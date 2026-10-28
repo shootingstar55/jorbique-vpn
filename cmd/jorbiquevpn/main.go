@@ -57,8 +57,7 @@ func main() {
 	exePath, _ := os.Executable()
 	exeDir := filepath.Dir(exePath)
 	dataDir := paths.DataDir()
-	// New binary version: clear %APPDATA%/JorbiqueVPN and %TEMP%/JorbiqueVPN if the install
-	// marker is missing or outdated. The user's own settings are kept — see the function.
+	// Migrate generated state; keep settings, the installed core and WebView2 profile.
 	paths.ResetDataDirsIfVersionMismatch(constants.AppVersion)
 	if err := paths.EnsureDataDirs(); err != nil {
 		writeStartupError("Failed to create app data directories: "+err.Error(), false)

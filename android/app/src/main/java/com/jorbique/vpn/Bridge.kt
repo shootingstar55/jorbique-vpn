@@ -112,7 +112,7 @@ class Bridge(private val activity: MainActivity, private val webView: WebView) {
             "GetDirectDomains", "SetDirectDomains",
             "GetIgnoredProcessNames", "GetIgnoredProcessPaths", "SetIgnoredProcessNamesAndPaths",
             "ListLogFiles", "GetLogContent", "ClearLogs",
-            "GetAccount", "BindThisDevice", "UnbindDevice", "CheckClientUpdate",
+            "GetAccount", "BindThisDevice", "UnbindDevice", "CheckClientUpdate", "GetClientUpdateProgress",
         )
         private val ANDROID_METHODS = listOf(
             "Connect", "Disconnect", "InstallClientUpdate", "IsAutostartSupported", "ListActiveApps", "TakePendingImportUUID",

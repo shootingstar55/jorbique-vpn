@@ -78,6 +78,8 @@ func showMainPanel(state func() mainState, act func(mainAction) error, ipInfo fu
 							return nil, fmt.Errorf("invalid request")
 						}
 						switch request.Action {
+						case "progress":
+							return clientupdate.GetProgress(), nil
 						case "check":
 							return clientupdate.Check(context.Background())
 						case "install":
