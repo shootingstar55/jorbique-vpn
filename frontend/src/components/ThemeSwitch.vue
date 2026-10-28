@@ -1,8 +1,4 @@
 <script setup>
-/**
- * Auto / Light / Dark, remembered per machine: one round button that steps
- * through the three, its icon showing the mode that is on now.
- */
 import { computed } from 'vue';
 import { NButton, NIcon, NTooltip } from 'naive-ui';
 import { setThemeMode, themeMode } from '../lib/theme.js';
@@ -12,17 +8,15 @@ import AppIcon from './AppIcon.vue';
 defineOptions({ inheritAttrs: false });
 const emit = defineEmits(['change']);
 
-const ORDER = ['system', 'light', 'dark'];
 const MODES = {
-  system: { icon: 'themeAuto', label: 'Тема: как в системе' },
   light: { icon: 'sun', label: 'Тема: светлая' },
   dark: { icon: 'moon', label: 'Тема: тёмная' },
 };
 
-const current = computed(() => MODES[themeMode.value] || MODES.system);
+const current = computed(() => MODES[themeMode.value] || MODES.dark);
 
 function next() {
-  const mode = ORDER[(ORDER.indexOf(themeMode.value) + 1) % ORDER.length];
+  const mode = themeMode.value === 'dark' ? 'light' : 'dark';
   setThemeMode(mode);
   emit('change', mode);
 }

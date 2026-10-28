@@ -42,8 +42,6 @@ const PATHS = {
     'M2 12h2', 'M20 12h2', 'M4.9 19.1l1.4-1.4', 'M17.7 6.3l1.4-1.4',
   ],
   moon: ['M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z'],
-  // A circle half filled in: the system decides which half wins.
-  themeAuto: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 3v18', 'M12 7h4.5', 'M12 11h7.5', 'M12 15h7', 'M12 19h3.5'],
 };
 
 const props = defineProps({

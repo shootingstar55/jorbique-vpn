@@ -14,11 +14,11 @@ import (
 //
 // The choice lives here instead, and every window is opened with it in its URL.
 const (
-	themeModeSystem = "system"
-	themeFileName   = "theme"
+	themeModeDefault = "dark"
+	themeFileName    = "theme"
 )
 
-var themeModes = map[string]bool{themeModeSystem: true, "dark": true, "light": true}
+var themeModes = map[string]bool{"dark": true, "light": true}
 
 // themeFilePath is under the user's own config directory: the menu bar runs as
 // the user, and this is their preference, not the daemon's. A variable so a test
@@ -32,19 +32,19 @@ var themeFilePath = func() string {
 	return filepath.Join(dir, "JorbiqueVPN", themeFileName)
 }
 
-// readThemeMode returns the stored mode, defaulting to following the system.
+// readThemeMode returns the stored light/dark choice, defaulting to dark.
 func readThemeMode() string {
 	path := themeFilePath()
 	if path == "" {
-		return themeModeSystem
+		return themeModeDefault
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return themeModeSystem
+		return themeModeDefault
 	}
 	mode := strings.ToLower(strings.TrimSpace(string(data)))
 	if !themeModes[mode] {
-		return themeModeSystem
+		return themeModeDefault
 	}
 	return mode
 }
