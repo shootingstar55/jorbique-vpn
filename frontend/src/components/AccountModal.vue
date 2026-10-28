@@ -49,16 +49,22 @@ async function load() {
 }
 
 watch(() => props.visible, (open) => {
+  ++epoch;
+  profile.value = null;
   if (open) load();
 }, { immediate: true });
 
 async function run(action, task, done) {
   if (acting.value) return;
+  const mine = ++epoch;
   acting.value = action;
   try {
-    profile.value = await task();
+    const next = await task();
+    if (mine !== epoch) return;
+    profile.value = next;
     emit('toast', done);
   } catch (e) {
+    if (mine !== epoch) return;
     emit('error', getErrMsg(e, 'Действие не выполнено'));
     await load();
   } finally {
@@ -76,7 +82,9 @@ function unbind(device) {
     title: 'Отвязать устройство',
     content: device.current
       ? 'Отвязать это устройство? Пока вы не привяжете его снова, VPN на нём не подключится.'
-      : `Отвязать «${device.name}»? На нём VPN перестанет подключаться, а место освободится.`,
+      : device.source === 'sub'
+        ? `Отвязать «${device.name}»? Место освободится. Если приложение снова обновит подписку, оно займёт свободное место опять.`
+        : `Отвязать «${device.name}»? На нём VPN перестанет подключаться, а место освободится.`,
     positiveText: 'Отвязать',
     negativeText: labels.cancel,
     onPositiveClick: () => run(`unbind:${device.id}`, () => accountAPI.unbind(device.id), 'Устройство отвязано'),

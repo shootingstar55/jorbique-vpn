@@ -9,6 +9,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { NAlert, NButton, NCard, NIcon, NSpin, NSwitch, useMessage } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
+import ClientUpdateNotice from './ClientUpdateNotice.vue';
 import ConnectionCheck from './ConnectionCheck.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ProtocolList from './ProtocolList.vue';
@@ -164,7 +165,7 @@ onBeforeUnmount(() => clearInterval(timer));
 </script>
 
 <template>
-  <div class="main">
+  <div class="main client-screen">
     <NCard class="pane pane--head" :bordered="false">
       <div class="head">
         <div class="head__logo" :class="{ 'is-protected': connected }">
@@ -182,21 +183,24 @@ onBeforeUnmount(() => clearInterval(timer));
 
     <NCard class="pane pane--hero" :bordered="false">
       <NSpin :show="loading && !vpns.length">
-        <button
-          type="button"
-          class="ring"
-          :class="ringState"
-          :disabled="!!pending"
-          @click="toggleConnection"
-        >
-          <span class="ring__pulse" aria-hidden="true"></span>
-          <span class="ring__glyph">⏻</span>
-        </button>
-        <ConnectionCheck v-if="pending && !['Отключение', 'Выход'].includes(pending)" :progress="state.connectionProgress" />
-        <template v-else>
-          <h2 class="hero__headline">{{ headline }}</h2>
-          <p class="hero__sub">{{ subline }}</p>
-        </template>
+        <div class="hero">
+          <button
+            type="button"
+            class="ring"
+            :class="ringState"
+            :disabled="!!pending"
+            :aria-label="pending || (connected ? 'Отключить' : 'Подключить')"
+            @click="toggleConnection"
+          >
+            <span class="ring__pulse" aria-hidden="true"></span>
+            <NIcon :size="23"><AppIcon name="power" /></NIcon>
+          </button>
+          <ConnectionCheck v-if="pending && !['Отключение', 'Выход'].includes(pending)" :progress="state.connectionProgress" />
+          <div v-else class="hero__text" aria-live="polite" aria-atomic="true">
+            <h2 class="hero__headline">{{ headline }}</h2>
+            <p class="hero__sub">{{ subline }}</p>
+          </div>
+        </div>
       </NSpin>
     </NCard>
 
@@ -236,152 +240,8 @@ onBeforeUnmount(() => clearInterval(timer));
       <p class="daemon">{{ state.daemon || 'Служба: —' }}</p>
     </NCard>
 
+    <ClientUpdateNotice />
+
     <AccountModal v-model:visible="accountOpen" @error="message.error($event)" @toast="message.success($event)" />
   </div>
 </template>
-
-<style scoped>
-.main {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-}
-
-.pane {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-}
-
-/* Naive's default card padding is sized for a page, not for a 560pt window. */
-.pane :deep(.n-card-content) {
-  padding: 10px 12px;
-}
-
-.head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.head__text {
-  flex: 1;
-  min-width: 0;
-}
-
-/* The same badge the Windows header carries, lit by the same brand glow while a
-   tunnel is up. */
-.head__logo {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-}
-
-.head__logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transition: filter 0.35s ease, transform 0.35s ease;
-}
-
-.head__logo.is-protected img {
-  filter: drop-shadow(0 0 10px rgba(255, 206, 0, 0.55)) drop-shadow(0 0 14px rgba(255, 28, 3, 0.4));
-  transform: scale(1.04);
-}
-
-.head h1 {
-  margin: 0;
-  font-size: 16px;
-  color: var(--text);
-}
-
-.head__note {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pane--hero {
-  text-align: center;
-}
-
-/* Shape, motion and the connected glow are in styles.css; this panel's
-   surface, spacing and resting colours are its own. */
-.ring {
-  margin: 0 auto 8px;
-  font-size: 23px;
-  background: var(--surface);
-  color: var(--ring, var(--text-muted));
-}
-
-.ring.is-off {
-  --ring: var(--border-hover);
-  color: var(--text-muted);
-}
-
-.ring.is-on {
-  color: #10b981;
-}
-
-.ring.is-pending {
-  color: #f59e0b;
-}
-
-.hero__headline {
-  margin: 0;
-  font-size: 18px;
-  color: var(--text);
-}
-
-.hero__sub {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.switches {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.switches__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.switches b {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.switches small {
-  display: block;
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-}
-
-.daemon {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-</style>

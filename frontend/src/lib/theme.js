@@ -208,7 +208,7 @@ const lightCommon = Object.fromEntries(
 // Both themes, because a radius is not a colour and the filter above would drop
 // it: Naive's own default is 3px, which draws the buttons and the theme switch
 // as rectangles.
-const shape = { borderRadius: '12px', borderRadiusSmall: '9px' };
+const shape = { fontFamily: 'Onest, sans-serif', borderRadius: '12px', borderRadiusSmall: '9px' };
 
 export const naiveThemeOverrides = computed(() =>
   isDark.value

@@ -31,6 +31,13 @@ import (
 )
 
 func main() {
+	if handled, err := applyClientUpdate(os.Args[1:]); handled {
+		if err != nil {
+			fmt.Fprintln(os.Stdout, "error")
+			showErrorBox("Не удалось обновить клиент: " + err.Error())
+		}
+		return
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			writeStartupError(fmt.Sprintf("panic: %v", r), false)
@@ -308,9 +315,8 @@ func isLogonAutostartArg(args []string) bool {
 
 // The size the window opens at, in logical pixels.
 const (
-	// The macOS panel's 560pt plus the Windows frame. It was 754 (580 * 1.3),
-	// which stretched every row into a wide strip with empty middles.
-	windowWidth = 580
+	// The main view uses the same logical width on Windows and macOS.
+	windowWidth = 560
 	// The screen is 634px of content with the IP card empty and roughly 710
 	// with a lease in it; 820 clears that with room for an IPv6 address, which
 	// wraps and takes a line more. It used to be 960, which is what pushed the

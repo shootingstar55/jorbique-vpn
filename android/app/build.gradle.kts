@@ -88,6 +88,7 @@ val copyWebUi by tasks.registering(Copy::class) {
 tasks.named("preBuild") { dependsOn(copyWebUi) }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     // core.aar is the Go engine (android/core), built by gomobile: see
     // android/build-core.sh.
     implementation(files("libs/core.aar"))

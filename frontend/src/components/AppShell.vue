@@ -157,13 +157,8 @@ function onIgnoreListSaved() {
   min-height: 0;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 12px;
+  padding: 0;
   overflow-y: auto;
 }
 
-@media (min-width: 640px) {
-  .shell {
-    padding: 10px 16px;
-  }
-}
 </style>

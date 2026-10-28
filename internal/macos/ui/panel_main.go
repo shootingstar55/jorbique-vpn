@@ -3,8 +3,10 @@
 package ui
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"jorbiquevpn/internal/clientupdate"
 	"os"
 	"path/filepath"
 
@@ -68,6 +70,22 @@ func showMainPanel(state func() mainState, act func(mainAction) error, ipInfo fu
 				// service over the tunnel, and the card asks for it on its own
 				// schedule — every few minutes, or when the user presses refresh.
 				map[string]func(json.RawMessage) (any, error){
+					"client-update": func(body json.RawMessage) (any, error) {
+						var request struct {
+							Action string `json:"action"`
+						}
+						if err := json.Unmarshal(body, &request); err != nil {
+							return nil, fmt.Errorf("invalid request")
+						}
+						switch request.Action {
+						case "check":
+							return clientupdate.Check(context.Background())
+						case "install":
+							return nil, clientupdate.Install(context.Background(), nil)
+						default:
+							return nil, fmt.Errorf("invalid action")
+						}
+					},
 					"ipinfo": func(body json.RawMessage) (any, error) {
 						var request struct {
 							Force bool `json:"force"`
