@@ -164,11 +164,7 @@ func DownloadLatest(ctx context.Context) (string, error) {
 }
 
 func download(ctx context.Context, p packageInfo) (string, error) {
-	root := filepath.Join(os.TempDir(), "jorbique-client-updates")
-	if err := os.MkdirAll(root, 0700); err != nil {
-		return "", err
-	}
-	dir, err := os.MkdirTemp(root, "release-")
+	dir, err := newStageDir()
 	if err != nil {
 		return "", err
 	}
