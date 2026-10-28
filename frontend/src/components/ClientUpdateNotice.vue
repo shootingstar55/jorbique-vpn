@@ -66,7 +66,7 @@ onBeforeUnmount(() => clearInterval(timer));
       <span>Последняя версия <b>{{ checking ? 'Проверяем…' : (status.version || 'Не удалось узнать') }}</b></span>
     </div>
     <div v-if="status.available" class="client-update__actions">
-      <NButton type="primary" size="small" :loading="installing" :disabled="checking" @click="confirmInstall">
+      <NButton class="client-update__install" type="primary" color="#5ff0ae" text-color="#061423" :loading="installing" :disabled="checking" @click="confirmInstall">
         {{ installing ? 'Скачиваем и проверяем…' : 'Обновиться' }}
       </NButton>
     </div>
@@ -78,4 +78,5 @@ onBeforeUnmount(() => clearInterval(timer));
 .client-update__versions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; color: var(--text-dim); font-size: 12px; }
 .client-update__versions b { color: var(--text); font-weight: 600; }
 .client-update__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; }
+.client-update__install { min-width: 160px; font-weight: 700; box-shadow: 0 4px 20px rgba(95, 240, 174, .35); }
 </style>
