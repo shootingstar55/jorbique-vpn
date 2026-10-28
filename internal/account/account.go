@@ -60,7 +60,15 @@ var (
 	ErrUnknownUUID = errors.New("UUID не найден на сервере")
 	ErrUnavailable = errors.New("Личный кабинет сейчас недоступен. Проверьте интернет и попробуйте ещё раз")
 	ErrNotFound    = errors.New("Устройство уже отвязано")
+	ErrOutdated    = errors.New("Эта версия Jorbique VPN устарела. Скачайте новую: https://" + constants.ServerHost + "/private-vpn-client")
 )
+
+// outdated is ErrOutdated with the server's own wording, which names where to
+// download the current client.
+type outdated struct{ message string }
+
+func (e outdated) Error() string        { return e.message }
+func (e outdated) Is(target error) bool { return target == ErrOutdated }
 
 var baseURL = "https://" + constants.ServerHost + "/account/v1/"
 
@@ -117,7 +125,8 @@ func Unbind(ctx context.Context, uuid, deviceID string) (*Profile, error) {
 }
 
 // Gate is the check before a connect. It returns ErrLimit or ErrUnbound when
-// the server refuses this device, and nil for anything else: no network, a
+// the server refuses this device, ErrOutdated when it refuses this client
+// version, and nil for anything else: no network, a
 // server without the account service, a slow answer. The tunnel is never
 // held back by the account service being away.
 func Gate(ctx context.Context, uuid string, logf func(string)) error {
@@ -127,7 +136,7 @@ func Gate(ctx context.Context, uuid string, logf func(string)) error {
 	switch {
 	case err == nil:
 		return nil
-	case errors.Is(err, ErrLimit), errors.Is(err, ErrUnbound):
+	case errors.Is(err, ErrLimit), errors.Is(err, ErrUnbound), errors.Is(err, ErrOutdated):
 		return err
 	default:
 		if logf != nil {
@@ -187,6 +196,7 @@ func call(ctx context.Context, uuid, method, path string, body any) (*Profile, e
 	}
 	var refusal struct {
 		Error   string   `json:"error"`
+		Message string   `json:"message"`
 		Account *Profile `json:"account"`
 	}
 	_ = json.Unmarshal(data, &refusal)
@@ -197,6 +207,10 @@ func call(ctx context.Context, uuid, method, path string, body any) (*Profile, e
 		return refusal.Account, ErrLimit
 	case refusal.Error == "unbound":
 		return refusal.Account, ErrUnbound
+	case refusal.Error == "outdated" && strings.TrimSpace(refusal.Message) != "":
+		return nil, outdated{strings.TrimSpace(refusal.Message)}
+	case refusal.Error == "outdated":
+		return nil, ErrOutdated
 	case refusal.Error == "not_found":
 		return refusal.Account, ErrNotFound
 	}

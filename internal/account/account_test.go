@@ -66,6 +66,7 @@ func TestRefusals(t *testing.T) {
 		{403, `{"error":"limit","account":{"name":"egor","devices":[]}}`, ErrLimit},
 		{403, `{"error":"unbound","account":{"name":"egor"}}`, ErrUnbound},
 		{404, `{"error":"not_found","account":{"name":"egor"}}`, ErrNotFound},
+		{426, `{"error":"outdated"}`, ErrOutdated},
 		{401, `{"error":"unauthorized"}`, ErrUnknownUUID},
 		{502, `bad gateway`, ErrUnavailable},
 		{404, `<html>no account service</html>`, ErrUnavailable},
@@ -82,7 +83,20 @@ func TestRefusals(t *testing.T) {
 	}
 }
 
-// Gate holds the connect back only for the two refusals: anything else, the
+// An outdated client shows the server's message, which says where to download.
+func TestOutdatedShowsTheServerMessage(t *testing.T) {
+	_, done := fakeServer(t, 426, `{"error":"outdated","message":"Обновите Jorbique VPN: example.com/get"}`)
+	defer done()
+	err := Gate(context.Background(), testUUID, nil)
+	if !errors.Is(err, ErrOutdated) || err.Error() != "Обновите Jorbique VPN: example.com/get" {
+		t.Fatalf("outdated: %v", err)
+	}
+	if !strings.Contains(ErrOutdated.Error(), "private-vpn-client") {
+		t.Fatal("the default notice must say where to download")
+	}
+}
+
+// Gate holds the connect back only for the refusals: anything else, the
 // account service missing included, must not keep the user offline.
 func TestGate(t *testing.T) {
 	for status, body := range map[int]string{
