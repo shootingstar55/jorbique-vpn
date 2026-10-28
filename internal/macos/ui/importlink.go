@@ -3,9 +3,12 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"time"
 
+	"jorbiquevpn/internal/account"
 	"jorbiquevpn/internal/deeplink"
 	"jorbiquevpn/internal/macos/applekit"
 	"jorbiquevpn/internal/macos/core"
@@ -62,18 +65,29 @@ func (c *statusBarController) openLinks(urls []string) {
 			"В ссылке нет UUID пользователя. Откройте её ещё раз со страницы подписки.", applekit.AlertWarning)
 		return
 	}
+	needsSave := true
 	if c.gateP == nil {
 		cfg, _ := c.loadConfig()
-		if strings.EqualFold(singboxUUID(cfg), uuid) {
-			c.cmdOpenMainWindow()
-			return
-		}
+		needsSave = !strings.EqualFold(singboxUUID(cfg), uuid)
 	}
 	safeGo(func() {
-		res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand}, uuid)
-		applekit.RunOnMain(func() {
+		err := account.Import(context.Background(), uuid, func() error {
+			if !needsSave {
+				return nil
+			}
+			res := c.run.runWithStdin(c.exePath, []string{setSingboxConfigCommand}, uuid)
 			if res.status != 0 {
-				applekit.PresentAlert("Не удалось сохранить UUID", importLinkError(uuidGateError(res.stderr)), applekit.AlertWarning)
+				return errors.New(importLinkError(uuidGateError(res.stderr)))
+			}
+			return nil
+		})
+		applekit.RunOnMain(func() {
+			if err != nil {
+				applekit.PresentAlert("Не удалось импортировать UUID", importLinkError(err.Error()), applekit.AlertWarning)
+				return
+			}
+			if !needsSave {
+				c.cmdOpenMainWindow()
 				return
 			}
 			c.importAccepted()
@@ -98,7 +112,7 @@ func (c *statusBarController) importAccepted() {
 		}
 	}
 	c.cmdOpenMainWindow()
-	applekit.PresentAlert("UUID сохранён", "Ссылка со страницы подписки сработала. Можно подключаться.", applekit.AlertInformational)
+	applekit.PresentAlert("UUID сохранён", "Это устройство привязано к подписке. Можно подключаться.", applekit.AlertInformational)
 }
 
 // importLinkError puts the daemon's refusal in the words the first-run window
@@ -106,6 +120,8 @@ func (c *statusBarController) importAccepted() {
 func importLinkError(reason string) string {
 	text := strings.ToLower(reason)
 	switch {
+	case strings.Contains(text, "лимит устройств"):
+		return "Достигнут лимит устройств. Отвяжите ненужное устройство на странице подписки и откройте ссылку ещё раз."
 	case strings.Contains(text, "not registered") || strings.Contains(text, "unknown user uuid"):
 		return "Такого пользователя не существует. Проверьте ссылку на странице подписки."
 	case strings.Contains(text, "reach the server") || strings.Contains(text, "unreachable"):

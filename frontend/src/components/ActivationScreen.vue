@@ -47,7 +47,7 @@ async function activate() {
   checking.value = true;
   error.value = '';
   try {
-    const native = binding('ActivateUserUUID');
+    const native = binding(props.presetUuid ? 'ImportUserUUID' : 'ActivateUserUUID');
     if (native) {
       await native(value);
     } else {

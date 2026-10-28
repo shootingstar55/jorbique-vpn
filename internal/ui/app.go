@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"jorbiquevpn/internal/account"
+	"strings"
 	"sync"
 
 	"jorbiquevpn/internal/app"
@@ -71,6 +72,15 @@ func (a *App) HasUserUUID() bool {
 // ActivateUserUUID stores the UUID from the first-run screen once the server knows it.
 func (a *App) ActivateUserUUID(userUUID string) error {
 	return wrapBackendError(a.backend.ActivateUserUUID(userUUID))
+}
+
+func (a *App) ImportUserUUID(uuid string) error {
+	return account.Import(context.Background(), uuid, func() error {
+		if strings.EqualFold(strings.TrimSpace(uuid), a.backend.GetUserUUID()) {
+			return nil
+		}
+		return wrapBackendError(a.backend.SetUserUUID(uuid))
+	})
 }
 
 // SetVpnUserConfig saves user UUID, outbound toggles, and optional direct-domain hostnames (one per line).
