@@ -8,6 +8,7 @@ let checkResult = async () => ({ currentVersion: '1.0.0', version: '1.1.0', avai
 let settle;
 let installs = 0;
 const context = {
+  appVersion: '1.0.0\n',
   ref: value => ({ value }), onMounted: () => {}, onBeforeUnmount: () => {},
   useMessage: () => Object.fromEntries(['info', 'error', 'success'].map(type => [type, value => messages.push([type, value])])),
   useDialog: () => ({}), getErrMsg: (e, fallback) => e.message || fallback,
@@ -15,12 +16,22 @@ const context = {
 };
 runInNewContext(`${source}\nglobalThis.handlers = { check, install, status, checking, installing };`, context);
 const { check, install, status } = context.handlers;
+assert.equal(status.value.currentVersion, '1.0.0', 'installed version is known without a network request');
 await check();
 assert.equal(status.value.available, true);
 assert.equal(messages.length, 0, 'background checks stay quiet');
+checkResult = async () => ({ currentVersion: '1.0.0', version: '1.0.0', available: false });
+await check(true);
+assert.equal(status.value.available, false, 'equal versions do not offer an update');
+assert.equal(messages.pop()[0], 'info');
+checkResult = async () => ({ currentVersion: '1.0.0', version: '1.1.0', available: true });
+await check();
 checkResult = async () => { throw new Error('offline'); };
 await check();
 assert.equal(messages.length, 0, 'network failures must not interrupt the client');
+assert.equal(status.value.currentVersion, '1.0.0', 'offline checks preserve the installed version');
+assert.equal(status.value.version, '', 'failed checks do not present an old result as current');
+assert.equal(status.value.available, false);
 await check(true);
 assert.equal(messages[0][0], 'error');
 const pending = install();
@@ -30,4 +41,4 @@ assert.equal(context.handlers.installing.value, true);
 settle();
 await pending;
 assert.equal(context.handlers.installing.value, false);
-console.log('Client updates: quiet checks, visible manual errors, single installer');
+console.log('Client updates: version status, equal versions, offline checks, manual errors, single installer');
