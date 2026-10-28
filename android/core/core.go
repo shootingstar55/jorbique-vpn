@@ -145,6 +145,14 @@ func dispatch(method string, args []json.RawMessage) (any, error) {
 		return store.GetUserUUID(), nil
 	case "ActivateUserUUID", "SetUserUUID":
 		return nil, setUserUUID(stringArg(args, 0))
+	case "ImportUserUUID":
+		uuid := stringArg(args, 0)
+		return nil, account.Import(context.Background(), uuid, func() error {
+			if strings.EqualFold(strings.TrimSpace(uuid), store.GetUserUUID()) {
+				return nil
+			}
+			return setUserUUID(uuid)
+		})
 	case "IsConnected":
 		return IsConnected(), nil
 	case "CancelConnect":

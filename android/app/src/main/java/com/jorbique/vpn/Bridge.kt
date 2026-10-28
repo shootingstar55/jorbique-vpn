@@ -106,7 +106,7 @@ class Bridge(private val activity: MainActivity, private val webView: WebView) {
         private const val ICON_PX = 64
 
         private val GO_METHODS = listOf(
-            "HasUserUUID", "HasVpnUserConfig", "GetUserUUID", "ActivateUserUUID", "SetUserUUID",
+            "HasUserUUID", "HasVpnUserConfig", "GetUserUUID", "ActivateUserUUID", "SetUserUUID", "ImportUserUUID",
             "IsConnected", "CancelConnect", "GetConnectionProgress", "GetConnectionReport",
             "GetProfileProtocols", "GetAvailableOutbounds", "GetIPInfo",
             "GetDirectDomains", "SetDirectDomains",

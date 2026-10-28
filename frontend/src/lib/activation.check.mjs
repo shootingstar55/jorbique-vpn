@@ -18,4 +18,5 @@ assert.equal(advice('Не удалось связаться с сервером 
 assert.equal(advice('The Jorbique VPN Extended service is not running'), 'Служба Jorbique VPN Extended не запущена');
 assert.equal(advice('Permission error: set-singbox-config needs the Jorbique VPN Extended daemon, which is not running.'), 'Служба Jorbique VPN Extended не запущена');
 assert.equal(explainActivationError('Не удалось сохранить настройки'), 'Не удалось сохранить настройки');
+assert.match(explainActivationError('Достигнут лимит устройств.'), /на странице подписки/);
 console.log('activation ok');

@@ -2,12 +2,70 @@ package account
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
+
+func TestImportBindsBeforeSavingAndPreservesAccountOnRefusal(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		want   error
+	}{
+		{"bound", 200, `{"current_device":{"bound":true}}`, nil},
+		{"limit", 403, `{"error":"limit"}`, ErrLimit},
+		{"unknown", 401, `{"error":"unauthorized"}`, ErrUnknownUUID},
+		{"unavailable", 503, `unavailable`, ErrUnavailable},
+		{"not bound", 200, `{"current_device":{"bound":false}}`, ErrUnbound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var requested bool
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body struct {
+					Bind bool `json:"bind"`
+				}
+				if json.NewDecoder(r.Body).Decode(&body) != nil || !body.Bind || r.Header.Get("Authorization") != "Bearer "+testUUID {
+					t.Error("import must explicitly bind the imported UUID")
+				}
+				requested = true
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+			old := baseURL
+			baseURL = srv.URL + "/account/v1/"
+			defer func() { baseURL = old }()
+			saved := "previous-account"
+			err := Import(context.Background(), testUUID, func() error {
+				if !requested {
+					t.Fatal("saved before binding")
+				}
+				saved = testUUID
+				return nil
+			})
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("got %v, want %v", err, tc.want)
+			}
+			if (saved == testUUID) != (tc.want == nil) {
+				t.Fatal("refused import changed the saved UUID")
+			}
+		})
+	}
+}
+
+func TestImportDoesNotHideSaveFailure(t *testing.T) {
+	_, done := fakeServer(t, 200, `{"current_device":{"bound":true}}`)
+	defer done()
+	want := errors.New("disk full")
+	if err := Import(context.Background(), testUUID, func() error { return want }); !errors.Is(err, want) {
+		t.Fatalf("save failure lost: %v", err)
+	}
+}
 
 const testUUID = "11111111-2222-4333-8444-555555555555"
 

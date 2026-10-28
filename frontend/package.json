@@ -4,7 +4,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test": "node src/lib/activation.check.mjs && node src/lib/outbounds.check.mjs && node src/lib/theme.check.mjs && node src/components/RouteRulesPanel.check.mjs && node src/components/config-safety.check.mjs && node src/components/AccountModal.check.mjs && node src/components/ClientUpdateNotice.check.mjs"
+    "test": "node src/lib/activation.check.mjs && node src/lib/outbounds.check.mjs && node src/lib/theme.check.mjs && node src/components/RouteRulesPanel.check.mjs && node src/components/config-safety.check.mjs && node src/components/AccountModal.check.mjs && node src/components/ClientUpdateNotice.check.mjs && node src/components/import.check.mjs"
   },
   "dependencies": {
     "naive-ui": "^2.44.1",

@@ -10,6 +10,7 @@ export function looksLikeUUID(value) {
 
 export function explainActivationError(message) {
   const text = String(message || '');
+  if (/Достигнут лимит устройств/i.test(text)) return 'Достигнут лимит устройств. Отвяжите ненужное устройство на странице подписки и откройте ссылку ещё раз.';
   if (/invalid user uuid|неверный формат uuid/i.test(text)) return 'Это не UUID. Он выглядит так: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.';
   if (/not registered|unknown user uuid|не зарегистрирован|не существует|нет на сервере/i.test(text)) return 'Такого пользователя не существует. Проверьте UUID и попробуйте ещё раз.';
   if (/daemon, which is not running|service is not running/i.test(text)) return 'Служба Jorbique VPN Extended не запущена. Переустановите приложение и попробуйте ещё раз.';

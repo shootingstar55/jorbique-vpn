@@ -2,7 +2,17 @@
 
 package ui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestImportDeviceLimitPointsToTheSubscriptionPage(t *testing.T) {
+	message := importLinkError("Достигнут лимит устройств. Откройте «Личный кабинет».")
+	if !strings.Contains(message, "на странице подписки") {
+		t.Fatal(message)
+	}
+}
 
 func TestUUIDGateErrorShowsTheChildsReason(t *testing.T) {
 	for stderr, want := range map[string]string{

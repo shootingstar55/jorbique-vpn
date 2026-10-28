@@ -109,12 +109,25 @@ func Open(ctx context.Context, uuid string) (*Profile, error) {
 }
 
 // CheckIn reports this device to the server. A new device is bound while a
-// slot is free; bind is the account screen's button, the only way back for a
-// device the user unbound. On ErrLimit and ErrUnbound the profile is returned
+// slot is free; bind is an explicit account-button or UUID-import request,
+// the only way back for a device the user unbound. On ErrLimit and ErrUnbound the profile is returned
 // too, so the screen can list the devices.
 func CheckIn(ctx context.Context, uuid string, bind bool) (*Profile, error) {
 	_, name, osName := ThisDevice(ctx)
 	return call(ctx, uuid, http.MethodPost, "devices/current", map[string]any{"name": name, "os": osName, "bind": bind})
+}
+
+// Import explicitly binds/rebinds before saving. A refused import must not
+// replace the user's stored UUID, especially when the device limit is full.
+func Import(ctx context.Context, uuid string, save func() error) error {
+	profile, err := CheckIn(ctx, uuid, true)
+	if err != nil {
+		return err
+	}
+	if profile == nil || !profile.CurrentDevice.Bound {
+		return ErrUnbound
+	}
+	return save()
 }
 
 // Unbind removes a device from the account; it may be this one.

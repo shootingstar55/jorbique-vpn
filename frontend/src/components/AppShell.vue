@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { binding } from '../lib/bindings.js';
 import { getErrMsg } from '../lib/errors.js';
@@ -65,17 +65,16 @@ async function takeImportLink() {
     const uuid = String((await take()) || '').trim().toLowerCase();
     if (!looksLikeUUID(uuid)) return;
     if (!activated.value) {
+      importUuid.value = '';
+      await nextTick();
       importUuid.value = uuid;
       return;
     }
     const current = binding('GetUserUUID');
-    if (current && String((await current()) || '').trim().toLowerCase() === uuid) {
-      message.info('Этот UUID уже сохранён. Можно подключаться.');
-      return;
-    }
-    await binding('SetUserUUID')(uuid);
-    message.success('UUID из ссылки сохранён. Можно подключаться.');
-    mainScreen.value?.reconnectIfConnected();
+    const changed = !current || String((await current()) || '').trim().toLowerCase() !== uuid;
+    await binding('ImportUserUUID')(uuid);
+    message.success('UUID из ссылки сохранён, устройство привязано. Можно подключаться.');
+    if (changed) mainScreen.value?.reconnectIfConnected();
   } catch (e) {
     message.error(explainActivationError(getErrMsg(e, '')));
   } finally {
