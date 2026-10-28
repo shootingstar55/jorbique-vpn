@@ -903,17 +903,11 @@ onBeforeUnmount(() => {
   font-size: 18px;
 }
 
-/* Three equal columns are narrower than "Изменить UUID" at phone width. */
+/* Four labels do not fit across a phone: with «Личный кабинет» added,
+   «Исключения» ran off the screen. Two by two gives each one room on a 360px
+   phone, in the same two rows as before. */
 .screen--phone .actions {
-  grid-template-columns: repeat(3, auto);
-  justify-content: space-between;
-  gap: 2px;
-}
-
-/* At 360px the three labels only fit with the pills' side padding cut. */
-.screen--phone .actions :deep(.n-button) {
-  padding: 3px 4px;
-  font-size: 12.5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .screen--phone .brand__logo {
