@@ -1,11 +1,12 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { NAlert, NButton, useDialog, useMessage } from 'naive-ui';
+import { NButton, useDialog, useMessage } from 'naive-ui';
+import appVersion from '../../../VERSION?raw';
 import { binding } from '../lib/bindings.js';
 import { panelAPI } from '../lib/panel-api.js';
 import { getErrMsg } from '../lib/errors.js';
 
-const status = ref(null);
+const status = ref({ currentVersion: appVersion.trim(), version: '', available: false });
 const checking = ref(false);
 const installing = ref(false);
 const message = useMessage();
@@ -17,14 +18,13 @@ function call(action) {
   return native ? native() : panelAPI.ask('client-update', { action });
 }
 
-async function check(manual = false) {
+async function check() {
   if (checking.value || installing.value) return;
   checking.value = true;
   try {
     status.value = await call('check');
-    if (manual && !status.value?.available) message.info('Установлена актуальная версия клиента');
-  } catch (e) {
-    if (manual) message.error(getErrMsg(e, 'Не удалось проверить обновления'));
+  } catch {
+    status.value = { ...status.value, version: '', available: false };
   } finally {
     checking.value = false;
   }
@@ -61,22 +61,22 @@ onBeforeUnmount(() => clearInterval(timer));
 
 <template>
   <div class="client-update">
-    <NAlert v-if="status?.available" type="info" :bordered="false" :show-icon="false">
-      <div class="client-update__offer">
-        <span>Доступна версия {{ status.version }}</span>
-        <NButton type="primary" size="small" :loading="installing" :disabled="checking" @click="confirmInstall">
-          {{ installing ? 'Скачиваем и проверяем…' : 'Обновить' }}
-        </NButton>
-      </div>
-    </NAlert>
-    <NButton quaternary size="tiny" :loading="checking" :disabled="installing" @click="check(true)">
-      <span v-if="status?.currentVersion">v{{ status.currentVersion }} · </span>Проверить обновления
-    </NButton>
+    <div class="client-update__versions" aria-live="polite" :aria-busy="checking">
+      <span>Текущая версия <b>{{ status.currentVersion }}</b></span>
+      <span>Последняя версия <b>{{ checking ? 'Проверяем…' : (status.version || 'Не удалось узнать') }}</b></span>
+    </div>
+    <div v-if="status.available" class="client-update__actions">
+      <NButton class="client-update__install" type="primary" color="#5ff0ae" text-color="#061423" :loading="installing" :disabled="checking" @click="confirmInstall">
+        {{ installing ? 'Скачиваем и проверяем…' : 'Обновиться' }}
+      </NButton>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .client-update { width: 100%; text-align: center; }
-.client-update__offer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.client-update > .n-button { margin-top: 4px; color: var(--text-dim); }
+.client-update__versions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; color: var(--text-dim); font-size: 12px; }
+.client-update__versions b { color: var(--text); font-weight: 600; }
+.client-update__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; }
+.client-update__install { min-width: 160px; font-weight: 700; box-shadow: 0 4px 20px rgba(95, 240, 174, .35); }
 </style>
