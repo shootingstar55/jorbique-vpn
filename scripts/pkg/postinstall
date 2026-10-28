@@ -147,4 +147,22 @@ fi
 if [ -z "$PREFIX" ] && /bin/launchctl print system/one.jorbique.vpn >/dev/null 2>&1; then
   /bin/launchctl kickstart -k system/one.jorbique.vpn 2>/dev/null || true
 fi
+
+# Restart loaded user interfaces only after installation succeeds: replacing the binary leaves the old process running.
+if [ -z "$PREFIX" ]; then
+  for uid in $(/bin/ps -axo uid= | /usr/bin/sort -u); do
+    case "$uid" in ''|*[!0-9]*|0) continue ;; esac
+    job="gui/${uid}/one.jorbique.vpn.bar"
+    if /bin/launchctl print "$job" >/dev/null 2>&1; then
+      if /bin/launchctl kickstart -k "$job"; then
+        # asuser selects the GUI session; sudo drops root before opening the app.
+        /bin/launchctl asuser "$uid" /usr/bin/sudo -H -u "#$uid" \
+          /usr/bin/open -a "/Applications/Jorbique VPN Extended.app" \
+          || echo "postinstall: could not reopen the client window for user $uid" >&2
+      else
+        echo "postinstall: could not restart $job; quit and reopen Jorbique VPN Extended" >&2
+      fi
+    fi
+  done
+fi
 exit 0
