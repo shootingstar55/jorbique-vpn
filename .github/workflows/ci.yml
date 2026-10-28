@@ -21,7 +21,7 @@ defaults:
 env:
   CGO_ENABLED: '0'
   GOFLAGS: -mod=readonly
-  GO_VERSION: '1.25.14'
+  GO_VERSION: '1.26.10'
 
 jobs:
   frontend:
@@ -297,7 +297,7 @@ jobs:
           else
             echo '::warning::No ANDROID_KEYSTORE_BASE64 secret: the APK is signed with a debug key.'
           fi
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon testReleaseUnitTest assembleRelease
           apk=app/build/outputs/apk/release/app-release.apk
           unzip -l "$apk" | grep -F lib/arm64-v8a/libgojni.so
           unzip -l "$apk" | grep -F assets/web/index.html

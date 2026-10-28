@@ -2,6 +2,7 @@ package httpsclient
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -24,6 +25,21 @@ func ForHost(host string, timeout time.Duration) *http.Client {
 	}
 	return &http.Client{
 		Timeout: timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			first := via[0]
+			if first.URL.Scheme == "https" && req.URL.Scheme != "https" {
+				return fmt.Errorf("refusing redirect from https to %s", req.URL.Scheme)
+			}
+			// Account credentials and device IDs belong to the original origin only.
+			if first.Header.Get("Authorization") != "" &&
+				(req.URL.Scheme != first.URL.Scheme || !strings.EqualFold(req.URL.Host, first.URL.Host)) {
+				return fmt.Errorf("refusing authenticated redirect to another origin")
+			}
+			return nil
+		},
 		Transport: versioned{&http.Transport{
 			Proxy:           http.ProxyFromEnvironment,
 			DialContext:     (&net.Dialer{Timeout: 30 * time.Second}).DialContext,

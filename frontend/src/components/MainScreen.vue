@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { NButton, NCard, NIcon, NModal, NProgress, NSwitch } from 'naive-ui';
 import AppIcon from './AppIcon.vue';
+import ClientUpdateNotice from './ClientUpdateNotice.vue';
 import IpInfoCard from './IpInfoCard.vue';
 import ThemeSwitch from './ThemeSwitch.vue';
 import ConnectionCheck from './ConnectionCheck.vue';
@@ -522,16 +523,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="screen" :class="{ 'screen--phone': isAndroid }">
+  <div class="screen client-screen" :class="{ 'screen--phone': isAndroid }">
     <!-- Identity -->
     <NCard class="pane" :bordered="false">
-      <div class="brand">
-        <div class="brand__logo" :class="{ 'is-protected': connected }">
-          <img :src="appIconUrl" alt="" width="48" height="48" />
+      <div class="head">
+        <div class="head__logo" :class="{ 'is-protected': connected }">
+          <img :src="appIconUrl" alt="" width="40" height="40" />
         </div>
-        <div class="brand__text">
+        <div class="head__text">
           <h1>Jorbique VPN Extended</h1>
-          <p>Лучшее подключение выбирается автоматически</p>
+          <p class="head__note">Лучшее подключение выбирается автоматически</p>
         </div>
         <ThemeSwitch />
       </div>
@@ -549,13 +550,13 @@ onBeforeUnmount(() => {
           @click="onPrimaryAction"
         >
           <span class="ring__pulse" aria-hidden="true"></span>
-          <NIcon :size="isAndroid ? 44 : 38" class="ring__icon"><AppIcon name="power" /></NIcon>
+          <NIcon :size="isAndroid ? 44 : 23" class="ring__icon"><AppIcon name="power" /></NIcon>
         </button>
 
         <ConnectionCheck v-if="transition?.phase === 'connecting'" :progress="connectionProgress" />
         <div v-else class="hero__text" aria-live="polite" aria-atomic="true">
           <p class="hero__headline">{{ headline }}</p>
-          <p class="hero__subline">{{ subline }}</p>
+          <p class="hero__sub">{{ subline }}</p>
         </div>
       </div>
     </NCard>
@@ -568,10 +569,11 @@ onBeforeUnmount(() => {
     <NCard class="pane" :bordered="false">
       <div v-if="autostartSupported" class="setting">
         <div class="setting__text">
-          <p class="setting__title">Запускать вместе с Windows</p>
+          <p id="autostart-label" class="setting__title">Запускать вместе с Windows</p>
         </div>
         <NSwitch
           :value="autostartEnabled"
+          aria-labelledby="autostart-label"
           :disabled="autostartDisabled"
           :loading="autostartSwitching"
           @update:value="setAutostart"
@@ -579,24 +581,26 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="actions">
-        <NButton quaternary @click="emit('openAccount')">
+        <NButton tertiary @click="emit('openAccount')">
           <template #icon><NIcon><AppIcon name="user" /></NIcon></template>
           Личный кабинет
         </NButton>
-        <NButton quaternary :disabled="busy" @click="emit('openVpnConfig')">
+        <NButton tertiary :disabled="busy" @click="emit('openVpnConfig')">
           <template #icon><NIcon><AppIcon name="settings" /></NIcon></template>
           Изменить UUID
         </NButton>
-        <NButton quaternary @click="emit('openIgnoreApps')">
+        <NButton tertiary @click="emit('openIgnoreApps')">
           <template #icon><NIcon><AppIcon name="apps" /></NIcon></template>
           Исключения
         </NButton>
-        <NButton quaternary @click="emit('openLogs')">
+        <NButton tertiary @click="emit('openLogs')">
           <template #icon><NIcon><AppIcon name="logs" /></NIcon></template>
           {{ labels.logs }}
         </NButton>
       </div>
     </NCard>
+
+    <ClientUpdateNotice />
 
     <!-- sing-box bootstrap: blocking, no way out; the next launch retries on failure -->
     <NModal
@@ -610,8 +614,8 @@ onBeforeUnmount(() => {
       :close-on-esc="false"
     >
       <div class="bootstrap">
-        <div class="brand__logo">
-          <img :src="appIconUrl" alt="" width="48" height="48" />
+        <div class="head__logo">
+          <img :src="appIconUrl" alt="" width="40" height="40" />
         </div>
         <p class="bootstrap__title">{{ bootstrapTitle }}</p>
         <p class="bootstrap__label">{{ bootstrapLabel }}</p>
@@ -628,235 +632,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/*
- * The same column the macOS panel draws: 560px, centred. A widened window gets
- * margins rather than stretched rows, which read as one wide empty strip.
- */
-.screen {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  max-width: 560px;
-  margin: 0 auto;
-}
-
-/* Naive's card gives the surface and radius; the blur and the lift are ours. */
-.pane {
-  backdrop-filter: blur(18px);
-  box-shadow: 0 30px 60px -30px var(--surface-sunken);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-}
-
-.pane--hero {
-  border-color: rgba(148, 163, 184, 0.16);
-}
-
-/* Naive's medium card pads 19px/24px, which on four stacked cards is most of
-   the window's height spent on air. */
-.screen .pane :deep(.n-card-content) {
-  padding: 10px 14px;
-}
-
-/* --- Identity --- */
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand__logo {
-  width: 28px;
-  height: 32px;
-  flex-shrink: 0;
-}
-
-.brand__logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transition: filter 0.35s ease, transform 0.35s ease;
-}
-
-/* The yellow/red glow the old header had, kept as the one brand flourish. */
-.brand__logo.is-protected img {
-  filter: drop-shadow(0 0 10px rgba(255, 206, 0, 0.55)) drop-shadow(0 0 14px rgba(255, 28, 3, 0.4));
-  transform: scale(1.04);
-}
-
-.brand__text {
-  min-width: 0;
-  flex: 1;
-}
-
-.brand__text h1 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--text);
-}
-
-.brand__text p {
-  margin: 1px 0 0;
-  font-size: 12px;
-  color: var(--text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.brand__pending {
-  font-style: italic;
-  opacity: 0.75;
-}
-
-/* --- Connection --- */
-
-.hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-}
-
-/* Shape, motion and the connected glow are in styles.css; this window's
-   surface, size and resting colours are its own. */
-.ring {
-  width: 68px;
-  height: 68px;
-  background: radial-gradient(circle at 50% 35%, var(--surface), var(--surface-sunken));
-  color: var(--ring, var(--text-dim));
-}
-
-.ring.is-off {
-  --ring: var(--border);
-  color: var(--text-dim);
-}
-
-.ring.is-on {
-  color: #34d399;
-}
-
-.ring.is-pending {
-  color: #fbbf24;
-}
-
-.hero__text {
-  text-align: center;
-}
-
-.hero__headline {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text);
-}
-
-.hero__subline {
-  margin: 2px 0 0;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-/* --- Settings and actions --- */
-
-.setting {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid var(--border);
-}
-
-.setting__text {
-  flex: 1;
-  min-width: 0;
-}
-
-.setting__title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-
-.actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-/* A window this short is one the screen would not give more of: 1080p at 150%
-   leaves 624 logical pixels, and the layout above needs 671. Rather than a
-   scrollbar, the same screen gets denser — the ring, the headline and the
-   padding come down together, which is the last 47px. */
-@media (max-height: 700px) {
-  .ring {
-    width: 58px;
-    height: 58px;
-  }
-
-  .hero {
-    gap: 6px;
-  }
-
-  .hero__headline {
-    font-size: 16px;
-  }
-
-  .screen .pane :deep(.n-card-content) {
-    padding: 6px 12px;
-  }
-
-  .screen {
-    gap: 4px;
-  }
-
-  .setting {
-    padding-bottom: 6px;
-    margin-bottom: 6px;
-  }
-
-  .actions :deep(.n-button) {
-    min-height: 26px;
-  }
-
-  .hero-row {
-    gap: 8px;
-  }
-
-  /* The line under the headline repeats what the ring already shows, and it is
-     the first thing to go when the screen is this short. */
-  .hero__subline {
-    display: none;
-  }
-}
-
-/* The longest label ("Ignore apps/domains") sets the width here: at the default
-   button size it overflowed its own pill. Smaller type and tighter padding fit it
-   whole rather than clipping it or wrapping the row to four columns. */
-.actions :deep(.n-button) {
-  font-size: 13px;
-  padding: 3px 8px;
-  height: auto;
-  min-height: 28px;
-}
-
-/* The label sits in a fixed-height pill, so a descender (the tail of a "g" or a
-   "p") lands below the line box and gets clipped. Room to breathe instead of a
-   clip: the content is allowed its own line height and the pill grows to match. */
-.actions :deep(.n-button__content) {
-  min-width: 0;
-  white-space: nowrap;
-  line-height: 1.5;
-}
-
 /*
  * A phone screen is a full column, taller than any desktop window, and the
  * cards alone fill its top half. The connection card takes the rest: the ring
@@ -894,12 +669,12 @@ onBeforeUnmount(() => {
   font-size: 20px;
 }
 
-.screen--phone .hero__subline {
+.screen--phone .hero__sub {
   display: block;
   font-size: 13px;
 }
 
-.screen--phone .brand__text h1 {
+.screen--phone .head h1 {
   font-size: 18px;
 }
 
@@ -910,12 +685,23 @@ onBeforeUnmount(() => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.screen--phone .brand__logo {
+.screen--phone .head__logo {
   width: 36px;
   height: 40px;
 }
 
 /* --- Bootstrap --- */
+
+.bootstrap .head__logo {
+  width: 40px;
+  height: 40px;
+}
+
+.bootstrap .head__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 
 .bootstrap {
   display: flex;
@@ -926,7 +712,7 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.bootstrap .brand__logo {
+.bootstrap .head__logo {
   margin-bottom: 6px;
 }
 

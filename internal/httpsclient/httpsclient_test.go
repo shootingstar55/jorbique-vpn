@@ -2,8 +2,10 @@ package httpsclient
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +31,58 @@ func TestForHost(t *testing.T) {
 	}
 	if tr.TLSClientConfig.VerifyPeerCertificate != nil || tr.TLSClientConfig.InsecureSkipVerify {
 		t.Error("the transport must verify certificates the ordinary way")
+	}
+}
+
+func TestRedirectBoundaries(t *testing.T) {
+	for _, authenticated := range []bool{false, true} {
+		t.Run(fmt.Sprint(authenticated), func(t *testing.T) {
+			for _, downgrade := range []bool{false, true} {
+				called := false
+				handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true })
+				var target *httptest.Server
+				if downgrade {
+					target = httptest.NewServer(handler)
+				} else {
+					target = httptest.NewTLSServer(handler)
+				}
+				defer target.Close()
+				origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/same-origin" {
+						w.WriteHeader(http.StatusNoContent)
+						return
+					}
+					location := target.URL
+					if r.URL.Path == "/start" {
+						location = "/same-origin"
+					}
+					http.Redirect(w, r, location, http.StatusTemporaryRedirect)
+				}))
+				defer origin.Close()
+				client := ForHost("127.0.0.1", time.Second)
+				client.Transport.(versioned).base.TLSClientConfig.RootCAs = origin.Client().Transport.(*http.Transport).TLSClientConfig.RootCAs
+				for _, path := range []string{"/start", "/cross-origin"} {
+					req, _ := http.NewRequest(http.MethodGet, origin.URL+path, nil)
+					if authenticated {
+						req.Header.Set("Authorization", "Bearer secret")
+					}
+					resp, err := client.Do(req)
+					if resp != nil {
+						resp.Body.Close()
+					}
+					blocked := path == "/cross-origin" && (downgrade || authenticated)
+					if blocked && (err == nil || !strings.Contains(err.Error(), "refusing")) {
+						t.Fatalf("redirect must be refused: %v", err)
+					}
+					if !blocked && err != nil {
+						t.Fatal(err)
+					}
+					if blocked && called {
+						t.Fatal("redirect target received the request")
+					}
+				}
+			}
+		})
 	}
 }
 

@@ -39,7 +39,7 @@ func TestThisDeviceIDIsStableAndCaseBlind(t *testing.T) {
 
 func TestCheckInSendsTheDeviceAndUUID(t *testing.T) {
 	seen, done := fakeServer(t, 200, `{"name":"egor","uuid":"`+testUUID+`","expires":"2030-01-01","devices_limit":2,
-		"devices":[{"id":"abc12345","name":"Mac","os":"macOS 15","current":true}],"current_device":{"id":"abc12345","bound":true}}`)
+		"devices":[{"id":"abc12345","name":"Mac","os":"macOS 15","current":true,"source":"sub"}],"current_device":{"id":"abc12345","bound":true}}`)
 	defer done()
 	profile, err := CheckIn(context.Background(), " "+testUUID+" ", true)
 	if err != nil {
@@ -47,6 +47,9 @@ func TestCheckInSendsTheDeviceAndUUID(t *testing.T) {
 	}
 	if profile.Name != "egor" || *profile.DevicesLimit != 2 || *profile.Expires != "2030-01-01" || !profile.CurrentDevice.Bound {
 		t.Fatalf("profile %+v", profile)
+	}
+	if profile.Devices[0].Source != "sub" {
+		t.Fatal("subscription device source was lost")
 	}
 	r := (*seen)[0]
 	if r.Method != http.MethodPost || r.URL.Path != "/account/v1/devices/current" {
@@ -100,7 +103,7 @@ func TestOutdatedShowsTheServerMessage(t *testing.T) {
 // account service missing included, must not keep the user offline.
 func TestGate(t *testing.T) {
 	for status, body := range map[int]string{
-		200: `{"name":"egor"}`, 401: `{}`, 404: `nope`, 500: `oops`,
+		200: `{"name":"egor"}`, 404: `nope`, 500: `oops`,
 	} {
 		_, done := fakeServer(t, status, body)
 		err := Gate(context.Background(), testUUID, nil)
@@ -116,6 +119,14 @@ func TestGate(t *testing.T) {
 	}
 	if !strings.Contains(ErrLimit.Error(), "Личный кабинет") {
 		t.Fatal("the refusal must tell the user where to go")
+	}
+}
+
+func TestGateRejectsUnknownOrExpiredUUID(t *testing.T) {
+	_, done := fakeServer(t, 401, `{"error":"unauthorized"}`)
+	defer done()
+	if err := Gate(context.Background(), testUUID, nil); !errors.Is(err, ErrUnknownUUID) {
+		t.Fatalf("authentication refusal was ignored: %v", err)
 	}
 }
 

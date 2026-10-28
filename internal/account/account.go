@@ -36,6 +36,7 @@ type Device struct {
 	BoundAt  string `json:"bound_at"`
 	LastSeen string `json:"last_seen"`
 	Current  bool   `json:"current"`
+	Source   string `json:"source,omitempty"`
 }
 
 // Profile is what the account screen shows. Expires and DevicesLimit are nil
@@ -126,7 +127,8 @@ func Unbind(ctx context.Context, uuid, deviceID string) (*Profile, error) {
 
 // Gate is the check before a connect. It returns ErrLimit or ErrUnbound when
 // the server refuses this device, ErrOutdated when it refuses this client
-// version, and nil for anything else: no network, a
+// version, ErrUnknownUUID for an explicit authentication refusal, and nil for
+// availability failures: no network, a
 // server without the account service, a slow answer. The tunnel is never
 // held back by the account service being away.
 func Gate(ctx context.Context, uuid string, logf func(string)) error {
@@ -136,7 +138,7 @@ func Gate(ctx context.Context, uuid string, logf func(string)) error {
 	switch {
 	case err == nil:
 		return nil
-	case errors.Is(err, ErrLimit), errors.Is(err, ErrUnbound), errors.Is(err, ErrOutdated):
+	case errors.Is(err, ErrLimit), errors.Is(err, ErrUnbound), errors.Is(err, ErrOutdated), errors.Is(err, ErrUnknownUUID):
 		return err
 	default:
 		if logf != nil {

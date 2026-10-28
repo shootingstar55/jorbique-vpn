@@ -20,6 +20,7 @@ import (
 	"github.com/sagernet/sing-box/experimental/libbox"
 
 	"jorbiquevpn/internal/account"
+	"jorbiquevpn/internal/clientupdate"
 	"jorbiquevpn/internal/config"
 	"jorbiquevpn/internal/constants"
 	"jorbiquevpn/internal/ipinfo"
@@ -177,6 +178,10 @@ func dispatch(method string, args []json.RawMessage) (any, error) {
 	case "ClearLogs":
 		logging.ClearAll(dataDir)
 		return nil, nil
+	case "CheckClientUpdate":
+		return clientupdate.Check(context.Background())
+	case "DownloadClientUpdate":
+		return clientupdate.DownloadLatest(context.Background())
 	case "GetAccount":
 		return account.Open(context.Background(), store.GetUserUUID())
 	case "BindThisDevice":

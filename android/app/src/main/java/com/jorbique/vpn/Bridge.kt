@@ -56,6 +56,10 @@ class Bridge(private val activity: MainActivity, private val webView: WebView) {
             TunnelService.start(activity).get()
             ""
         }
+        "InstallClientUpdate" -> {
+            installClientUpdate(activity)
+            ""
+        }
         "Disconnect" -> {
             TunnelService.stop(activity)
             ""
@@ -108,10 +112,10 @@ class Bridge(private val activity: MainActivity, private val webView: WebView) {
             "GetDirectDomains", "SetDirectDomains",
             "GetIgnoredProcessNames", "GetIgnoredProcessPaths", "SetIgnoredProcessNamesAndPaths",
             "ListLogFiles", "GetLogContent", "ClearLogs",
-            "GetAccount", "BindThisDevice", "UnbindDevice",
+            "GetAccount", "BindThisDevice", "UnbindDevice", "CheckClientUpdate",
         )
         private val ANDROID_METHODS = listOf(
-            "Connect", "Disconnect", "IsAutostartSupported", "ListActiveApps", "TakePendingImportUUID",
+            "Connect", "Disconnect", "InstallClientUpdate", "IsAutostartSupported", "ListActiveApps", "TakePendingImportUUID",
         )
 
         private fun message(e: Throwable): String {
